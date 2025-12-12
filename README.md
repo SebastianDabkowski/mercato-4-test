@@ -37,13 +37,15 @@ Key architectural principles:
 - Cloud deployment with scalability and security in mind.
 - Readiness for future integrations.
 
+See [architecture.md](./architecture.md) for detailed system structure and diagrams.
+
 ## Security and Compliance
 The platform is designed to be GDPR-compliant. Mercato acts as the central data controller. Sellers receive access only to data required to fulfill orders. Security, access control, auditability, and secure payment handling are treated as first-class concerns.
 
 ## Documentation Approach
 The project uses structured documentation:
 - PRD for product requirements.
-- ADRs for architectural decisions.
+- ADRs for architectural decisions (see [adr/](./adr/)).
 - Epics and user stories defined in structured JSON.
 This ensures traceability from business goals to implementation.
 
