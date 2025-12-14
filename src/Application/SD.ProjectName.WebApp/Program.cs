@@ -16,19 +16,15 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 }
 
-var sqlConnectionStringBuilder = new DbConnectionStringBuilder { ConnectionString = connectionString };
-var dataSource = sqlConnectionStringBuilder.TryGetValue("Data Source", out var dataSourceValue)
-    ? dataSourceValue?.ToString()
-    : sqlConnectionStringBuilder.TryGetValue("Server", out var serverValue)
-        ? serverValue?.ToString()
-        : string.Empty;
-var useSqlite = !OperatingSystem.IsWindows() && dataSource?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true;
+const string defaultSqliteConnectionString = "Data Source=./SDProjectName.db";
+var dataSource = GetSqlServerDataSource(connectionString);
+var useSqlite = !OperatingSystem.IsWindows() && IsLocalDbDataSource(dataSource);
 
 if (useSqlite)
 {
     var configuredSqliteConnectionString = builder.Configuration.GetConnectionString("SqliteConnection");
     var sqliteConnectionString = string.IsNullOrWhiteSpace(configuredSqliteConnectionString)
-        ? $"Data Source=./{builder.Environment.ApplicationName}.db"
+        ? defaultSqliteConnectionString
         : configuredSqliteConnectionString;
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlite(sqliteConnectionString));
@@ -98,3 +94,23 @@ app.MapRazorPages()
    .WithStaticAssets();
 
 app.Run();
+
+static string? GetSqlServerDataSource(string connectionString)
+{
+    var sqlConnectionStringBuilder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+    if (sqlConnectionStringBuilder.TryGetValue("Data Source", out var dataSourceValue))
+    {
+        return dataSourceValue?.ToString();
+    }
+
+    if (sqlConnectionStringBuilder.TryGetValue("Server", out var serverValue))
+    {
+        return serverValue?.ToString();
+    }
+
+    return null;
+}
+
+static bool IsLocalDbDataSource(string? dataSource) =>
+    dataSource?.IndexOf("(localdb)", StringComparison.OrdinalIgnoreCase) >= 0 ||
+    dataSource?.IndexOf("mssqllocaldb", StringComparison.OrdinalIgnoreCase) >= 0;
