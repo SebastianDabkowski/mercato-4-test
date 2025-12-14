@@ -1,7 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SD.ProjectName.WebApp.Data;
-using System.Reflection;
 
 namespace SD.ProjectName.Tests.Products;
 

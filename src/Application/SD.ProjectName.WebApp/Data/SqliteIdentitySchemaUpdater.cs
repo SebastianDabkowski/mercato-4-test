@@ -22,24 +22,53 @@ public static class SqliteIdentitySchemaUpdater
             }
         }
 
-        void AddColumnIfMissing(string name, string definition)
+        if (!existingColumns.Contains("AccountStatus"))
         {
-            if (existingColumns.Contains(name))
-            {
-                return;
-            }
-
             using var alter = connection.CreateCommand();
-            alter.CommandText = $@"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""{name}"" {definition};";
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""AccountStatus"" TEXT NOT NULL DEFAULT 'Unverified';";
             alter.ExecuteNonQuery();
         }
 
-        AddColumnIfMissing("AccountStatus", "TEXT NOT NULL DEFAULT 'Unverified'");
-        AddColumnIfMissing("AccountType", "TEXT NOT NULL DEFAULT 'Buyer'");
-        AddColumnIfMissing("CompanyName", "TEXT NULL");
-        AddColumnIfMissing("FirstName", "TEXT NOT NULL DEFAULT ''");
-        AddColumnIfMissing("LastName", "TEXT NOT NULL DEFAULT ''");
-        AddColumnIfMissing("TaxId", "TEXT NULL");
-        AddColumnIfMissing("TermsAcceptedAt", "TEXT NOT NULL DEFAULT '2025-12-14 00:00:00+00:00'");
+        if (!existingColumns.Contains("AccountType"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""AccountType"" TEXT NOT NULL DEFAULT 'Buyer';";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("CompanyName"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""CompanyName"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("FirstName"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""FirstName"" TEXT NOT NULL DEFAULT '';";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("LastName"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""LastName"" TEXT NOT NULL DEFAULT '';";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("TaxId"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TaxId"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("TermsAcceptedAt"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TermsAcceptedAt"" TEXT NOT NULL DEFAULT (datetime('now'));";
+            alter.ExecuteNonQuery();
+        }
     }
 }
