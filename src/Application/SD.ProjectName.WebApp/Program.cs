@@ -16,16 +16,18 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 }
 
-const string defaultSqliteConnectionString = "Data Source=./SDProjectName.db";
-var dataSource = GetSqlServerDataSource(connectionString);
+var dataSource = GetDataSourceFromConnectionString(connectionString);
 var useSqlite = !OperatingSystem.IsWindows() && IsLocalDbDataSource(dataSource);
 
 if (useSqlite)
 {
     var configuredSqliteConnectionString = builder.Configuration.GetConnectionString("SqliteConnection");
-    var sqliteConnectionString = string.IsNullOrWhiteSpace(configuredSqliteConnectionString)
-        ? defaultSqliteConnectionString
-        : configuredSqliteConnectionString;
+    if (string.IsNullOrWhiteSpace(configuredSqliteConnectionString))
+    {
+        throw new InvalidOperationException("Connection string 'SqliteConnection' not found.");
+    }
+
+    var sqliteConnectionString = configuredSqliteConnectionString;
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlite(sqliteConnectionString));
     builder.Services.AddDbContext<ProductDbContext>(options =>
@@ -95,7 +97,7 @@ app.MapRazorPages()
 
 app.Run();
 
-static string? GetSqlServerDataSource(string connectionString)
+static string? GetDataSourceFromConnectionString(string connectionString)
 {
     var sqlConnectionStringBuilder = new DbConnectionStringBuilder { ConnectionString = connectionString };
     if (sqlConnectionStringBuilder.TryGetValue("Data Source", out var dataSourceValue))
@@ -112,5 +114,5 @@ static string? GetSqlServerDataSource(string connectionString)
 }
 
 static bool IsLocalDbDataSource(string? dataSource) =>
-    dataSource?.IndexOf("(localdb)", StringComparison.OrdinalIgnoreCase) >= 0 ||
-    dataSource?.IndexOf("mssqllocaldb", StringComparison.OrdinalIgnoreCase) >= 0;
+    dataSource?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true ||
+    dataSource?.Contains("mssqllocaldb", StringComparison.OrdinalIgnoreCase) == true;
