@@ -27,11 +27,10 @@ if (useSqlite)
         throw new InvalidOperationException("Connection string 'SqliteConnection' not found.");
     }
 
-    var sqliteConnectionString = configuredSqliteConnectionString;
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlite(sqliteConnectionString));
+        options.UseSqlite(configuredSqliteConnectionString));
     builder.Services.AddDbContext<ProductDbContext>(options =>
-        options.UseSqlite(sqliteConnectionString));
+        options.UseSqlite(configuredSqliteConnectionString));
 }
 else
 {
