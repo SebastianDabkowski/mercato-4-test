@@ -59,24 +59,10 @@ using (var scope = app.Services.CreateScope())
     {
         // Migrate ApplicationDbContext
         var applicationDbContext = services.GetRequiredService<ApplicationDbContext>();
-        if (useSqlite)
-        {
-            applicationDbContext.Database.EnsureCreated();
-        }
-        else
-        {
-            applicationDbContext.Database.Migrate();
-        }
+        InitializeDatabase(applicationDbContext, useSqlite);
         // Migrate ProductDbContext (Module: Products)
         var productDbContext = services.GetRequiredService<ProductDbContext>();
-        if (useSqlite)
-        {
-            productDbContext.Database.EnsureCreated();
-        }
-        else
-        {
-            productDbContext.Database.Migrate();
-        }
+        InitializeDatabase(productDbContext, useSqlite);
     }
     catch (Exception ex)
     {
@@ -129,3 +115,15 @@ static string? GetDataSourceFromConnectionString(string connectionString)
 static bool IsLocalDbDataSource(string? dataSource) =>
     dataSource?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true ||
     dataSource?.Contains("mssqllocaldb", StringComparison.OrdinalIgnoreCase) == true;
+
+static void InitializeDatabase(DbContext context, bool useSqlite)
+{
+    if (useSqlite)
+    {
+        context.Database.EnsureCreated();
+    }
+    else
+    {
+        context.Database.Migrate();
+    }
+}
