@@ -1,0 +1,88 @@
+﻿@page
+@model SD.ProjectName.WebApp.Areas.Identity.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Create account";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h1 class="mb-3">Create your marketplace account</h1>
+        <p class="text-muted">Choose whether you want to register as a buyer or seller and provide the required details.</p>
+        <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <fieldset class="mb-3">
+                <legend class="fs-5">Account type</legend>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" asp-for="Input.AccountType" value="Buyer" data-testid="account-type-buyer" id="accountTypeBuyer" />
+                    <label class="form-check-label" for="accountTypeBuyer">Buyer</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" asp-for="Input.AccountType" value="Seller" data-testid="account-type-seller" id="accountTypeSeller" />
+                    <label class="form-check-label" for="accountTypeSeller">Seller</label>
+                </div>
+                <span asp-validation-for="Input.AccountType" class="text-danger"></span>
+            </fieldset>
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label asp-for="Input.FirstName" class="form-label"></label>
+                    <input asp-for="Input.FirstName" class="form-control" autocomplete="given-name" data-testid="first-name" />
+                    <span asp-validation-for="Input.FirstName" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.LastName" class="form-label"></label>
+                    <input asp-for="Input.LastName" class="form-control" autocomplete="family-name" data-testid="last-name" />
+                    <span asp-validation-for="Input.LastName" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-0">
+                <div class="col-md-6">
+                    <label asp-for="Input.Email" class="form-label"></label>
+                    <input asp-for="Input.Email" class="form-control" autocomplete="email" data-testid="email" />
+                    <span asp-validation-for="Input.Email" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.TaxId" class="form-label">Tax ID (required for sellers)</label>
+                    <input asp-for="Input.TaxId" class="form-control" data-testid="tax-id" />
+                    <span asp-validation-for="Input.TaxId" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-0">
+                <div class="col-md-6">
+                    <label asp-for="Input.CompanyName" class="form-label">Legal / Company name (required for sellers)</label>
+                    <input asp-for="Input.CompanyName" class="form-control" data-testid="company-name" />
+                    <span asp-validation-for="Input.CompanyName" class="text-danger"></span>
+                </div>
+                <div class="col-md-6">
+                    <label asp-for="Input.Password" class="form-label"></label>
+                    <input asp-for="Input.Password" class="form-control" autocomplete="new-password" data-testid="password" />
+                    <span asp-validation-for="Input.Password" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row g-3 mt-0">
+                <div class="col-md-6">
+                    <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+                    <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" data-testid="confirm-password" />
+                    <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="form-check my-3">
+                <input class="form-check-input" asp-for="Input.AcceptTerms" data-testid="accept-terms" />
+                <label class="form-check-label" asp-for="Input.AcceptTerms"></label>
+                <span asp-validation-for="Input.AcceptTerms" class="text-danger"></span>
+            </div>
+
+            <p class="text-muted small mb-2">Your account will remain unverified until you confirm your email. Verification is required before full access is granted.</p>
+
+            <button id="registerSubmit" type="submit" class="btn btn-primary" data-testid="submit-registration">Create account</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

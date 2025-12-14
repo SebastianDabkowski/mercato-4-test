@@ -1,0 +1,15 @@
+﻿@page
+@model SD.ProjectName.WebApp.Areas.Identity.Pages.Account.RegisterConfirmationModel
+@{
+    ViewData["Title"] = "Verify your email";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <h1 class="mb-3">Verify your email</h1>
+        <p data-testid="verification-message">
+            We created your @((Model.AccountType?.ToString() ?? "buyer").ToLower()) account in an <strong>unverified</strong> status. We sent a verification link to <strong>@Model.Email</strong>.
+        </p>
+        <p>Please confirm your email to unlock full access to marketplace features. If you do not see the message, check your spam folder.</p>
+    </div>
+</div>

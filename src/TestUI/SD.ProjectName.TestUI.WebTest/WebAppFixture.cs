@@ -1,0 +1,90 @@
+using System.Diagnostics;
+using System.Net;
+using System.Net.Http;
+using Microsoft.Playwright;
+using Xunit;
+
+namespace SD.ProjectName.TestUI.WebTest
+{
+    [CollectionDefinition("playwright-webapp", DisableParallelization = true)]
+    public class PlaywrightWebAppCollection : ICollectionFixture<WebAppFixture>
+    {
+    }
+
+    public class WebAppFixture : IAsyncLifetime
+    {
+        private readonly string _baseUrl = "http://localhost:5055";
+        private readonly string _databasePath = Path.Combine(Path.GetTempPath(), "identity-tests.db");
+        private Process? _process;
+
+        public string BaseUrl => _baseUrl;
+
+        public async Task InitializeAsync()
+        {
+            Microsoft.Playwright.Program.Main(new[] { "install", "chromium" });
+
+            if (File.Exists(_databasePath))
+            {
+                File.Delete(_databasePath);
+            }
+
+            var projectPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../Application/SD.ProjectName.WebApp"));
+            var startInfo = new ProcessStartInfo("dotnet", $"run --no-build --urls {_baseUrl}")
+            {
+                WorkingDirectory = projectPath,
+                RedirectStandardError = true,
+                RedirectStandardOutput = true,
+                UseShellExecute = false
+            };
+            startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
+            startInfo.Environment["DisableHttpsRedirection"] = "true";
+            startInfo.Environment["DisableMigrations"] = "true";
+            startInfo.Environment["ConnectionStrings__SqliteConnection"] = $"Data Source={_databasePath}";
+
+            _process = Process.Start(startInfo);
+
+            await WaitForReady();
+        }
+
+        public async Task DisposeAsync()
+        {
+            if (_process != null && !_process.HasExited)
+            {
+                _process.Kill(true);
+                await _process.WaitForExitAsync();
+            }
+        }
+
+        private async Task WaitForReady()
+        {
+            using var client = new HttpClient();
+            var start = DateTime.UtcNow;
+
+            while (DateTime.UtcNow - start < TimeSpan.FromSeconds(60))
+            {
+                if (_process?.HasExited == true)
+                {
+                    var errors = await _process.StandardError.ReadToEndAsync();
+                    throw new InvalidOperationException($"Application exited early. Errors: {errors}");
+                }
+
+                try
+                {
+                    var response = await client.GetAsync($"{_baseUrl}/");
+                    if (response.StatusCode is HttpStatusCode.OK or HttpStatusCode.Redirect)
+                    {
+                        return;
+                    }
+                }
+                catch
+                {
+                    // ignored until server is ready
+                }
+
+                await Task.Delay(500);
+            }
+
+            throw new TimeoutException("Web application did not start in time for Playwright tests.");
+        }
+    }
+}

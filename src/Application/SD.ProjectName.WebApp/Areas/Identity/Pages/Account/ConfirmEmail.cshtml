@@ -1,0 +1,14 @@
+﻿@page
+@model SD.ProjectName.WebApp.Areas.Identity.Pages.Account.ConfirmEmailModel
+@{
+    ViewData["Title"] = "Email confirmation";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <h1 class="mb-3">Email confirmation</h1>
+        <div class="alert alert-info" role="status" data-testid="confirmation-status">
+            @Model.StatusMessage
+        </div>
+    </div>
+</div>

@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
 using SD.ProjectName.Modules.Products.Infrastructure;
 using SD.ProjectName.WebApp.Data;
+using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Services;
 using System.Data.Common;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,17 +19,15 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 }
 
+var sqliteConnectionString = builder.Configuration.GetConnectionString("SqliteConnection") ?? "Data Source=./SDProjectName.db";
 var dataSource = GetDataSourceFromConnectionString(connectionString);
-var useSqlite = !OperatingSystem.IsWindows() && IsLocalDbDataSource(dataSource);
+var useSqlite = !OperatingSystem.IsWindows();
+var disableHttpsRedirection = builder.Configuration.GetValue<bool>("DisableHttpsRedirection");
+var disableMigrations = builder.Configuration.GetValue<bool>("DisableMigrations");
 
 if (useSqlite)
 {
-    var configuredSqliteConnectionString = builder.Configuration.GetConnectionString("SqliteConnection");
-    if (string.IsNullOrWhiteSpace(configuredSqliteConnectionString))
-    {
-        throw new InvalidOperationException("Connection string 'SqliteConnection' not found.");
-    }
-
+    var configuredSqliteConnectionString = sqliteConnectionString;
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlite(configuredSqliteConnectionString));
     builder.Services.AddDbContext<ProductDbContext>(options =>
@@ -41,8 +42,24 @@ else
 }
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
-    .AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = true;
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 12;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Password.RequiredUniqueChars = 4;
+    })
+    .AddRoles<IdentityRole>()
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders()
+    .AddDefaultUI()
+    .AddPasswordValidator<CommonPasswordValidator>();
+
+builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<GetProducts>();
@@ -59,10 +76,11 @@ using (var scope = app.Services.CreateScope())
     {
         // Migrate ApplicationDbContext
         var applicationDbContext = services.GetRequiredService<ApplicationDbContext>();
-        InitializeDatabase(applicationDbContext, useSqlite);
+        InitializeDatabase(applicationDbContext, useSqlite, disableMigrations);
         // Migrate ProductDbContext (Module: Products)
         var productDbContext = services.GetRequiredService<ProductDbContext>();
-        InitializeDatabase(productDbContext, useSqlite);
+        InitializeDatabase(productDbContext, useSqlite, disableMigrations);
+        await EnsureRolesAsync(services);
     }
     catch (Exception ex)
     {
@@ -84,7 +102,10 @@ else
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+if (!disableHttpsRedirection)
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseRouting();
 app.UseAuthentication();
@@ -94,7 +115,7 @@ app.MapStaticAssets();
 app.MapRazorPages()
    .WithStaticAssets();
 
-app.Run();
+await app.RunAsync();
 
 static string? GetDataSourceFromConnectionString(string connectionString)
 {
@@ -116,14 +137,25 @@ static bool IsLocalDbDataSource(string? dataSource) =>
     dataSource?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true ||
     dataSource?.Contains("mssqllocaldb", StringComparison.OrdinalIgnoreCase) == true;
 
-static void InitializeDatabase(DbContext context, bool useSqlite)
+static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMigrations)
 {
-    if (useSqlite)
+    if (disableMigrations || useSqlite)
     {
         context.Database.EnsureCreated();
+        return;
     }
-    else
+
+    context.Database.Migrate();
+}
+
+static async Task EnsureRolesAsync(IServiceProvider services)
+{
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
+    foreach (var roleName in IdentityRoles.All)
     {
-        context.Database.Migrate();
+        if (!await roleManager.RoleExistsAsync(roleName))
+        {
+            await roleManager.CreateAsync(new IdentityRole(roleName));
+        }
     }
 }
