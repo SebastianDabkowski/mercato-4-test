@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
@@ -8,7 +10,9 @@ using SD.ProjectName.Modules.Products.Infrastructure;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
 using SD.ProjectName.WebApp.Services;
+using SD.ProjectName.WebApp;
 using System.Data.Common;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +28,16 @@ var dataSource = GetDataSourceFromConnectionString(connectionString);
 var useSqlite = !OperatingSystem.IsWindows();
 var disableHttpsRedirection = builder.Configuration.GetValue<bool>("DisableHttpsRedirection");
 var disableMigrations = builder.Configuration.GetValue<bool>("DisableMigrations");
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("login", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 5;
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueLimit = 0;
+    });
+});
 
 if (useSqlite)
 {
@@ -52,6 +66,9 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         options.Password.RequireUppercase = true;
         options.Password.RequireNonAlphanumeric = true;
         options.Password.RequiredUniqueChars = 4;
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(10);
     })
     .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -60,6 +77,12 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     .AddPasswordValidator<CommonPasswordValidator>();
 
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.ExpireTimeSpan = TimeSpan.FromHours(12);
+    options.SlidingExpiration = true;
+});
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<GetProducts>();
@@ -108,12 +131,65 @@ if (!disableHttpsRedirection)
 }
 
 app.UseRouting();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapStaticAssets();
 app.MapRazorPages()
    .WithStaticAssets();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/_test/create-account", async ([FromBody] TestAccountRequest request, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager) =>
+    {
+        var existing = await userManager.FindByEmailAsync(request.Email);
+        if (existing is not null)
+        {
+            return Results.Ok(existing.Id);
+        }
+
+        var user = new ApplicationUser
+        {
+            AccountType = request.AccountType,
+            AccountStatus = request.EmailConfirmed ? AccountStatus.Verified : AccountStatus.Unverified,
+            Email = request.Email,
+            UserName = request.Email,
+            FirstName = request.AccountType == AccountType.Seller ? "Seller" : "Buyer",
+            LastName = "Test",
+            TermsAcceptedAt = DateTimeOffset.UtcNow,
+            EmailConfirmed = request.EmailConfirmed,
+            SecurityStamp = Guid.NewGuid().ToString(),
+            ConcurrencyStamp = Guid.NewGuid().ToString()
+        };
+
+        var createResult = await userManager.CreateAsync(user, request.Password);
+        if (!createResult.Succeeded)
+        {
+            return Results.BadRequest(createResult.Errors.Select(e => e.Description));
+        }
+
+        var role = request.AccountType == AccountType.Seller ? IdentityRoles.Seller : IdentityRoles.Buyer;
+        if (!await roleManager.RoleExistsAsync(role))
+        {
+            await roleManager.CreateAsync(new IdentityRole(role));
+        }
+
+        var addToRoleResult = await userManager.AddToRoleAsync(user, role);
+        if (!addToRoleResult.Succeeded)
+        {
+            return Results.BadRequest(addToRoleResult.Errors.Select(e => e.Description));
+        }
+
+        if (request.EmailConfirmed && user.AccountStatus != AccountStatus.Verified)
+        {
+            user.AccountStatus = AccountStatus.Verified;
+            await userManager.UpdateAsync(user);
+        }
+
+        return Results.Ok(user.Id);
+    });
+}
 
 await app.RunAsync();
 
