@@ -52,25 +52,25 @@ builder.Services.AddRazorPages();
 var app = builder.Build();
 
 // Apply migrations on startup for all modules
-//using (var scope = app.Services.CreateScope())
-//{
-//    var services = scope.ServiceProvider;
-//    try
-//    {
-//        // Migrate ApplicationDbContext
-//        var applicationDbContext = services.GetRequiredService<ApplicationDbContext>();
-//        applicationDbContext.Database.Migrate();
-//        // Migrate ProductDbContext (Module: Products)
-//        var productDbContext = services.GetRequiredService<ProductDbContext>();
-//        productDbContext.Database.Migrate();
-//    }
-//    catch (Exception ex)
-//    {
-//        var logger = services.GetRequiredService<ILogger<Program>>();
-//        logger.LogError(ex, "An error occurred while migrating the database.");
-//        throw;
-//    }
-//}
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        // Migrate ApplicationDbContext
+        var applicationDbContext = services.GetRequiredService<ApplicationDbContext>();
+        applicationDbContext.Database.Migrate();
+        // Migrate ProductDbContext (Module: Products)
+        var productDbContext = services.GetRequiredService<ProductDbContext>();
+        productDbContext.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "An error occurred while migrating the database.");
+        throw;
+    }
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
