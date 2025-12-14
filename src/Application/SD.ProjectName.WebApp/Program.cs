@@ -5,6 +5,7 @@ using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
 using SD.ProjectName.Modules.Products.Infrastructure;
 using SD.ProjectName.WebApp.Data;
+using System.Data.Common;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,13 +16,20 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 }
 
-const string defaultSqliteConnectionString = "Data Source=./SDProjectName.db";
-var useSqlite = !OperatingSystem.IsWindows() && connectionString.StartsWith("Server=(localdb)\\", StringComparison.OrdinalIgnoreCase);
+var sqlConnectionStringBuilder = new DbConnectionStringBuilder { ConnectionString = connectionString };
+var dataSource = sqlConnectionStringBuilder.TryGetValue("Data Source", out var dataSourceValue)
+    ? dataSourceValue?.ToString()
+    : sqlConnectionStringBuilder.TryGetValue("Server", out var serverValue)
+        ? serverValue?.ToString()
+        : string.Empty;
+var useSqlite = !OperatingSystem.IsWindows() && dataSource?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true;
 
 if (useSqlite)
 {
-    var sqliteConnection = builder.Configuration.GetConnectionString("SqliteConnection");
-    var sqliteConnectionString = string.IsNullOrWhiteSpace(sqliteConnection) ? defaultSqliteConnectionString : sqliteConnection;
+    var configuredSqliteConnectionString = builder.Configuration.GetConnectionString("SqliteConnection");
+    var sqliteConnectionString = string.IsNullOrWhiteSpace(configuredSqliteConnectionString)
+        ? $"Data Source=./{builder.Environment.ApplicationName}.db"
+        : configuredSqliteConnectionString;
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlite(sqliteConnectionString));
     builder.Services.AddDbContext<ProductDbContext>(options =>
