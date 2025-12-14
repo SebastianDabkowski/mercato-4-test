@@ -15,9 +15,17 @@ namespace SD.ProjectName.TestUI.WebTest
     {
         private readonly string _baseUrl = "http://localhost:5055";
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), "identity-tests.db");
+        private readonly string _connectionString;
         private Process? _process;
 
+        public WebAppFixture()
+        {
+            _connectionString = $"Data Source={_databasePath};Cache=Shared";
+        }
+
         public string BaseUrl => _baseUrl;
+        public string DatabasePath => _databasePath;
+        public string ConnectionString => _connectionString;
 
         public async Task InitializeAsync()
         {
@@ -39,9 +47,28 @@ namespace SD.ProjectName.TestUI.WebTest
             startInfo.Environment["ASPNETCORE_ENVIRONMENT"] = "Development";
             startInfo.Environment["DisableHttpsRedirection"] = "true";
             startInfo.Environment["DisableMigrations"] = "true";
-            startInfo.Environment["ConnectionStrings__SqliteConnection"] = $"Data Source={_databasePath}";
+            startInfo.Environment["ConnectionStrings__SqliteConnection"] = _connectionString;
 
             _process = Process.Start(startInfo);
+            if (_process != null)
+            {
+                _process.OutputDataReceived += (_, e) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(e.Data))
+                    {
+                        Console.WriteLine($"[webapp-out] {e.Data}");
+                    }
+                };
+                _process.ErrorDataReceived += (_, e) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(e.Data))
+                    {
+                        Console.WriteLine($"[webapp-err] {e.Data}");
+                    }
+                };
+                _process.BeginOutputReadLine();
+                _process.BeginErrorReadLine();
+            }
 
             await WaitForReady();
         }
