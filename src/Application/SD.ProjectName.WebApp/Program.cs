@@ -9,17 +9,35 @@ using SD.ProjectName.WebApp.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+}
+
+var sqliteConnection = builder.Configuration.GetConnectionString("SqliteConnection");
+var useSqlite = !OperatingSystem.IsWindows() && connectionString.Contains("(localdb)", StringComparison.OrdinalIgnoreCase);
+
+if (useSqlite)
+{
+    var sqlite = string.IsNullOrWhiteSpace(sqliteConnection) ? "Data Source=./SDProjectName.db" : sqliteConnection;
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlite(sqlite));
+    builder.Services.AddDbContext<ProductDbContext>(options =>
+        options.UseSqlite(sqlite));
+}
+else
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlServer(connectionString));
+    builder.Services.AddDbContext<ProductDbContext>(options =>
+        options.UseSqlServer(connectionString));
+}
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
     .AddEntityFrameworkStores<ApplicationDbContext>();
 
-// init module Products
-builder.Services.AddDbContext<ProductDbContext>(options =>
-    options.UseSqlServer(connectionString));
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<GetProducts>();
 
