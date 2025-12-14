@@ -22,6 +22,18 @@ public static class SqliteIdentitySchemaUpdater
             }
         }
 
+        const string defaultAccountStatus = "Unverified";
+        const string defaultAccountType = "Buyer";
+
+        var statusName = Enum.GetName(typeof(AccountStatus), AccountStatus.Unverified) ?? defaultAccountStatus;
+        var typeName = Enum.GetName(typeof(AccountType), AccountType.Buyer) ?? defaultAccountType;
+
+        if (!string.Equals(statusName, defaultAccountStatus, StringComparison.Ordinal) ||
+            !string.Equals(typeName, defaultAccountType, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Default identity column values changed; update SqliteIdentitySchemaUpdater defaults.");
+        }
+
         if (!existingColumns.Contains("AccountStatus"))
         {
             using var alter = connection.CreateCommand();
@@ -67,7 +79,7 @@ public static class SqliteIdentitySchemaUpdater
         if (!existingColumns.Contains("TermsAcceptedAt"))
         {
             using var alter = connection.CreateCommand();
-            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TermsAcceptedAt"" TEXT NOT NULL DEFAULT (datetime('now'));";
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TermsAcceptedAt"" TEXT NOT NULL DEFAULT '2025-12-14 00:00:00+00:00';";
             alter.ExecuteNonQuery();
         }
     }
