@@ -15,23 +15,24 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 }
 
-var sqliteConnection = builder.Configuration.GetConnectionString("SqliteConnection");
-var useSqlite = !OperatingSystem.IsWindows() && connectionString.Contains("(localdb)", StringComparison.OrdinalIgnoreCase);
+const string sqliteDefault = "Data Source=./SDProjectName.db";
+var useSqlite = !OperatingSystem.IsWindows() && connectionString.Contains("(localdb)\\", StringComparison.OrdinalIgnoreCase);
+
+void ConfigureDbContexts(Action<DbContextOptionsBuilder> optionsAction)
+{
+    builder.Services.AddDbContext<ApplicationDbContext>(optionsAction);
+    builder.Services.AddDbContext<ProductDbContext>(optionsAction);
+}
 
 if (useSqlite)
 {
-    var sqlite = string.IsNullOrWhiteSpace(sqliteConnection) ? "Data Source=./SDProjectName.db" : sqliteConnection;
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlite(sqlite));
-    builder.Services.AddDbContext<ProductDbContext>(options =>
-        options.UseSqlite(sqlite));
+    var sqliteConnection = builder.Configuration.GetConnectionString("SqliteConnection");
+    var sqlite = string.IsNullOrWhiteSpace(sqliteConnection) ? sqliteDefault : sqliteConnection;
+    ConfigureDbContexts(options => options.UseSqlite(sqlite));
 }
 else
 {
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(connectionString));
-    builder.Services.AddDbContext<ProductDbContext>(options =>
-        options.UseSqlServer(connectionString));
+    ConfigureDbContexts(options => options.UseSqlServer(connectionString));
 }
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
