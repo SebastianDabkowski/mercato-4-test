@@ -59,10 +59,24 @@ using (var scope = app.Services.CreateScope())
     {
         // Migrate ApplicationDbContext
         var applicationDbContext = services.GetRequiredService<ApplicationDbContext>();
-        applicationDbContext.Database.Migrate();
+        if (useSqlite)
+        {
+            applicationDbContext.Database.EnsureCreated();
+        }
+        else
+        {
+            applicationDbContext.Database.Migrate();
+        }
         // Migrate ProductDbContext (Module: Products)
         var productDbContext = services.GetRequiredService<ProductDbContext>();
-        productDbContext.Database.Migrate();
+        if (useSqlite)
+        {
+            productDbContext.Database.EnsureCreated();
+        }
+        else
+        {
+            productDbContext.Database.Migrate();
+        }
     }
     catch (Exception ex)
     {
