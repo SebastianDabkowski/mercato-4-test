@@ -6,9 +6,9 @@ These instructions govern all usage of GitHub Copilot and Copilot Agents in this
 Mercato is a multi-vendor marketplace platform built as a modular monolith using ASP.NET Core. The system connects buyers and sellers in a unified web platform with escrow payments, commission calculation, and order management.
 
 ### Technology Stack
-- **Framework:** ASP.NET Core 9.x (C#)
+- **Framework:** ASP.NET Core 9.0 (C#)
 - **Architecture:** Modular Monolith with clear bounded contexts
-- **Database:** Relational DB (module-owned schemas)
+- **Database:** SQL Server/SQLite (module-owned schemas)
 - **Cloud:** Azure
 - **Payment Provider:** Przelewy24
 - **Deployment:** Azure Web Apps
