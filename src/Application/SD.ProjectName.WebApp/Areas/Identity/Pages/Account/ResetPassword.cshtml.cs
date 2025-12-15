@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
@@ -87,6 +88,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             if (user is null)
             {
                 ShowInvalidLink = true;
+                await Task.Delay(TimeSpan.FromMilliseconds(50));
                 return Page();
             }
 
@@ -96,7 +98,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 await _userManager.UpdateSecurityStampAsync(user);
                 await _signInManager.SignOutAsync();
                 PasswordReset = true;
-                _logger.LogInformation("Password reset completed for {UserId}", user.Id);
+                _logger.LogInformation("Password reset completed.");
                 return Page();
             }
 
