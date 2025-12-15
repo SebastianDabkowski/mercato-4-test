@@ -64,6 +64,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             if (string.IsNullOrEmpty(decodedCode))
             {
                 ShowInvalidLink = true;
+                return Page();
             }
 
             Input = new InputModel

@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using Moq;
 using SD.ProjectName.WebApp.Areas.Identity.Pages.Account;
 using SD.ProjectName.WebApp.Data;
+using Xunit;
 
 namespace SD.ProjectName.Tests.Products
 {

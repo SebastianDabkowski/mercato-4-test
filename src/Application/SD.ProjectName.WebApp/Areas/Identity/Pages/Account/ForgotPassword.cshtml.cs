@@ -68,7 +68,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                     email,
                     "Reset your password",
                     $"Reset your password by <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>clicking here</a>. This link expires in 24 hours.");
-                _logger.LogInformation("Issued password reset link for {Email}", email);
+                _logger.LogInformation("Issued password reset link for user {UserId}", user.Id);
             }
 
             EmailSent = true;
