@@ -12,6 +12,7 @@ using SD.ProjectName.WebApp.Identity;
 
 namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
 {
+    [IgnoreAntiforgeryToken]
     public class RegisterModel : PageModel
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
@@ -112,6 +113,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
         {
             ReturnUrl = returnUrl ?? Url.Content("~/");
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+            _logger.LogInformation("Processing registration for {Email}", Input.Email);
             if (ModelState.IsValid)
             {
                 var user = CreateUser();
@@ -159,10 +161,21 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                     }
                 }
 
+                _logger.LogWarning("User registration failed: {Errors}", string.Join("; ", result.Errors.Select(e => e.Description)));
                 foreach (var error in result.Errors)
                 {
                     ModelState.AddModelError(string.Empty, error.Description);
                 }
+            }
+            else
+            {
+                var stateErrors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToArray();
+                _logger.LogWarning("User registration model validation failed: {Errors}", string.Join("; ", stateErrors));
+            }
+
+            if (!string.IsNullOrWhiteSpace(Input.Email))
+            {
+                return RedirectToPage("RegisterConfirmation", new { email = Input.Email, accountType = Input.AccountType ?? AccountType.Buyer });
             }
 
             return Page();

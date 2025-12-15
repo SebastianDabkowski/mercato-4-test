@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Text;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
@@ -41,9 +42,14 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
 
         public string? ReturnUrl { get; set; }
 
+        public IList<AuthenticationScheme> ExternalLogins { get; private set; } = new List<AuthenticationScheme>();
+
         public bool ShowEmailVerificationRequired { get; private set; }
 
         public bool VerificationEmailResent { get; private set; }
+
+        [TempData]
+        public string? ErrorMessage { get; set; }
 
         public class InputModel
         {
@@ -67,12 +73,19 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             }
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             ReturnUrl = returnUrl;
+            ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
+
+            if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                ModelState.AddModelError(string.Empty, ErrorMessage);
+            }
             return Page();
         }
 
         public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
         {
             ReturnUrl = returnUrl;
+            ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
 
             if (!ModelState.IsValid)
             {
@@ -129,6 +142,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
         public async Task<IActionResult> OnPostResendVerificationAsync(string? returnUrl = null)
         {
             ReturnUrl = returnUrl ?? Url.Content("~/");
+            ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
             if (string.IsNullOrWhiteSpace(Input.Email))
             {
                 ModelState.AddModelError(string.Empty, "Enter your email to resend verification.");

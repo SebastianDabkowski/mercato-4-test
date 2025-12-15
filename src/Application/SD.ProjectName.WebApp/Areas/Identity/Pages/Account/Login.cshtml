@@ -8,6 +8,24 @@
     <div class="col-md-6">
         <h1 class="mb-3">Sign in</h1>
         <p class="text-muted">Use your email and password to access your buyer or seller dashboard.</p>
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert" data-testid="external-error">@Model.ErrorMessage</div>
+        }
+        <div class="card mb-4" data-testid="social-login-options">
+            <div class="card-body">
+                <p class="fw-semibold mb-2">Continue with</p>
+                <form asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="d-grid gap-2">
+                    <button type="submit" class="btn btn-outline-secondary" name="provider" value="Google" data-testid="google-login">
+                        Continue with Google
+                    </button>
+                    <button type="submit" class="btn btn-outline-secondary" name="provider" value="Facebook" data-testid="facebook-login">
+                        Continue with Facebook
+                    </button>
+                </form>
+                <p class="text-muted small mb-0 mt-2">Social login is available for buyers only.</p>
+            </div>
+        </div>
         <form id="loginForm" method="post" asp-route-returnUrl="@Model.ReturnUrl">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>

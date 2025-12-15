@@ -14,7 +14,7 @@ namespace SD.ProjectName.TestUI.WebTest
     public class WebAppFixture : IAsyncLifetime
     {
         private readonly string _baseUrl = "http://localhost:5055";
-        private readonly string _databasePath = Path.Combine(Path.GetTempPath(), "identity-tests.db");
+        private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"identity-tests-{Guid.NewGuid():N}.db");
         private readonly string _connectionString;
         private Process? _process;
 
@@ -48,6 +48,7 @@ namespace SD.ProjectName.TestUI.WebTest
             startInfo.Environment["DisableHttpsRedirection"] = "true";
             startInfo.Environment["DisableMigrations"] = "true";
             startInfo.Environment["ConnectionStrings__SqliteConnection"] = _connectionString;
+            startInfo.Environment["UseFakeExternalAuth"] = "true";
 
             _process = Process.Start(startInfo);
             if (_process != null)
