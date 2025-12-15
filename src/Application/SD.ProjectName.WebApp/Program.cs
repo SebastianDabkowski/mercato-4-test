@@ -82,6 +82,11 @@ builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
     options.TokenLifespan = TimeSpan.FromHours(24);
 });
 
+builder.Services.Configure<SecurityStampValidatorOptions>(options =>
+{
+    options.ValidationInterval = TimeSpan.FromMinutes(1);
+});
+
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
 
 var authenticationBuilder = builder.Services.AddAuthentication();

@@ -56,6 +56,9 @@
                 <input asp-for="Input.Password" class="form-control" autocomplete="current-password" data-testid="login-password" />
                 <span asp-validation-for="Input.Password" class="text-danger"></span>
             </div>
+            <div class="mb-3 text-end">
+                <a asp-page="./ForgotPassword" data-testid="forgot-password-link">Forgot your password?</a>
+            </div>
             <div class="form-check mb-3">
                 <input class="form-check-input" asp-for="Input.RememberMe" data-testid="remember-me" />
                 <label class="form-check-label" asp-for="Input.RememberMe"></label>
