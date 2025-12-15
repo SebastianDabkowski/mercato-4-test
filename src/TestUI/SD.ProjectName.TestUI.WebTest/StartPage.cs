@@ -25,6 +25,16 @@ namespace SD.ProjectName.TestUI.WebTest
         }
 
         [Fact]
+        public async Task RegisterPage_ShowsSocialOptions()
+        {
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Register");
+
+            await Expect(Page.GetByTestId("social-register-options")).ToBeVisibleAsync();
+            await Expect(Page.GetByTestId("register-google-login")).ToBeVisibleAsync();
+            await Expect(Page.GetByTestId("register-facebook-login")).ToBeVisibleAsync();
+        }
+
+        [Fact]
         public async Task RegisterPage_ShowsValidationErrors_ForMissingSellerDetails()
         {
             await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Register");

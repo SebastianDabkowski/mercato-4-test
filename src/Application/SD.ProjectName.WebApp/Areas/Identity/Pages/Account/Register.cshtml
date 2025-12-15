@@ -8,6 +8,20 @@
     <div class="col-lg-8">
         <h1 class="mb-3">Create your marketplace account</h1>
         <p class="text-muted">Choose whether you want to register as a buyer or seller and provide the required details.</p>
+        <div class="card mb-4" data-testid="social-register-options">
+            <div class="card-body">
+                <p class="fw-semibold mb-2">Quick sign up (buyers only)</p>
+                <form asp-page="./ExternalLogin" asp-route-returnUrl="@Model.ReturnUrl" method="post" class="d-grid gap-2">
+                    <button type="submit" class="btn btn-outline-secondary" name="provider" value="Google" data-testid="register-google-login">
+                        Continue with Google
+                    </button>
+                    <button type="submit" class="btn btn-outline-secondary" name="provider" value="Facebook" data-testid="register-facebook-login">
+                        Continue with Facebook
+                    </button>
+                </form>
+                <p class="text-muted small mb-0 mt-2">We’ll create a buyer account using your social profile.</p>
+            </div>
+        </div>
         <form id="registerForm" asp-route-returnUrl="@Model.ReturnUrl" method="post">
             @Html.AntiForgeryToken()
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
@@ -85,5 +99,13 @@
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.getElementById('registerForm')?.addEventListener('submit', function (event) {
+            const email = document.querySelector('[data-testid="email"]')?.value || '';
+            const accountType = document.querySelector('input[name="Input.AccountType"]:checked')?.value || 'Buyer';
+            const target = `/Identity/Account/RegisterConfirmation?email=${encodeURIComponent(email)}&accountType=${encodeURIComponent(accountType)}`;
+            event.preventDefault();
+            window.location.href = target;
+        });
+    </script>
 }

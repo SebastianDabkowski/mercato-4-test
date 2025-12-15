@@ -36,6 +36,64 @@ namespace SD.ProjectName.TestUI.WebTest
         }
 
         [Fact]
+        public async Task SocialLogin_CreatesBuyerAccount_WhenEmailIsNew()
+        {
+            var email = $"social-buyer-{Guid.NewGuid():N}@example.com";
+            await SetFakeExternalEmailAsync("google", email);
+
+            ConfigureTimeouts();
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Login", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await Expect(Page.GetByTestId("google-login")).ToBeVisibleAsync(new() { Timeout = 15000 });
+
+            await Page.GetByTestId("google-login").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/buyer/dashboard", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByText($"Hello {email}!")).ToBeVisibleAsync();
+        }
+
+        [Fact]
+        public async Task SocialLogin_UsesExistingBuyerAccount()
+        {
+            var email = await SeedUserAsync(AccountType.Buyer, emailConfirmed: false);
+            await SetFakeExternalEmailAsync("facebook", email);
+
+            ConfigureTimeouts();
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Login", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await Expect(Page.GetByTestId("facebook-login")).ToBeVisibleAsync(new() { Timeout = 15000 });
+
+            await Page.GetByTestId("facebook-login").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/buyer/dashboard", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByText($"Hello {email}!")).ToBeVisibleAsync();
+        }
+
+        [Fact]
+        public async Task SocialLogin_ShowsError_ForSellerAccount()
+        {
+            var email = await SeedUserAsync(AccountType.Seller, emailConfirmed: true);
+            await SetFakeExternalEmailAsync("google", email);
+
+            ConfigureTimeouts();
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Login", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await Expect(Page.GetByTestId("google-login")).ToBeVisibleAsync(new() { Timeout = 15000 });
+
+            await Page.GetByTestId("google-login").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/Identity/Account/Login", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByTestId("external-error")).ToContainTextAsync("buyers", new() { Timeout = 15000 });
+        }
+
+        [Fact]
+        public async Task SocialLogin_ShowsMessage_WhenProviderFails()
+        {
+            ConfigureTimeouts();
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/ExternalLogin?handler=Callback&remoteError=access_denied&returnUrl=%2Fbuyer%2Fdashboard");
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/Identity/Account/Login", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByTestId("external-error")).ToContainTextAsync("failed", new() { Timeout = 15000 });
+        }
+
+        [Fact]
         public async Task ShowsGenericError_ForInvalidCredentials()
         {
             var email = await SeedUserAsync(AccountType.Buyer, emailConfirmed: true);
@@ -136,6 +194,19 @@ namespace SD.ProjectName.TestUI.WebTest
             response.EnsureSuccessStatusCode();
 
             return email;
+        }
+
+        private Task SetFakeExternalEmailAsync(string provider, string email)
+        {
+            return Page.Context.AddCookiesAsync(new[]
+            {
+                new Cookie
+                {
+                    Name = $"fake-{provider}-email",
+                    Value = email,
+                    Url = _fixture.BaseUrl
+                }
+            });
         }
 
         private void ConfigureTimeouts()

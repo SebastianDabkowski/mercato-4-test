@@ -28,12 +28,13 @@ var dataSource = GetDataSourceFromConnectionString(connectionString);
 var useSqlite = !OperatingSystem.IsWindows();
 var disableHttpsRedirection = builder.Configuration.GetValue<bool>("DisableHttpsRedirection");
 var disableMigrations = builder.Configuration.GetValue<bool>("DisableMigrations");
+var useFakeExternalAuth = builder.Configuration.GetValue<bool>("UseFakeExternalAuth");
 
 builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("login", limiterOptions =>
     {
-        limiterOptions.PermitLimit = 5;
+        limiterOptions.PermitLimit = useFakeExternalAuth ? 1000 : 5;
         limiterOptions.Window = TimeSpan.FromMinutes(1);
         limiterOptions.QueueLimit = 0;
     });
@@ -82,6 +83,49 @@ builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
 });
 
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
+
+var authenticationBuilder = builder.Services.AddAuthentication();
+
+var googleSection = builder.Configuration.GetSection("Authentication:Google");
+var facebookSection = builder.Configuration.GetSection("Authentication:Facebook");
+var googleConfigured = !string.IsNullOrWhiteSpace(googleSection["ClientId"]) && !string.IsNullOrWhiteSpace(googleSection["ClientSecret"]);
+var facebookConfigured = !string.IsNullOrWhiteSpace(facebookSection["AppId"]) && !string.IsNullOrWhiteSpace(facebookSection["AppSecret"]);
+
+if (useFakeExternalAuth || !googleConfigured)
+{
+    authenticationBuilder.AddScheme<FakeExternalAuthOptions, FakeExternalAuthHandler>("Google", "Google", options =>
+    {
+        builder.Configuration.GetSection("FakeExternalAuth:Google").Bind(options);
+        options.ClaimsIssuer = "Google";
+    });
+}
+else
+{
+    authenticationBuilder.AddGoogle(options =>
+    {
+        options.SignInScheme = IdentityConstants.ExternalScheme;
+        options.ClientId = googleSection["ClientId"]!;
+        options.ClientSecret = googleSection["ClientSecret"]!;
+    });
+}
+
+if (useFakeExternalAuth || !facebookConfigured)
+{
+    authenticationBuilder.AddScheme<FakeExternalAuthOptions, FakeExternalAuthHandler>("Facebook", "Facebook", options =>
+    {
+        builder.Configuration.GetSection("FakeExternalAuth:Facebook").Bind(options);
+        options.ClaimsIssuer = "Facebook";
+    });
+}
+else
+{
+    authenticationBuilder.AddFacebook(options =>
+    {
+        options.SignInScheme = IdentityConstants.ExternalScheme;
+        options.AppId = facebookSection["AppId"]!;
+        options.AppSecret = facebookSection["AppSecret"]!;
+    });
+}
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
