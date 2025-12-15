@@ -88,15 +88,15 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             if (user is null)
             {
                 ShowInvalidLink = true;
-                await Task.Delay(TimeSpan.FromMilliseconds(50));
+                await Task.Delay(TimeSpan.FromMilliseconds(200));
                 return Page();
             }
 
             var result = await _userManager.ResetPasswordAsync(user, Input.Code, Input.Password);
             if (result.Succeeded)
             {
-                await _userManager.UpdateSecurityStampAsync(user);
                 await _signInManager.SignOutAsync();
+                await _userManager.UpdateSecurityStampAsync(user);
                 PasswordReset = true;
                 _logger.LogInformation("Password reset completed.");
                 return Page();
