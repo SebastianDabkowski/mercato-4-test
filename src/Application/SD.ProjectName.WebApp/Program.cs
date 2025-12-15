@@ -215,7 +215,19 @@ static bool IsLocalDbDataSource(string? dataSource) =>
 
 static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMigrations)
 {
-    if (disableMigrations || useSqlite)
+    if (useSqlite)
+    {
+        context.Database.EnsureCreated();
+
+        if (context is ApplicationDbContext applicationDbContext)
+        {
+            SqliteIdentitySchemaUpdater.EnsureIdentityColumns(applicationDbContext.Database.GetDbConnection());
+        }
+
+        return;
+    }
+
+    if (disableMigrations)
     {
         context.Database.EnsureCreated();
         return;
