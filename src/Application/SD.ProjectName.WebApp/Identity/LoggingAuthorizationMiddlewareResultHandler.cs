@@ -30,7 +30,7 @@ namespace SD.ProjectName.WebApp.Identity
                     authorizeResult.Forbidden ? "failure" : "challenge",
                     userName,
                     context.Request.Path,
-                    roles.Length == 0 ? "none" : string.Join(",", roles),
+                    roles.Length == 0 ? "none" : string.Join(", ", roles),
                     requirements.Length == 0 ? "none" : string.Join(", ", requirements));
             }
 
