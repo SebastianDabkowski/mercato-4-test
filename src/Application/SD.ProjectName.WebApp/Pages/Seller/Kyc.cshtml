@@ -1,0 +1,49 @@
+﻿@page "/seller/kyc"
+@model SD.ProjectName.WebApp.Pages.Seller.KycModel
+@{
+    ViewData["Title"] = "Seller KYC verification";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <h1 class="mb-3">Verify your seller identity</h1>
+        <p class="text-muted">We need to verify your identity before unlocking payouts and product publishing. Complete the short KYC check below.</p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+        {
+            <div class="alert alert-info" role="status" data-testid="kyc-status">
+                @Model.StatusMessage
+            </div>
+        }
+
+        <div class="alert alert-warning">
+            Access to seller features is restricted until your KYC is approved.
+        </div>
+
+        <form method="post" class="mt-3">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="Input.LegalName" class="form-label"></label>
+                <input asp-for="Input.LegalName" class="form-control" data-testid="kyc-legal-name" />
+                <span asp-validation-for="Input.LegalName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.DocumentNumber" class="form-label"></label>
+                <input asp-for="Input.DocumentNumber" class="form-control" data-testid="kyc-document-number" />
+                <span asp-validation-for="Input.DocumentNumber" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.Country" class="form-label"></label>
+                <input asp-for="Input.Country" class="form-control" data-testid="kyc-country" />
+                <span asp-validation-for="Input.Country" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary" data-testid="submit-kyc">Submit and verify</button>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

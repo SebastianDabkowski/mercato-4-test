@@ -76,6 +76,11 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     .AddDefaultUI()
     .AddPasswordValidator<CommonPasswordValidator>();
 
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+{
+    options.TokenLifespan = TimeSpan.FromHours(24);
+});
+
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
 
 builder.Services.ConfigureApplicationCookie(options =>
@@ -158,6 +163,12 @@ if (app.Environment.IsDevelopment())
             FirstName = request.AccountType == AccountType.Seller ? "Seller" : "Buyer",
             LastName = "Test",
             TermsAcceptedAt = DateTimeOffset.UtcNow,
+            RequiresKyc = request.AccountType == AccountType.Seller,
+            KycStatus = request.AccountType == AccountType.Seller ? KycStatus.NotStarted : KycStatus.Approved,
+            EmailVerificationSentAt = DateTimeOffset.UtcNow,
+            EmailVerifiedAt = request.EmailConfirmed ? DateTimeOffset.UtcNow : null,
+            KycSubmittedAt = request.AccountType == AccountType.Seller ? null : DateTimeOffset.UtcNow,
+            KycApprovedAt = request.AccountType == AccountType.Seller ? null : DateTimeOffset.UtcNow,
             EmailConfirmed = request.EmailConfirmed,
             SecurityStamp = Guid.NewGuid().ToString(),
             ConcurrencyStamp = Guid.NewGuid().ToString()

@@ -25,6 +25,14 @@ namespace SD.ProjectName.WebApp.Data
                     .HasConversion<string>()
                     .HasMaxLength(32);
 
+                entity.Property(u => u.KycStatus)
+                    .HasConversion<string>()
+                    .HasMaxLength(32)
+                    .HasDefaultValue(KycStatus.NotStarted);
+
+                entity.Property(u => u.RequiresKyc)
+                    .HasDefaultValue(false);
+
                 entity.Property(u => u.FirstName)
                     .IsRequired();
 

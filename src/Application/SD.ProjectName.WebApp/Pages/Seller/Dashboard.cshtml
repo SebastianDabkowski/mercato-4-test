@@ -6,3 +6,10 @@
 
 <h1 data-testid="seller-dashboard-heading">Seller dashboard</h1>
 <p class="text-muted">Welcome to your seller area.</p>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" data-testid="seller-status">
+        @Model.StatusMessage
+    </div>
+}

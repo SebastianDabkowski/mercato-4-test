@@ -96,6 +96,30 @@ namespace SD.ProjectName.TestUI.WebTest
             await newContext.CloseAsync();
         }
 
+        [Fact]
+        public async Task SellerMustCompleteKycBeforeAccessingDashboard()
+        {
+            var email = await SeedUserAsync(AccountType.Seller, emailConfirmed: true);
+
+            ConfigureTimeouts();
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Login", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await Expect(Page.GetByTestId("login-email")).ToBeVisibleAsync(new() { Timeout = 15000 });
+            await Page.GetByTestId("login-email").FillAsync(email);
+            await Page.GetByTestId("login-password").FillAsync(Password);
+            await Page.GetByTestId("login-submit").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/kyc", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByTestId("kyc-legal-name")).ToBeVisibleAsync();
+
+            await Page.GetByTestId("kyc-legal-name").FillAsync("Seller Example");
+            await Page.GetByTestId("kyc-document-number").FillAsync("DOC123456");
+            await Page.GetByTestId("kyc-country").FillAsync("Poland");
+            await Page.GetByTestId("submit-kyc").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/dashboard", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByTestId("seller-status")).ToContainTextAsync("KYC is approved");
+        }
+
         private async Task<string> SeedUserAsync(AccountType accountType, bool emailConfirmed)
         {
             var email = $"{accountType.ToString().ToLowerInvariant()}-{Guid.NewGuid():N}@example.com";

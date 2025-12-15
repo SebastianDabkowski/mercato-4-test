@@ -158,6 +158,9 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 values: new { area = "Identity", userId = user.Id, code, returnUrl = ReturnUrl },
                 protocol: Request.Scheme);
 
+            user.EmailVerificationSentAt = DateTimeOffset.UtcNow;
+            await _userManager.UpdateAsync(user);
+
             await _emailSender.SendEmailAsync(user.Email!, "Confirm your email",
                 $"Please confirm your account by <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>clicking here</a>.");
 
@@ -173,6 +176,11 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
 
             if (user.AccountType == AccountType.Seller)
             {
+                if (user.RequiresKyc && user.KycStatus != KycStatus.Approved)
+                {
+                    return Url.Content("~/seller/kyc")!;
+                }
+
                 return Url.Content("~/seller/dashboard")!;
             }
 
@@ -184,6 +192,11 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             var roles = await _userManager.GetRolesAsync(user);
             if (roles.Contains(IdentityRoles.Seller))
             {
+                if (user.RequiresKyc && user.KycStatus != KycStatus.Approved)
+                {
+                    return Url.Content("~/seller/kyc")!;
+                }
+
                 return Url.Content("~/seller/dashboard")!;
             }
 
