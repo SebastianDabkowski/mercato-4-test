@@ -272,7 +272,14 @@ static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMi
 {
     if (useSqlite)
     {
-        context.Database.EnsureCreated();
+        if (disableMigrations)
+        {
+            context.Database.EnsureCreated();
+        }
+        else
+        {
+            context.Database.Migrate();
+        }
 
         if (context is ApplicationDbContext applicationDbContext)
         {
