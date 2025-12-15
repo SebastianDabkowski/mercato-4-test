@@ -24,12 +24,15 @@ public static class SqliteIdentitySchemaUpdater
 
         const string defaultAccountStatus = "Unverified";
         const string defaultAccountType = "Buyer";
+        const string defaultKycStatus = "NotStarted";
 
         var statusName = Enum.GetName(typeof(AccountStatus), AccountStatus.Unverified) ?? defaultAccountStatus;
         var typeName = Enum.GetName(typeof(AccountType), AccountType.Buyer) ?? defaultAccountType;
+        var kycStatusName = Enum.GetName(typeof(KycStatus), KycStatus.NotStarted) ?? defaultKycStatus;
 
         if (!string.Equals(statusName, defaultAccountStatus, StringComparison.Ordinal) ||
-            !string.Equals(typeName, defaultAccountType, StringComparison.Ordinal))
+            !string.Equals(typeName, defaultAccountType, StringComparison.Ordinal) ||
+            !string.Equals(kycStatusName, defaultKycStatus, StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Default identity column values changed; update SqliteIdentitySchemaUpdater defaults.");
         }
@@ -80,6 +83,48 @@ public static class SqliteIdentitySchemaUpdater
         {
             using var alter = connection.CreateCommand();
             alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TermsAcceptedAt"" TEXT NOT NULL DEFAULT '2025-12-14 00:00:00+00:00';";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("EmailVerificationSentAt"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""EmailVerificationSentAt"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("EmailVerifiedAt"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""EmailVerifiedAt"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("RequiresKyc"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""RequiresKyc"" INTEGER NOT NULL DEFAULT 0;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("KycStatus"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""KycStatus"" TEXT NOT NULL DEFAULT 'NotStarted';";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("KycSubmittedAt"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""KycSubmittedAt"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("KycApprovedAt"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""KycApprovedAt"" TEXT NULL;";
             alter.ExecuteNonQuery();
         }
     }

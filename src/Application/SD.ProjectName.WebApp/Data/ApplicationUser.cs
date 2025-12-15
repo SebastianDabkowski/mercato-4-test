@@ -16,6 +16,14 @@ namespace SD.ProjectName.WebApp.Data
         Suspended = 3
     }
 
+    public enum KycStatus
+    {
+        NotStarted = 1,
+        Pending = 2,
+        Approved = 3,
+        Rejected = 4
+    }
+
     public class ApplicationUser : IdentityUser
     {
         [PersonalData]
@@ -37,5 +45,17 @@ namespace SD.ProjectName.WebApp.Data
         public AccountStatus AccountStatus { get; set; } = AccountStatus.Unverified;
 
         public DateTimeOffset TermsAcceptedAt { get; set; }
+
+        public DateTimeOffset? EmailVerificationSentAt { get; set; }
+
+        public DateTimeOffset? EmailVerifiedAt { get; set; }
+
+        public bool RequiresKyc { get; set; }
+
+        public KycStatus KycStatus { get; set; } = KycStatus.NotStarted;
+
+        public DateTimeOffset? KycSubmittedAt { get; set; }
+
+        public DateTimeOffset? KycApprovedAt { get; set; }
     }
 }
