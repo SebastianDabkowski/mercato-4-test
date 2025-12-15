@@ -14,6 +14,9 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
     [AllowAnonymous]
     public class ResetPasswordModel : PageModel
     {
+        private const int InvalidUserDelayMinMilliseconds = 1000;
+        private const int InvalidUserDelayMaxMilliseconds = 2000;
+
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ILogger<ResetPasswordModel> _logger;
@@ -89,7 +92,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             if (user is null)
             {
                 ShowInvalidLink = true;
-                var jitter = RandomNumberGenerator.GetInt32(1000, 2001);
+                var jitter = RandomNumberGenerator.GetInt32(InvalidUserDelayMinMilliseconds, InvalidUserDelayMaxMilliseconds + 1);
                 await Task.Delay(TimeSpan.FromMilliseconds(jitter));
                 return Page();
             }

@@ -58,7 +58,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account.Manage
 
             if (!await _userManager.HasPasswordAsync(user))
             {
-                return Page();
+                StatusMessage = "Set a password before you can change it.";
             }
 
             return Page();
