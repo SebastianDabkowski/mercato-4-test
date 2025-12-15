@@ -88,7 +88,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             if (user is null)
             {
                 ShowInvalidLink = true;
-                await Task.Delay(TimeSpan.FromMilliseconds(200));
+                await Task.Delay(TimeSpan.FromMilliseconds(1200));
                 return Page();
             }
 

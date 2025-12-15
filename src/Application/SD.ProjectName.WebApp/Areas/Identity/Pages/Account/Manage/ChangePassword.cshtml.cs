@@ -58,7 +58,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account.Manage
 
             if (!await _userManager.HasPasswordAsync(user))
             {
-                return RedirectToPage("./SetPassword");
+                return Page();
             }
 
             return Page();
