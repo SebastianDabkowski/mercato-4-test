@@ -94,7 +94,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 await UpdateTwoFactorUsageAsync(user);
                 await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorSuccess, true, RequestMetadataHelper.GetClientIp(HttpContext), RequestMetadataHelper.GetUserAgent(HttpContext), cancellationToken: HttpContext.RequestAborted);
                 _logger.LogInformation("User logged in with 2fa.");
-                return LocalRedirect(ReturnUrl ?? Url.Content("~/") ?? "/");
+                return LocalRedirect(ReturnUrl ?? Url.Content("~/"));
             }
 
             if (result.IsLockedOut)

@@ -51,7 +51,8 @@ namespace SD.ProjectName.TestUI.WebTest
 
         private async Task<string> SeedUserAsync(AccountType accountType, bool emailConfirmed, bool enableTwoFactor)
         {
-            var email = $"{accountType.ToString().ToLowerInvariant()}-{Guid.NewGuid():N}@example.com";
+            var prefix = accountType == AccountType.Buyer ? "buyer" : "seller";
+            var email = $"{prefix}-{Guid.NewGuid():N}@example.com";
             var request = new
             {
                 AccountType = accountType,

@@ -86,12 +86,12 @@ namespace SD.ProjectName.WebApp.Services
                 return false;
             }
 
-            var lastSuccess = _dbContext.LoginAuditEvents
+            // Id aligns with insertion time; ordering by Id avoids SQLite DateTimeOffset limitations while keeping chronological order.
+            var lastSuccess = await _dbContext.LoginAuditEvents
                 .Where(e => e.UserId == userId && e.Succeeded)
+                .OrderByDescending(e => e.Id)
                 .AsNoTracking()
-                .AsEnumerable()
-                .OrderByDescending(e => e.OccurredAt)
-                .FirstOrDefault();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (lastSuccess is null)
             {
@@ -105,7 +105,7 @@ namespace SD.ProjectName.WebApp.Services
         {
             var now = _timeProvider.GetUtcNow();
             var sql = _dbContext.Database.IsSqlite()
-                ? @"DELETE FROM ""LoginAuditEvents"" WHERE ""ExpiresAt"" IS NOT NULL AND ""ExpiresAt"" <= {0}"
+                ? @"DELETE FROM ""LoginAuditEvents"" WHERE ""ExpiresAt"" IS NOT NULL AND ""ExpiresAt"" <= @p0"
                 : @"DELETE FROM [LoginAuditEvents] WHERE [ExpiresAt] IS NOT NULL AND [ExpiresAt] <= @p0";
 
             await _dbContext.Database.ExecuteSqlRawAsync(sql, new object[] { now }, cancellationToken);
