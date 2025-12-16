@@ -360,16 +360,11 @@ static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMi
             // sync via SqliteIdentitySchemaUpdater.
             applicationDbContext.Database.EnsureCreated();
             SqliteIdentitySchemaUpdater.EnsureIdentityColumns(applicationDbContext.Database.GetDbConnection());
-            return;
-        }
-
-        if (disableMigrations)
-        {
-            context.Database.EnsureCreated();
         }
         else
         {
-            context.Database.Migrate();
+            // SQL Server-targeted migrations are not compatible with SQLite provider; rely on EnsureCreated instead.
+            context.Database.EnsureCreated();
         }
 
         return;
