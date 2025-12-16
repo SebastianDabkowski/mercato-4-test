@@ -95,7 +95,7 @@ Copilot is well-suited for:
 - **Documentation:** Updating docs, README files, or inline documentation
 - **Small features:** Implementing well-scoped features within existing module boundaries
 - **Refactoring:** Local refactors within a single module or class
-- **Configuration:** Updating config files, adding dependencies, or adjusting settings
+- **Configuration:** Updating config files or adjusting settings (adding dependencies requires written approval per Dependencies section)
 
 Copilot should **not** be assigned tasks that require:
 - **Architectural decisions:** Choosing between different architectural approaches or adding new modules
