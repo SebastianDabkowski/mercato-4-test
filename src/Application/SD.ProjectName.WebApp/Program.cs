@@ -1,3 +1,5 @@
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -5,6 +7,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
@@ -31,6 +37,10 @@ var useSqlite = !OperatingSystem.IsWindows();
 var disableHttpsRedirection = builder.Configuration.GetValue<bool>("DisableHttpsRedirection");
 var disableMigrations = builder.Configuration.GetValue<bool>("DisableMigrations");
 var useFakeExternalAuth = builder.Configuration.GetValue<bool>("UseFakeExternalAuth");
+var sessionCacheConnection = builder.Configuration.GetConnectionString("SessionCache");
+var sessionCacheInstanceName = builder.Configuration.GetValue<string>("SessionCache:InstanceName") ?? "session-tokens:";
+
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -58,6 +68,23 @@ else
         options.UseSqlServer(connectionString));
 }
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+if (!string.IsNullOrWhiteSpace(sessionCacheConnection))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = sessionCacheConnection;
+        options.InstanceName = sessionCacheInstanceName;
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
+
+builder.Services.AddDataProtection()
+    .PersistKeysToDbContext<ApplicationDbContext>()
+    .SetApplicationName("SD.ProjectName");
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
@@ -140,7 +167,35 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.ExpireTimeSpan = TimeSpan.FromHours(12);
     options.SlidingExpiration = true;
     options.AccessDeniedPath = "/AccessDenied";
+    options.LoginPath = "/Identity/Account/Login";
+    options.LogoutPath = "/Identity/Account/Logout";
+    options.Cookie.Name = "__Host-sdproject-auth";
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.Path = "/";
+    options.Cookie.IsEssential = true;
+    options.Events.OnSigningIn = context =>
+    {
+        context.Properties.IssuedUtc ??= DateTimeOffset.UtcNow;
+        context.Properties.ExpiresUtc ??= DateTimeOffset.UtcNow.Add(options.ExpireTimeSpan);
+        return Task.CompletedTask;
+    };
 });
+
+builder.Services.AddScoped<ITicketStore>(sp =>
+    new DistributedSessionTicketStore(
+        sp.GetRequiredService<IDistributedCache>(),
+        sp.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>(),
+        sp.GetRequiredService<ILogger<DistributedSessionTicketStore>>(),
+        IdentityConstants.ApplicationScheme,
+        sp.GetRequiredService<TimeProvider>()));
+
+builder.Services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme)
+    .Configure<ITicketStore>((cookieOptions, ticketStore) =>
+    {
+        cookieOptions.SessionStore = ticketStore;
+    });
 
 builder.Services.AddAuthorization(options =>
 {
