@@ -184,7 +184,8 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
-builder.Services.AddScoped<ITicketStore>(sp =>
+// Use singleton lifetime so cookie options can resolve the ticket store during startup and minimal API calls.
+builder.Services.AddSingleton<ITicketStore>(sp =>
     new DistributedSessionTicketStore(
         sp.GetRequiredService<IDistributedCache>(),
         sp.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>(),

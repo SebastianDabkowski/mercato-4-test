@@ -26,16 +26,19 @@ public static class SqliteIdentitySchemaUpdater
         const string defaultAccountType = "Buyer";
         const string defaultKycStatus = "NotStarted";
         const string defaultTwoFactorMethod = "None";
+        const string defaultSellerType = "Individual";
 
         var statusName = Enum.GetName(typeof(AccountStatus), AccountStatus.Unverified) ?? defaultAccountStatus;
         var typeName = Enum.GetName(typeof(AccountType), AccountType.Buyer) ?? defaultAccountType;
         var kycStatusName = Enum.GetName(typeof(KycStatus), KycStatus.NotStarted) ?? defaultKycStatus;
         var twoFactorMethodName = Enum.GetName(typeof(TwoFactorMethod), TwoFactorMethod.None) ?? defaultTwoFactorMethod;
+        var sellerTypeName = Enum.GetName(typeof(SellerType), SellerType.Individual) ?? defaultSellerType;
 
         if (!string.Equals(statusName, defaultAccountStatus, StringComparison.Ordinal) ||
             !string.Equals(typeName, defaultAccountType, StringComparison.Ordinal) ||
             !string.Equals(kycStatusName, defaultKycStatus, StringComparison.Ordinal) ||
-            !string.Equals(twoFactorMethodName, defaultTwoFactorMethod, StringComparison.Ordinal))
+            !string.Equals(twoFactorMethodName, defaultTwoFactorMethod, StringComparison.Ordinal) ||
+            !string.Equals(sellerTypeName, defaultSellerType, StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Default identity column values changed; update SqliteIdentitySchemaUpdater defaults.");
         }
@@ -61,6 +64,13 @@ public static class SqliteIdentitySchemaUpdater
             alter.ExecuteNonQuery();
         }
 
+        if (!existingColumns.Contains("SellerType"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""SellerType"" TEXT NOT NULL DEFAULT 'Individual';";
+            alter.ExecuteNonQuery();
+        }
+
         if (!existingColumns.Contains("FirstName"))
         {
             using var alter = connection.CreateCommand();
@@ -79,6 +89,34 @@ public static class SqliteIdentitySchemaUpdater
         {
             using var alter = connection.CreateCommand();
             alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TaxId"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("VerificationRegistrationNumber"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""VerificationRegistrationNumber"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("VerificationAddress"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""VerificationAddress"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("VerificationContactPerson"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""VerificationContactPerson"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("VerificationPersonalIdNumber"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""VerificationPersonalIdNumber"" TEXT NULL;";
             alter.ExecuteNonQuery();
         }
 
