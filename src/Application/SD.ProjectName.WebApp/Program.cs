@@ -298,24 +298,22 @@ static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMi
 {
     if (useSqlite)
     {
-        if (context is ApplicationDbContext)
+        if (context is ApplicationDbContext applicationDbContext)
         {
             // SQLite deployments can already contain Identity tables without migration history; use EnsureCreated (even when migrations are enabled/disabled)
             // to avoid duplicate table errors for Identity. Identity columns are kept in sync via SqliteIdentitySchemaUpdater.
-            context.Database.EnsureCreated();
+            applicationDbContext.Database.EnsureCreated();
+            SqliteIdentitySchemaUpdater.EnsureIdentityColumns(applicationDbContext.Database.GetDbConnection());
+            return;
         }
-        else if (disableMigrations)
+
+        if (disableMigrations)
         {
             context.Database.EnsureCreated();
         }
         else
         {
             context.Database.Migrate();
-        }
-
-        if (context is ApplicationDbContext applicationDbContext)
-        {
-            SqliteIdentitySchemaUpdater.EnsureIdentityColumns(applicationDbContext.Database.GetDbConnection());
         }
 
         return;
