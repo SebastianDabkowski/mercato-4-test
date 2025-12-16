@@ -81,6 +81,73 @@ public class SqliteMigrationTests
     }
 
     [Fact]
+    public async Task EnsureIdentityColumns_ShouldCreateDataProtectionKeysTable_WhenMissing()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"dataprotection-migration-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={databasePath}";
+
+        if (File.Exists(databasePath))
+        {
+            File.Delete(databasePath);
+        }
+
+        try
+        {
+            await using (var connection = new SqliteConnection(connectionString))
+            {
+                await connection.OpenAsync();
+                var createCommand = connection.CreateCommand();
+                createCommand.CommandText =
+                    """
+                    CREATE TABLE "AspNetUsers" (
+                        "Id" TEXT NOT NULL PRIMARY KEY,
+                        "UserName" TEXT NULL,
+                        "NormalizedUserName" TEXT NULL,
+                        "Email" TEXT NULL,
+                        "NormalizedEmail" TEXT NULL,
+                        "EmailConfirmed" INTEGER NOT NULL,
+                        "PasswordHash" TEXT NULL,
+                        "SecurityStamp" TEXT NULL,
+                        "ConcurrencyStamp" TEXT NULL,
+                        "PhoneNumber" TEXT NULL,
+                        "PhoneNumberConfirmed" INTEGER NOT NULL,
+                        "TwoFactorEnabled" INTEGER NOT NULL,
+                        "LockoutEnd" TEXT NULL,
+                        "LockoutEnabled" INTEGER NOT NULL,
+                        "AccessFailedCount" INTEGER NOT NULL
+                    );
+                    """;
+                await createCommand.ExecuteNonQueryAsync();
+            }
+
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite(connectionString)
+                .Options;
+
+            await using (var context = new ApplicationDbContext(options))
+            {
+                SqliteIdentitySchemaUpdater.EnsureIdentityColumns(context.Database.GetDbConnection());
+            }
+
+            await using var verificationConnection = new SqliteConnection(connectionString);
+            await verificationConnection.OpenAsync();
+            var verificationCommand = verificationConnection.CreateCommand();
+            verificationCommand.CommandText = """SELECT name FROM sqlite_master WHERE type='table' AND name='DataProtectionKeys';""";
+
+            var tableName = await verificationCommand.ExecuteScalarAsync();
+
+            Assert.NotNull(tableName);
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+            {
+                File.Delete(databasePath);
+            }
+        }
+    }
+
+    [Fact]
     public void InitializeDatabase_ShouldSucceed_WhenIdentityTablesAlreadyExist()
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"existing-identity-{Guid.NewGuid():N}.db");

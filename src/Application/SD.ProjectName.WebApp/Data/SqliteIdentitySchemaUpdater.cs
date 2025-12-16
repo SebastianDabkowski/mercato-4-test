@@ -198,6 +198,7 @@ public static class SqliteIdentitySchemaUpdater
         }
 
         EnsureLoginAuditTable(connection);
+        EnsureDataProtectionKeysTable(connection);
     }
 
     private static void EnsureLoginAuditTable(DbConnection connection)
@@ -241,5 +242,27 @@ CREATE TABLE IF NOT EXISTS "LoginAuditEvents" (
             indexOccurred.CommandText = """CREATE INDEX IF NOT EXISTS "IX_LoginAuditEvents_OccurredAt" ON "LoginAuditEvents" ("OccurredAt");""";
             indexOccurred.ExecuteNonQuery();
         }
+    }
+
+    private static void EnsureDataProtectionKeysTable(DbConnection connection)
+    {
+        using var checkTable = connection.CreateCommand();
+        checkTable.CommandText = """SELECT name FROM sqlite_master WHERE type='table' AND name='DataProtectionKeys';""";
+        var exists = checkTable.ExecuteScalar() != null;
+
+        if (exists)
+        {
+            return;
+        }
+
+        using var create = connection.CreateCommand();
+        create.CommandText = """
+CREATE TABLE IF NOT EXISTS "DataProtectionKeys" (
+    "Id" INTEGER NOT NULL CONSTRAINT "PK_DataProtectionKeys" PRIMARY KEY AUTOINCREMENT,
+    "FriendlyName" TEXT NULL,
+    "Xml" TEXT NULL
+);
+""";
+        create.ExecuteNonQuery();
     }
 }
