@@ -1,3 +1,4 @@
+﻿using System.Reflection;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SD.ProjectName.WebApp.Data;
@@ -70,6 +71,56 @@ public class SqliteMigrationTests
             Assert.Contains("AccountStatus", columns);
             Assert.Contains("AccountType", columns);
             Assert.Contains("TermsAcceptedAt", columns);
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+            {
+                File.Delete(databasePath);
+            }
+        }
+    }
+
+    [Fact]
+    public void InitializeDatabase_ShouldSucceed_WhenIdentityTablesAlreadyExist()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"existing-identity-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={databasePath}";
+
+        if (File.Exists(databasePath))
+        {
+            File.Delete(databasePath);
+        }
+
+        try
+        {
+            using (var connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                using var createCommand = connection.CreateCommand();
+                createCommand.CommandText =
+                    """
+                    CREATE TABLE "AspNetRoles" (
+                        "Id" TEXT NOT NULL PRIMARY KEY,
+                        "Name" TEXT NULL,
+                        "NormalizedName" TEXT NULL,
+                        "ConcurrencyStamp" TEXT NULL
+                    );
+                    """;
+                createCommand.ExecuteNonQuery();
+            }
+
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite(connectionString)
+                .Options;
+
+            using var context = new ApplicationDbContext(options);
+            var programType = typeof(ApplicationDbContext).Assembly.GetType("SD.ProjectName.WebApp.Program");
+            var initializeDatabase = programType?.GetMethod("InitializeDatabase", BindingFlags.Static | BindingFlags.NonPublic);
+
+            var exception = Record.Exception(() => initializeDatabase?.Invoke(null, new object[] { context, true, false }));
+
+            Assert.Null(exception);
         }
         finally
         {

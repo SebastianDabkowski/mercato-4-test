@@ -297,7 +297,7 @@ static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMi
 {
     if (useSqlite)
     {
-        if (disableMigrations)
+        if (disableMigrations || context is ApplicationDbContext)
         {
             context.Database.EnsureCreated();
         }
