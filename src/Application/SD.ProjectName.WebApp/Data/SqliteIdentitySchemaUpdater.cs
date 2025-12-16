@@ -257,10 +257,10 @@ CREATE TABLE IF NOT EXISTS "LoginAuditEvents" (
 
         using var create = connection.CreateCommand();
         create.CommandText = """
-CREATE TABLE IF NOT EXISTS "DataProtectionKeys" (
-            "Id" INTEGER NOT NULL CONSTRAINT "PK_DataProtectionKeys" PRIMARY KEY AUTOINCREMENT,
-            "FriendlyName" TEXT NULL,
-            "Xml" TEXT NULL
+CREATE TABLE "DataProtectionKeys" (
+    "Id" INTEGER NOT NULL CONSTRAINT "PK_DataProtectionKeys" PRIMARY KEY AUTOINCREMENT,
+    "FriendlyName" TEXT NULL,
+    "Xml" TEXT NULL
 );
 """;
         create.ExecuteNonQuery();
