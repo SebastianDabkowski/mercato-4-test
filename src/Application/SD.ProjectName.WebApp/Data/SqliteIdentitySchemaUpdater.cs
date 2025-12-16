@@ -25,14 +25,17 @@ public static class SqliteIdentitySchemaUpdater
         const string defaultAccountStatus = "Unverified";
         const string defaultAccountType = "Buyer";
         const string defaultKycStatus = "NotStarted";
+        const string defaultTwoFactorMethod = "None";
 
         var statusName = Enum.GetName(typeof(AccountStatus), AccountStatus.Unverified) ?? defaultAccountStatus;
         var typeName = Enum.GetName(typeof(AccountType), AccountType.Buyer) ?? defaultAccountType;
         var kycStatusName = Enum.GetName(typeof(KycStatus), KycStatus.NotStarted) ?? defaultKycStatus;
+        var twoFactorMethodName = Enum.GetName(typeof(TwoFactorMethod), TwoFactorMethod.None) ?? defaultTwoFactorMethod;
 
         if (!string.Equals(statusName, defaultAccountStatus, StringComparison.Ordinal) ||
             !string.Equals(typeName, defaultAccountType, StringComparison.Ordinal) ||
-            !string.Equals(kycStatusName, defaultKycStatus, StringComparison.Ordinal))
+            !string.Equals(kycStatusName, defaultKycStatus, StringComparison.Ordinal) ||
+            !string.Equals(twoFactorMethodName, defaultTwoFactorMethod, StringComparison.Ordinal))
         {
             throw new InvalidOperationException("Default identity column values changed; update SqliteIdentitySchemaUpdater defaults.");
         }
@@ -126,6 +129,79 @@ public static class SqliteIdentitySchemaUpdater
             using var alter = connection.CreateCommand();
             alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""KycApprovedAt"" TEXT NULL;";
             alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("TwoFactorMethod"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TwoFactorMethod"" TEXT NOT NULL DEFAULT 'None';";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("TwoFactorConfiguredAt"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TwoFactorConfiguredAt"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("TwoFactorLastUsedAt"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TwoFactorLastUsedAt"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("TwoFactorRecoveryCodesGeneratedAt"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TwoFactorRecoveryCodesGeneratedAt"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        EnsureLoginAuditTable(connection);
+    }
+
+    private static void EnsureLoginAuditTable(DbConnection connection)
+    {
+        using var checkTable = connection.CreateCommand();
+        checkTable.CommandText = """SELECT name FROM sqlite_master WHERE type='table' AND name='LoginAuditEvents';""";
+        var exists = checkTable.ExecuteScalar() != null;
+
+        if (exists)
+        {
+            return;
+        }
+
+        using (var create = connection.CreateCommand())
+        {
+            create.CommandText = """
+CREATE TABLE IF NOT EXISTS "LoginAuditEvents" (
+    "Id" INTEGER NOT NULL CONSTRAINT "PK_LoginAuditEvents" PRIMARY KEY AUTOINCREMENT,
+    "UserId" TEXT NOT NULL,
+    "EventType" TEXT NOT NULL,
+    "Succeeded" INTEGER NOT NULL,
+    "IsUnusual" INTEGER NOT NULL,
+    "IpAddress" TEXT NULL,
+    "UserAgent" TEXT NULL,
+    "Reason" TEXT NULL,
+    "OccurredAt" TEXT NOT NULL,
+    "ExpiresAt" TEXT NULL
+);
+""";
+            create.ExecuteNonQuery();
+        }
+
+        using (var indexUser = connection.CreateCommand())
+        {
+            indexUser.CommandText = """CREATE INDEX IF NOT EXISTS "IX_LoginAuditEvents_UserId" ON "LoginAuditEvents" ("UserId");""";
+            indexUser.ExecuteNonQuery();
+        }
+
+        using (var indexOccurred = connection.CreateCommand())
+        {
+            indexOccurred.CommandText = """CREATE INDEX IF NOT EXISTS "IX_LoginAuditEvents_OccurredAt" ON "LoginAuditEvents" ("OccurredAt");""";
+            indexOccurred.ExecuteNonQuery();
         }
     }
 }

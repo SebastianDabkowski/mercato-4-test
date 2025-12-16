@@ -118,6 +118,7 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, LoggingAuthorizationMiddlewareResultHandler>();
+builder.Services.AddScoped<ILoginEventLogger, LoginEventLogger>();
 
 var authenticationBuilder = builder.Services.AddAuthentication();
 
@@ -316,6 +317,14 @@ if (app.Environment.IsDevelopment())
             return Results.BadRequest(addToRoleResult.Errors.Select(e => e.Description));
         }
 
+        if (request.EnableTwoFactor)
+        {
+            user.TwoFactorMethod = TwoFactorMethod.EmailCode;
+            user.TwoFactorConfiguredAt = DateTimeOffset.UtcNow;
+            await userManager.SetTwoFactorEnabledAsync(user, true);
+            await userManager.UpdateAsync(user);
+        }
+
         if (request.EmailConfirmed && user.AccountStatus != AccountStatus.Verified)
         {
             user.AccountStatus = AccountStatus.Verified;
@@ -323,6 +332,23 @@ if (app.Environment.IsDevelopment())
         }
 
         return Results.Ok(user.Id);
+    });
+
+    app.MapPost("/_test/generate-2fa-code", async ([FromBody] TwoFactorCodeRequest request, UserManager<ApplicationUser> userManager) =>
+    {
+        var user = await userManager.FindByEmailAsync(request.Email);
+        if (user is null)
+        {
+            return Results.NotFound();
+        }
+
+        if (!user.TwoFactorEnabled)
+        {
+            return Results.BadRequest("Two-factor authentication is not enabled for this user.");
+        }
+
+        var code = await userManager.GenerateTwoFactorTokenAsync(user, TokenOptions.DefaultEmailProvider);
+        return Results.Ok(code);
     });
 }
 

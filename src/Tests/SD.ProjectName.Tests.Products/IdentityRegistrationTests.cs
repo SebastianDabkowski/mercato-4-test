@@ -104,6 +104,20 @@ namespace SD.ProjectName.Tests.Products
             Assert.Equal(AccountStatus.Unverified, user.AccountStatus);
         }
 
+        [Fact]
+        public void ApplicationUser_DefaultsTwoFactorMethodToNone()
+        {
+            var user = new ApplicationUser
+            {
+                FirstName = "Test",
+                LastName = "User",
+                AccountType = AccountType.Buyer,
+                TermsAcceptedAt = DateTimeOffset.UtcNow
+            };
+
+            Assert.Equal(TwoFactorMethod.None, user.TwoFactorMethod);
+        }
+
         private static IList<ValidationResult> Validate(object model)
         {
             var context = new ValidationContext(model);

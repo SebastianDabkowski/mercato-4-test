@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
 {
@@ -24,17 +25,20 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailSender _emailSender;
         private readonly ILogger<LoginModel> _logger;
+        private readonly ILoginEventLogger _loginEventLogger;
 
         public LoginModel(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
             IEmailSender emailSender,
-            ILogger<LoginModel> logger)
+            ILogger<LoginModel> logger,
+            ILoginEventLogger loginEventLogger)
         {
             _signInManager = signInManager;
             _userManager = userManager;
             _emailSender = emailSender;
             _logger = logger;
+            _loginEventLogger = loginEventLogger;
         }
 
         [BindProperty]
@@ -101,6 +105,9 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 return Page();
             }
 
+            var ipAddress = RequestMetadataHelper.GetClientIp(HttpContext);
+            var userAgent = RequestMetadataHelper.GetUserAgent(HttpContext);
+
             if (user.AccountType == AccountType.Seller && !user.EmailConfirmed)
             {
                 await SendVerificationEmailAsync(user);
@@ -113,18 +120,21 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             if (result.Succeeded)
             {
                 _logger.LogInformation("User logged in.");
+                await _loginEventLogger.LogAsync(user, LoginEventType.PasswordSignInSuccess, true, ipAddress, userAgent, cancellationToken: HttpContext.RequestAborted);
                 var redirect = await ResolveRedirectAsync(user, NormalizeReturnUrl(returnUrl));
                 return LocalRedirect(redirect);
             }
 
             if (result.RequiresTwoFactor)
             {
+                await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorChallenge, true, ipAddress, userAgent, cancellationToken: HttpContext.RequestAborted);
                 return RedirectToPage("./LoginWith2fa", new { ReturnUrl = ReturnUrl, Input.RememberMe });
             }
 
             if (result.IsLockedOut)
             {
                 _logger.LogWarning("User account locked out.");
+                await _loginEventLogger.LogAsync(user, LoginEventType.AccountLockedOut, false, ipAddress, userAgent, "Account locked after failed attempts.", HttpContext.RequestAborted);
                 ModelState.AddModelError(string.Empty, "This account is locked because of too many failed attempts. Try again later.");
                 return Page();
             }
@@ -132,10 +142,12 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             if (!user.EmailConfirmed)
             {
                 ModelState.AddModelError(string.Empty, "You must confirm your email before signing in.");
+                await _loginEventLogger.LogAsync(user, LoginEventType.PasswordSignInFailure, false, ipAddress, userAgent, "Email not confirmed.", HttpContext.RequestAborted);
                 return Page();
             }
 
             ModelState.AddModelError(string.Empty, InvalidCredentialsMessage);
+            await _loginEventLogger.LogAsync(user, LoginEventType.PasswordSignInFailure, false, ipAddress, userAgent, "Invalid credentials.", HttpContext.RequestAborted);
             return Page();
         }
 
