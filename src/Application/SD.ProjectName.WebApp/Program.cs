@@ -9,6 +9,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Options;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
@@ -36,6 +38,9 @@ var disableHttpsRedirection = builder.Configuration.GetValue<bool>("DisableHttps
 var disableMigrations = builder.Configuration.GetValue<bool>("DisableMigrations");
 var useFakeExternalAuth = builder.Configuration.GetValue<bool>("UseFakeExternalAuth");
 var sessionCacheConnection = builder.Configuration.GetConnectionString("SessionCache");
+var sessionCacheInstanceName = builder.Configuration.GetValue<string>("SessionCache:InstanceName") ?? "session-tokens:";
+
+builder.Services.AddSingleton(TimeProvider.System);
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -69,7 +74,7 @@ if (!string.IsNullOrWhiteSpace(sessionCacheConnection))
     builder.Services.AddStackExchangeRedisCache(options =>
     {
         options.Configuration = sessionCacheConnection;
-        options.InstanceName = "session-tokens:";
+        options.InstanceName = sessionCacheInstanceName;
     });
 }
 else
@@ -164,7 +169,7 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/AccessDenied";
     options.LoginPath = "/Identity/Account/Login";
     options.LogoutPath = "/Identity/Account/Logout";
-    options.Cookie.Name = "__Host-mercato-auth";
+    options.Cookie.Name = "__Host-sdproject-auth";
     options.Cookie.SameSite = SameSiteMode.Strict;
     options.Cookie.HttpOnly = true;
     options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
@@ -178,7 +183,13 @@ builder.Services.ConfigureApplicationCookie(options =>
     };
 });
 
-builder.Services.AddSingleton<ITicketStore, DistributedSessionTicketStore>();
+builder.Services.AddScoped<ITicketStore>(sp =>
+    new DistributedSessionTicketStore(
+        sp.GetRequiredService<IDistributedCache>(),
+        sp.GetRequiredService<IOptionsMonitor<CookieAuthenticationOptions>>(),
+        sp.GetRequiredService<ILogger<DistributedSessionTicketStore>>(),
+        IdentityConstants.ApplicationScheme,
+        sp.GetRequiredService<TimeProvider>()));
 
 builder.Services.AddOptions<CookieAuthenticationOptions>(IdentityConstants.ApplicationScheme)
     .Configure<ITicketStore>((cookieOptions, ticketStore) =>
