@@ -2,4 +2,6 @@
 
 namespace SD.ProjectName.WebApp;
 
-internal record TestAccountRequest(AccountType AccountType, string Email, string Password, bool EmailConfirmed);
+internal record TestAccountRequest(AccountType AccountType, string Email, string Password, bool EmailConfirmed, bool EnableTwoFactor = false);
+
+internal record TwoFactorCodeRequest(string Email);

@@ -1,0 +1,29 @@
+@page
+@model SD.ProjectName.WebApp.Areas.Identity.Pages.Account.LoginWith2faModel
+@{
+    ViewData["Title"] = "Two-factor authentication";
+}
+
+<h1 class="mb-3" data-testid="twofactor-title">@ViewData["Title"]</h1>
+<p data-testid="twofactor-instructions">Enter the verification code we sent to your trusted method to continue.</p>
+
+<form method="post">
+    <input asp-for="RememberMe" type="hidden" />
+    <input asp-for="ReturnUrl" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="form-group">
+        <label asp-for="Input.TwoFactorCode"></label>
+        <input asp-for="Input.TwoFactorCode" class="form-control" autocomplete="one-time-code" data-testid="twofactor-code" />
+        <span asp-validation-for="Input.TwoFactorCode" class="text-danger"></span>
+    </div>
+
+    <div class="form-group form-check mt-2">
+        <input asp-for="Input.RememberMachine" class="form-check-input" />
+        <label asp-for="Input.RememberMachine" class="form-check-label"></label>
+    </div>
+
+    <button type="submit" class="btn btn-primary mt-3" data-testid="twofactor-submit">Verify code</button>
+</form>
+
+<partial name="_ValidationScriptsPartial" />

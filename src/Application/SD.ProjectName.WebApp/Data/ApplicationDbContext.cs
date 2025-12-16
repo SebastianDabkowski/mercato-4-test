@@ -13,6 +13,7 @@ namespace SD.ProjectName.WebApp.Data
         }
 
         public DbSet<DataProtectionKey> DataProtectionKeys { get; set; } = null!;
+        public DbSet<LoginAuditEvent> LoginAuditEvents { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -44,6 +45,30 @@ namespace SD.ProjectName.WebApp.Data
 
                 entity.Property(u => u.TermsAcceptedAt)
                     .IsRequired();
+
+                entity.Property(u => u.TwoFactorMethod)
+                    .HasConversion<string>()
+                    .HasMaxLength(32)
+                    .HasDefaultValue(TwoFactorMethod.None);
+            });
+
+            builder.Entity<LoginAuditEvent>(entity =>
+            {
+                entity.Property(e => e.EventType)
+                    .HasConversion<string>()
+                    .HasMaxLength(64);
+
+                entity.Property(e => e.IpAddress)
+                    .HasMaxLength(64);
+
+                entity.Property(e => e.UserAgent)
+                    .HasMaxLength(256);
+
+                entity.Property(e => e.Reason)
+                    .HasMaxLength(256);
+
+                entity.HasIndex(e => e.UserId);
+                entity.HasIndex(e => e.OccurredAt);
             });
         }
     }

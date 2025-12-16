@@ -24,6 +24,14 @@ namespace SD.ProjectName.WebApp.Data
         Rejected = 4
     }
 
+    public enum TwoFactorMethod
+    {
+        None = 0,
+        EmailCode = 1,
+        AuthenticatorApp = 2,
+        Sms = 3
+    }
+
     public class ApplicationUser : IdentityUser
     {
         [PersonalData]
@@ -57,5 +65,15 @@ namespace SD.ProjectName.WebApp.Data
         public DateTimeOffset? KycSubmittedAt { get; set; }
 
         public DateTimeOffset? KycApprovedAt { get; set; }
+
+        [PersonalData]
+        public TwoFactorMethod TwoFactorMethod { get; set; } = TwoFactorMethod.None;
+
+        [PersonalData]
+        public DateTimeOffset? TwoFactorConfiguredAt { get; set; }
+
+        public DateTimeOffset? TwoFactorLastUsedAt { get; set; }
+
+        public DateTimeOffset? TwoFactorRecoveryCodesGeneratedAt { get; set; }
     }
 }
