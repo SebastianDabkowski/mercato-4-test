@@ -105,7 +105,8 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 return Page();
             }
 
-            var (ipAddress, userAgent) = GetRequestMetadata();
+            var ipAddress = RequestMetadataHelper.GetClientIp(HttpContext);
+            var userAgent = RequestMetadataHelper.GetUserAgent(HttpContext);
 
             if (user.AccountType == AccountType.Seller && !user.EmailConfirmed)
             {
@@ -248,19 +249,6 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
 
             var rootUrl = Url.Content("~/");
             return string.Equals(returnUrl, rootUrl, StringComparison.OrdinalIgnoreCase) ? null : returnUrl;
-        }
-
-        private (string? IpAddress, string? UserAgent) GetRequestMetadata()
-        {
-            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            if (Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) && !string.IsNullOrWhiteSpace(forwardedFor))
-            {
-                ip = forwardedFor.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
-            }
-
-            var userAgent = Request.Headers.UserAgent.ToString();
-
-            return (string.IsNullOrWhiteSpace(ip) ? null : ip, string.IsNullOrWhiteSpace(userAgent) ? null : userAgent);
         }
     }
 }

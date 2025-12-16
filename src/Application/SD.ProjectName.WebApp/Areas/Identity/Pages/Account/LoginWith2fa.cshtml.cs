@@ -13,6 +13,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
     [AllowAnonymous]
     public class LoginWith2faModel : PageModel
     {
+        private const string DevelopmentBypassCode = "000000";
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailSender _emailSender;
@@ -91,11 +92,11 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             var code = Input.TwoFactorCode.Replace(" ", string.Empty).Replace("-", string.Empty);
             var provider = ResolveTwoFactorProvider(user);
 
-            if (_environment.IsDevelopment() && string.Equals(code, "000000", StringComparison.Ordinal))
+            if (_environment.IsDevelopment() && string.Equals(code, DevelopmentBypassCode, StringComparison.Ordinal))
             {
                 await _signInManager.SignInAsync(user, rememberMe);
                 await UpdateTwoFactorUsageAsync(user);
-                await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorSuccess, true, GetIpAddress(), GetUserAgent(), "Development bypass code.", HttpContext.RequestAborted);
+                await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorSuccess, true, RequestMetadataHelper.GetClientIp(HttpContext), RequestMetadataHelper.GetUserAgent(HttpContext), "Development bypass code.", HttpContext.RequestAborted);
                 return LocalRedirect(ReturnUrl ?? Url.Content("~/")!);
             }
 
@@ -104,19 +105,19 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             if (result.Succeeded)
             {
                 await UpdateTwoFactorUsageAsync(user);
-                await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorSuccess, true, GetIpAddress(), GetUserAgent(), cancellationToken: HttpContext.RequestAborted);
+                await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorSuccess, true, RequestMetadataHelper.GetClientIp(HttpContext), RequestMetadataHelper.GetUserAgent(HttpContext), cancellationToken: HttpContext.RequestAborted);
                 _logger.LogInformation("User logged in with 2fa.");
                 return LocalRedirect(ReturnUrl ?? Url.Content("~/")!);
             }
 
             if (result.IsLockedOut)
             {
-                await _loginEventLogger.LogAsync(user, LoginEventType.AccountLockedOut, false, GetIpAddress(), GetUserAgent(), "Locked during 2FA verification.", HttpContext.RequestAborted);
+                await _loginEventLogger.LogAsync(user, LoginEventType.AccountLockedOut, false, RequestMetadataHelper.GetClientIp(HttpContext), RequestMetadataHelper.GetUserAgent(HttpContext), "Locked during 2FA verification.", HttpContext.RequestAborted);
                 _logger.LogWarning("User account locked out during 2fa verification.");
                 return RedirectToPage("./Lockout");
             }
 
-            await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorChallenge, false, GetIpAddress(), GetUserAgent(), "Invalid two-factor code.", HttpContext.RequestAborted);
+            await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorChallenge, false, RequestMetadataHelper.GetClientIp(HttpContext), RequestMetadataHelper.GetUserAgent(HttpContext), "Invalid two-factor code.", HttpContext.RequestAborted);
             ModelState.AddModelError(string.Empty, "Invalid authentication code.");
             return Page();
         }
@@ -150,23 +151,6 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 TwoFactorMethod.Sms => TokenOptions.DefaultPhoneProvider,
                 _ => TokenOptions.DefaultEmailProvider
             };
-        }
-
-        private string? GetIpAddress()
-        {
-            var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
-            if (Request.Headers.TryGetValue("X-Forwarded-For", out var forwarded) && !string.IsNullOrWhiteSpace(forwarded))
-            {
-                ip = forwarded.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
-            }
-
-            return string.IsNullOrWhiteSpace(ip) ? null : ip;
-        }
-
-        private string? GetUserAgent()
-        {
-            var userAgent = Request.Headers.UserAgent.ToString();
-            return string.IsNullOrWhiteSpace(userAgent) ? null : userAgent;
         }
     }
 }

@@ -86,8 +86,10 @@ namespace SD.ProjectName.WebApp.Services
                 return false;
             }
 
+            // SQLite cannot order by DateTimeOffset directly; fetch the filtered set and order in memory.
             var lastSuccess = (await _dbContext.LoginAuditEvents
                 .Where(e => e.UserId == userId && e.Succeeded)
+                .AsNoTracking()
                 .ToListAsync(cancellationToken))
                 .OrderByDescending(e => e.OccurredAt)
                 .FirstOrDefault();
@@ -103,8 +105,12 @@ namespace SD.ProjectName.WebApp.Services
         private async Task PruneExpiredAsync(CancellationToken cancellationToken)
         {
             var now = _timeProvider.GetUtcNow();
-            var expired = (await _dbContext.LoginAuditEvents.ToListAsync(cancellationToken))
-                .Where(e => e.ExpiresAt != null && e.ExpiresAt <= now)
+            var expiredCandidates = await _dbContext.LoginAuditEvents
+                .Where(e => e.ExpiresAt != null)
+                .ToListAsync(cancellationToken);
+
+            var expired = expiredCandidates
+                .Where(e => e.ExpiresAt <= now)
                 .ToList();
 
             if (expired.Count == 0)
