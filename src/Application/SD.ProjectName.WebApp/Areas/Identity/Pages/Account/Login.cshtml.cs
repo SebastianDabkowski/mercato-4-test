@@ -188,6 +188,13 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 return returnUrl;
             }
 
+            var roles = await _userManager.GetRolesAsync(user);
+
+            if (roles.Contains(IdentityRoles.Admin))
+            {
+                return Url.Content("~/admin/dashboard")!;
+            }
+
             if (user.AccountType == AccountType.Seller)
             {
                 if (user.RequiresKyc && user.KycStatus != KycStatus.Approved)
@@ -203,7 +210,6 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 return Url.Content("~/buyer/dashboard")!;
             }
 
-            var roles = await _userManager.GetRolesAsync(user);
             if (roles.Contains(IdentityRoles.Seller))
             {
                 if (user.RequiresKyc && user.KycStatus != KycStatus.Approved)

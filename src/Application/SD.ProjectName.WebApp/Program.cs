@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization.Policy;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
@@ -88,6 +90,7 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 });
 
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
+builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, LoggingAuthorizationMiddlewareResultHandler>();
 
 var authenticationBuilder = builder.Services.AddAuthentication();
 
@@ -136,12 +139,29 @@ builder.Services.ConfigureApplicationCookie(options =>
 {
     options.ExpireTimeSpan = TimeSpan.FromHours(12);
     options.SlidingExpiration = true;
+    options.AccessDeniedPath = "/AccessDenied";
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("BuyerOnly", policy => policy.RequireRole(IdentityRoles.Buyer));
+    options.AddPolicy("SellerOnly", policy => policy.RequireRole(IdentityRoles.Seller));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole(IdentityRoles.Admin));
 });
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<GetProducts>();
 
-builder.Services.AddRazorPages();
+builder.Services.AddRazorPages(options =>
+{
+    options.Conventions.AuthorizeFolder("/Buyer", "BuyerOnly");
+    options.Conventions.AuthorizeFolder("/Seller", "SellerOnly");
+    options.Conventions.AuthorizeFolder("/Admin", "AdminOnly");
+    options.Conventions.AllowAnonymousToPage("/AccessDenied");
+    options.Conventions.AllowAnonymousToPage("/Index");
+    options.Conventions.AllowAnonymousToPage("/Products/List");
+    options.Conventions.AllowAnonymousToPage("/Privacy");
+});
 
 var app = builder.Build();
 
