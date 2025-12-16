@@ -39,8 +39,8 @@ Before submitting any PR, ensure all tests pass and the solution builds successf
 The repository uses GitHub Actions for continuous deployment to Azure:
 - **Workflow:** `.github/workflows/main_mercato4-test.yml`
 - **Trigger:** Push to `main` branch or manual workflow dispatch
-- **Process:** Build → Test → Deploy to Azure Web App
-- All PRs should pass the build and test steps locally before submission
+- **Process:** Build → Publish → Deploy to Azure Web App
+- All PRs should pass the build and test steps locally before submission (tests are not currently in the CI pipeline)
 
 ## Sources of Truth
 - Implementation must follow the documented design: `architecture.md`, the Product Requirements Document (`prd.md` when present), approved ADRs in `adr/`, and the latest approved epics/user stories.  
