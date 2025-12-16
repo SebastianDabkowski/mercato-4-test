@@ -35,6 +35,13 @@ src/
 
 Before submitting any PR, ensure all tests pass and the solution builds successfully.
 
+## CI/CD Pipeline
+The repository uses GitHub Actions for continuous deployment to Azure:
+- **Workflow:** `.github/workflows/main_mercato4-test.yml`
+- **Trigger:** Push to `main` branch or manual workflow dispatch
+- **Process:** Build → Test → Deploy to Azure Web App
+- All PRs should pass the build and test steps locally before submission
+
 ## Sources of Truth
 - Implementation must follow the documented design: `architecture.md`, the Product Requirements Document (`prd.md` when present), approved ADRs in `adr/`, and the latest approved epics/user stories.  
 - Do not invent requirements or change scope. If information is missing, ask for clarification instead of guessing.
@@ -80,3 +87,19 @@ Currently implemented modules: Products (more to be added incrementally)
 - Keep generated code, comments, and responses concise, direct, and conservative.  
 - Avoid speculative advice or additional feature ideas; surface only what is necessary to fulfill the request.  
 - When unsure, ask for clarification instead of assuming.
+
+## Appropriate Tasks for Copilot
+Copilot is well-suited for:
+- **Bug fixes:** Fixing specific, well-defined bugs with clear reproduction steps
+- **Test coverage:** Adding unit or integration tests for existing functionality
+- **Documentation:** Updating docs, README files, or inline documentation
+- **Small features:** Implementing well-scoped features within existing module boundaries
+- **Refactoring:** Local refactors within a single module or class
+- **Configuration:** Updating config files, adding dependencies, or adjusting settings
+
+Copilot should **not** be assigned tasks that require:
+- **Architectural decisions:** Choosing between different architectural approaches or adding new modules
+- **Cross-module refactoring:** Changes that span multiple bounded contexts
+- **Ambiguous requirements:** Tasks without clear acceptance criteria or scope
+- **Deep domain knowledge:** Business logic that requires extensive marketplace domain understanding
+- **Security-critical changes:** Authentication, authorization, or payment processing without explicit requirements and review
