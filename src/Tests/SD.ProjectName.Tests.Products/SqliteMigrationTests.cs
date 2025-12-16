@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SD.ProjectName.WebApp.Data;
 
@@ -70,6 +70,47 @@ public class SqliteMigrationTests
             Assert.Contains("AccountStatus", columns);
             Assert.Contains("AccountType", columns);
             Assert.Contains("TermsAcceptedAt", columns);
+        }
+        finally
+        {
+            if (File.Exists(databasePath))
+            {
+                File.Delete(databasePath);
+            }
+        }
+    }
+
+    [Fact]
+    public void InitializeDatabase_ShouldSucceed_WhenIdentityTablesAlreadyExist()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"existing-identity-{Guid.NewGuid():N}.db");
+        var connectionString = $"Data Source={databasePath}";
+
+        if (File.Exists(databasePath))
+        {
+            File.Delete(databasePath);
+        }
+
+        try
+        {
+            var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+                .UseSqlite(connectionString)
+                .Options;
+
+            using (var setupContext = new ApplicationDbContext(options))
+            {
+                setupContext.Database.EnsureCreated();
+            }
+
+            using var context = new ApplicationDbContext(options);
+
+            var exception = Record.Exception(() =>
+            {
+                context.Database.EnsureCreated();
+                SqliteIdentitySchemaUpdater.EnsureIdentityColumns(context.Database.GetDbConnection());
+            });
+
+            Assert.Null(exception);
         }
         finally
         {

@@ -293,10 +293,21 @@ static bool IsLocalDbDataSource(string? dataSource) =>
     dataSource?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true ||
     dataSource?.Contains("mssqllocaldb", StringComparison.OrdinalIgnoreCase) == true;
 
+// ApplicationDbContext on SQLite may already contain Identity tables without migration history.
 static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMigrations)
 {
     if (useSqlite)
     {
+        if (context is ApplicationDbContext applicationDbContext)
+        {
+            // SQLite deployments can already contain Identity tables without migration history; skip migrations and use EnsureCreated
+            // (even when disableMigrations is false) to avoid duplicate table errors for Identity. Identity columns are kept in
+            // sync via SqliteIdentitySchemaUpdater.
+            applicationDbContext.Database.EnsureCreated();
+            SqliteIdentitySchemaUpdater.EnsureIdentityColumns(applicationDbContext.Database.GetDbConnection());
+            return;
+        }
+
         if (disableMigrations)
         {
             context.Database.EnsureCreated();
@@ -304,11 +315,6 @@ static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMi
         else
         {
             context.Database.Migrate();
-        }
-
-        if (context is ApplicationDbContext applicationDbContext)
-        {
-            SqliteIdentitySchemaUpdater.EnsureIdentityColumns(applicationDbContext.Database.GetDbConnection());
         }
 
         return;
