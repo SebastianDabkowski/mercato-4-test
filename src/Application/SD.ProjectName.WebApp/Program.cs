@@ -293,6 +293,7 @@ static bool IsLocalDbDataSource(string? dataSource) =>
     dataSource?.Contains("(localdb)", StringComparison.OrdinalIgnoreCase) == true ||
     dataSource?.Contains("mssqllocaldb", StringComparison.OrdinalIgnoreCase) == true;
 
+// ApplicationDbContext on SQLite may already contain Identity tables without migration history.
 static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMigrations)
 {
     if (useSqlite)
