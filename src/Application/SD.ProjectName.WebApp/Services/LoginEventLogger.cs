@@ -86,13 +86,11 @@ namespace SD.ProjectName.WebApp.Services
                 return false;
             }
 
-            // SQLite cannot order by DateTimeOffset directly; fetch the filtered set and order in memory.
-            var lastSuccess = (await _dbContext.LoginAuditEvents
+            var lastSuccess = await _dbContext.LoginAuditEvents
                 .Where(e => e.UserId == userId && e.Succeeded)
+                .OrderByDescending(e => e.Id)
                 .AsNoTracking()
-                .ToListAsync(cancellationToken))
-                .OrderByDescending(e => e.OccurredAt)
-                .FirstOrDefault();
+                .FirstOrDefaultAsync(cancellationToken);
 
             if (lastSuccess is null)
             {
@@ -105,18 +103,21 @@ namespace SD.ProjectName.WebApp.Services
         private async Task PruneExpiredAsync(CancellationToken cancellationToken)
         {
             var now = _timeProvider.GetUtcNow();
-            var expiredCandidates = await _dbContext.LoginAuditEvents
-                .Where(e => e.ExpiresAt != null)
-                .ToListAsync(cancellationToken);
-
-            var expired = expiredCandidates
-                .Where(e => e.ExpiresAt <= now)
+            var expiredIds = _dbContext.LoginAuditEvents
+                .Select(e => new { e.Id, e.ExpiresAt })
+                .AsEnumerable()
+                .Where(e => e.ExpiresAt != null && e.ExpiresAt <= now)
+                .Select(e => e.Id)
                 .ToList();
 
-            if (expired.Count == 0)
+            if (expiredIds.Count == 0)
             {
                 return;
             }
+
+            var expired = await _dbContext.LoginAuditEvents
+                .Where(e => expiredIds.Contains(e.Id))
+                .ToListAsync(cancellationToken);
 
             _dbContext.LoginAuditEvents.RemoveRange(expired);
             await _dbContext.SaveChangesAsync(cancellationToken);

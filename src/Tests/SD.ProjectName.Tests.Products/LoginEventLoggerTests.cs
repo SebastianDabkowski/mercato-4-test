@@ -63,7 +63,7 @@ namespace SD.ProjectName.Tests.Products
 
             await logger.LogAsync(user, LoginEventType.PasswordSignInSuccess, true, "1.1.1.1", "agent");
 
-            Assert.DoesNotContain(context.LoginAuditEvents, e => e.Id == expired.Id);
+            Assert.Null(await context.LoginAuditEvents.FindAsync(expired.Id));
         }
 
         private static ApplicationUser CreateUser()

@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Hosting;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Services;
 
@@ -13,14 +12,12 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
     [AllowAnonymous]
     public class LoginWith2faModel : PageModel
     {
-        private const string DevelopmentBypassCode = "000000";
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailSender _emailSender;
         private readonly ILogger<LoginWith2faModel> _logger;
         private readonly ILoginEventLogger _loginEventLogger;
         private readonly TimeProvider _timeProvider;
-        private readonly IHostEnvironment _environment;
 
         public LoginWith2faModel(
             SignInManager<ApplicationUser> signInManager,
@@ -28,8 +25,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             IEmailSender emailSender,
             ILogger<LoginWith2faModel> logger,
             ILoginEventLogger loginEventLogger,
-            TimeProvider timeProvider,
-            IHostEnvironment environment)
+            TimeProvider timeProvider)
         {
             _signInManager = signInManager;
             _userManager = userManager;
@@ -37,7 +33,6 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             _logger = logger;
             _loginEventLogger = loginEventLogger;
             _timeProvider = timeProvider;
-            _environment = environment;
         }
 
         public string? ReturnUrl { get; set; }
@@ -91,14 +86,6 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
 
             var code = Input.TwoFactorCode.Replace(" ", string.Empty).Replace("-", string.Empty);
             var provider = ResolveTwoFactorProvider(user);
-
-            if (_environment.IsDevelopment() && string.Equals(code, DevelopmentBypassCode, StringComparison.Ordinal))
-            {
-                await _signInManager.SignInAsync(user, rememberMe);
-                await UpdateTwoFactorUsageAsync(user);
-                await _loginEventLogger.LogAsync(user, LoginEventType.TwoFactorSuccess, true, RequestMetadataHelper.GetClientIp(HttpContext), RequestMetadataHelper.GetUserAgent(HttpContext), "Development bypass code.", HttpContext.RequestAborted);
-                return LocalRedirect(ReturnUrl ?? Url.Content("~/")!);
-            }
 
             var result = await _signInManager.TwoFactorSignInAsync(provider, code, rememberMe, Input.RememberMachine);
 
