@@ -215,7 +215,7 @@ public static class SqliteIdentitySchemaUpdater
         using (var create = connection.CreateCommand())
         {
             create.CommandText = """
-CREATE TABLE IF NOT EXISTS "LoginAuditEvents" (
+CREATE TABLE "LoginAuditEvents" (
     "Id" INTEGER NOT NULL CONSTRAINT "PK_LoginAuditEvents" PRIMARY KEY AUTOINCREMENT,
     "UserId" TEXT NOT NULL,
     "EventType" TEXT NOT NULL,
@@ -257,7 +257,7 @@ CREATE TABLE IF NOT EXISTS "LoginAuditEvents" (
 
         using var create = connection.CreateCommand();
         create.CommandText = """
-CREATE TABLE IF NOT EXISTS "DataProtectionKeys" (
+CREATE TABLE "DataProtectionKeys" (
     "Id" INTEGER NOT NULL CONSTRAINT "PK_DataProtectionKeys" PRIMARY KEY AUTOINCREMENT,
     "FriendlyName" TEXT NULL,
     "Xml" TEXT NULL
