@@ -1,4 +1,5 @@
 ﻿@page "/seller/kyc"
+@using SD.ProjectName.WebApp.Data
 @model SD.ProjectName.WebApp.Pages.Seller.KycModel
 @{
     ViewData["Title"] = "Seller KYC verification";
@@ -23,27 +24,100 @@
         <form method="post" class="mt-3">
             <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
-            <div class="mb-3">
-                <label asp-for="Input.LegalName" class="form-label"></label>
-                <input asp-for="Input.LegalName" class="form-control" data-testid="kyc-legal-name" />
-                <span asp-validation-for="Input.LegalName" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Input.DocumentNumber" class="form-label"></label>
-                <input asp-for="Input.DocumentNumber" class="form-control" data-testid="kyc-document-number" />
-                <span asp-validation-for="Input.DocumentNumber" class="text-danger"></span>
-            </div>
-            <div class="mb-3">
-                <label asp-for="Input.Country" class="form-label"></label>
-                <input asp-for="Input.Country" class="form-control" data-testid="kyc-country" />
-                <span asp-validation-for="Input.Country" class="text-danger"></span>
-            </div>
+            <fieldset @(Model.IsSubmissionLocked ? "disabled=\"disabled\"" : string.Empty)>
+                <div class="mb-3">
+                    <label class="form-label">Seller type</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" asp-for="Input.SellerType" value="@SellerType.Company" id="seller-type-company" data-testid="seller-type-company" />
+                        <label class="form-check-label" for="seller-type-company">Company</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" asp-for="Input.SellerType" value="@SellerType.Individual" id="seller-type-individual" data-testid="seller-type-individual" />
+                        <label class="form-check-label" for="seller-type-individual">Individual</label>
+                    </div>
+                    <span asp-validation-for="Input.SellerType" class="text-danger"></span>
+                </div>
 
-            <button type="submit" class="btn btn-primary" data-testid="submit-kyc">Submit and verify</button>
+                <div class="border rounded p-3 mb-3 @(Model.Input.SellerType == SellerType.Company ? string.Empty : "d-none")" data-section="company">
+                    <h4 class="h6 text-uppercase text-muted mb-3">Company details</h4>
+                    <div class="mb-3">
+                        <label asp-for="Input.CompanyName" class="form-label"></label>
+                        <input asp-for="Input.CompanyName" class="form-control" data-testid="kyc-company-name" />
+                        <span asp-validation-for="Input.CompanyName" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.RegistrationNumber" class="form-label"></label>
+                        <input asp-for="Input.RegistrationNumber" class="form-control" data-testid="kyc-registration-number" />
+                        <span asp-validation-for="Input.RegistrationNumber" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.TaxId" class="form-label"></label>
+                        <input asp-for="Input.TaxId" class="form-control" data-testid="kyc-tax-id" />
+                        <span asp-validation-for="Input.TaxId" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.ContactPerson" class="form-label"></label>
+                        <input asp-for="Input.ContactPerson" class="form-control" data-testid="kyc-contact-person" />
+                        <span asp-validation-for="Input.ContactPerson" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="border rounded p-3 mb-3 @(Model.Input.SellerType == SellerType.Individual ? string.Empty : "d-none")" data-section="individual">
+                    <h4 class="h6 text-uppercase text-muted mb-3">Individual details</h4>
+                    <div class="mb-3">
+                        <label asp-for="Input.FullName" class="form-label"></label>
+                        <input asp-for="Input.FullName" class="form-control" data-testid="kyc-full-name" />
+                        <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Input.PersonalIdNumber" class="form-label"></label>
+                        <input asp-for="Input.PersonalIdNumber" class="form-control" data-testid="kyc-personal-id" />
+                        <span asp-validation-for="Input.PersonalIdNumber" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Input.RegisteredAddress" class="form-label"></label>
+                    <textarea asp-for="Input.RegisteredAddress" class="form-control" rows="2" data-testid="kyc-registered-address"></textarea>
+                    <span asp-validation-for="Input.RegisteredAddress" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.ContactPhone" class="form-label"></label>
+                    <input asp-for="Input.ContactPhone" class="form-control" data-testid="kyc-contact-phone" />
+                    <span asp-validation-for="Input.ContactPhone" class="text-danger"></span>
+                </div>
+            </fieldset>
+
+            <button type="submit" class="btn btn-primary" data-testid="submit-kyc" @(Model.IsSubmissionLocked ? "disabled" : string.Empty)>Submit for review</button>
+            @if (Model.IsSubmissionLocked)
+            {
+                <p class="text-muted small mt-2">You cannot submit a new application while the current one is pending review.</p>
+            }
         </form>
     </div>
 </div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const companySection = document.querySelector('[data-section="company"]');
+            const individualSection = document.querySelector('[data-section="individual"]');
+            const typeInputs = document.querySelectorAll('input[name="Input.SellerType"]');
+
+            function toggleSections() {
+                const selected = document.querySelector('input[name="Input.SellerType"]:checked')?.value;
+                if (selected === '@SellerType.Company') {
+                    companySection?.classList.remove('d-none');
+                    individualSection?.classList.add('d-none');
+                } else {
+                    individualSection?.classList.remove('d-none');
+                    companySection?.classList.add('d-none');
+                }
+            }
+
+            typeInputs.forEach(r => r.addEventListener('change', toggleSections));
+            toggleSections();
+        })();
+    </script>
 }

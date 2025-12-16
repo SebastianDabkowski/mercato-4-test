@@ -16,6 +16,12 @@ namespace SD.ProjectName.WebApp.Data
         Suspended = 3
     }
 
+    public enum SellerType
+    {
+        Individual = 1,
+        Company = 2
+    }
+
     public enum KycStatus
     {
         NotStarted = 1,
@@ -47,6 +53,24 @@ namespace SD.ProjectName.WebApp.Data
 
         [MaxLength(50)]
         public string? TaxId { get; set; }
+
+        public SellerType SellerType { get; set; } = SellerType.Individual;
+
+        [PersonalData]
+        [MaxLength(100)]
+        public string? VerificationRegistrationNumber { get; set; }
+
+        [PersonalData]
+        [MaxLength(300)]
+        public string? VerificationAddress { get; set; }
+
+        [PersonalData]
+        [MaxLength(150)]
+        public string? VerificationContactPerson { get; set; }
+
+        [PersonalData]
+        [MaxLength(100)]
+        public string? VerificationPersonalIdNumber { get; set; }
 
         public AccountType AccountType { get; set; }
 

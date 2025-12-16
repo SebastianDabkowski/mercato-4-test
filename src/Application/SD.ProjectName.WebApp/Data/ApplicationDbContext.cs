@@ -29,6 +29,11 @@ namespace SD.ProjectName.WebApp.Data
                     .HasConversion<string>()
                     .HasMaxLength(32);
 
+                entity.Property(u => u.SellerType)
+                    .HasConversion<string>()
+                    .HasMaxLength(32)
+                    .HasDefaultValue(SellerType.Individual);
+
                 entity.Property(u => u.KycStatus)
                     .HasConversion<string>()
                     .HasMaxLength(32)
@@ -36,6 +41,18 @@ namespace SD.ProjectName.WebApp.Data
 
                 entity.Property(u => u.RequiresKyc)
                     .HasDefaultValue(false);
+
+                entity.Property(u => u.VerificationRegistrationNumber)
+                    .HasMaxLength(100);
+
+                entity.Property(u => u.VerificationAddress)
+                    .HasMaxLength(300);
+
+                entity.Property(u => u.VerificationContactPerson)
+                    .HasMaxLength(150);
+
+                entity.Property(u => u.VerificationPersonalIdNumber)
+                    .HasMaxLength(100);
 
                 entity.Property(u => u.FirstName)
                     .IsRequired();

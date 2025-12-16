@@ -167,15 +167,47 @@ namespace SD.ProjectName.TestUI.WebTest
             await Page.GetByTestId("login-submit").ClickAsync();
 
             await Expect(Page).ToHaveURLAsync(new Regex("/seller/kyc", RegexOptions.IgnoreCase));
-            await Expect(Page.GetByTestId("kyc-legal-name")).ToBeVisibleAsync();
+            await Page.GetByTestId("seller-type-individual").CheckAsync();
+            await Expect(Page.GetByTestId("seller-type-individual")).ToBeCheckedAsync();
 
-            await Page.GetByTestId("kyc-legal-name").FillAsync("Seller Example");
-            await Page.GetByTestId("kyc-document-number").FillAsync("DOC123456");
-            await Page.GetByTestId("kyc-country").FillAsync("Poland");
+            await Page.GetByTestId("kyc-full-name").FillAsync("Seller Example");
+            await Page.GetByTestId("kyc-personal-id").FillAsync("ID12345");
+            await Page.GetByTestId("kyc-registered-address").FillAsync("Main Street 12, Cityville");
+            await Page.GetByTestId("kyc-contact-phone").FillAsync("+48123123123");
             await Page.GetByTestId("submit-kyc").ClickAsync();
 
-            await Expect(Page).ToHaveURLAsync(new Regex("/seller/dashboard", RegexOptions.IgnoreCase));
-            await Expect(Page.GetByTestId("seller-status")).ToContainTextAsync("KYC is approved");
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/kyc", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByTestId("kyc-status")).ToContainTextAsync("pending review");
+            await Expect(Page.GetByTestId("submit-kyc")).ToBeDisabledAsync();
+        }
+
+        [Fact]
+        public async Task SellerCompanySeesCompanyFieldsAndStatusPendingAfterSubmit()
+        {
+            var email = await SeedUserAsync(AccountType.Seller, emailConfirmed: true);
+
+            ConfigureTimeouts();
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Login", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await Expect(Page.GetByTestId("login-email")).ToBeVisibleAsync(new() { Timeout = 15000 });
+            await Page.GetByTestId("login-email").FillAsync(email);
+            await Page.GetByTestId("login-password").FillAsync(Password);
+            await Page.GetByTestId("login-submit").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/kyc", RegexOptions.IgnoreCase));
+            await Page.GetByTestId("seller-type-company").CheckAsync();
+            await Expect(Page.GetByTestId("kyc-company-name")).ToBeVisibleAsync();
+
+            await Page.GetByTestId("kyc-company-name").FillAsync("Acme Sp. z o.o.");
+            await Page.GetByTestId("kyc-registration-number").FillAsync("REG-445566");
+            await Page.GetByTestId("kyc-tax-id").FillAsync("TAX-123-456");
+            await Page.GetByTestId("kyc-contact-person").FillAsync("Alex Manager");
+            await Page.GetByTestId("kyc-registered-address").FillAsync("Industrial Park 1, Warsaw");
+            await Page.GetByTestId("kyc-contact-phone").FillAsync("+48111222333");
+
+            await Page.GetByTestId("submit-kyc").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/kyc", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByTestId("kyc-status")).ToContainTextAsync("pending review");
         }
 
         private async Task<string> SeedUserAsync(AccountType accountType, bool emailConfirmed)
