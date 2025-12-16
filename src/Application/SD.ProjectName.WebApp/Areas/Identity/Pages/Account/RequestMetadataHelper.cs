@@ -5,11 +5,6 @@
         public static string? GetClientIp(HttpContext context)
         {
             var ip = context.Connection.RemoteIpAddress?.ToString();
-            if (context.Request.Headers.TryGetValue("X-Forwarded-For", out var forwardedFor) && !string.IsNullOrWhiteSpace(forwardedFor))
-            {
-                ip = forwardedFor.FirstOrDefault()?.Split(',').FirstOrDefault()?.Trim();
-            }
-
             return string.IsNullOrWhiteSpace(ip) ? null : ip;
         }
 

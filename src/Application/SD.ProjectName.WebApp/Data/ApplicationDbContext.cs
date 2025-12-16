@@ -69,6 +69,7 @@ namespace SD.ProjectName.WebApp.Data
 
                 entity.HasIndex(e => e.UserId);
                 entity.HasIndex(e => e.OccurredAt);
+                entity.HasIndex(e => e.ExpiresAt);
             });
         }
     }

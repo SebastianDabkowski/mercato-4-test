@@ -13,7 +13,7 @@ namespace SD.ProjectName.WebApp.Data
 
     public class LoginAuditEvent
     {
-        public long Id { get; set; }
+        public int Id { get; set; }
 
         [Required]
         [MaxLength(450)]

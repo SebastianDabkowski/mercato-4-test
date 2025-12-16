@@ -299,7 +299,7 @@ namespace SD.ProjectName.WebApp.Data.Migrations
 
             modelBuilder.Entity("SD.ProjectName.WebApp.Data.LoginAuditEvent", b =>
                 {
-                    b.Property<long>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
@@ -338,6 +338,8 @@ namespace SD.ProjectName.WebApp.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
 
                     b.HasIndex("OccurredAt");
 

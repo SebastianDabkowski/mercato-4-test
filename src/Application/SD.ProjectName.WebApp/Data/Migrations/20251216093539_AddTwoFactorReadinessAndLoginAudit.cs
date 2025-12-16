@@ -44,7 +44,7 @@ namespace SD.ProjectName.WebApp.Data.Migrations
                     name: "LoginAuditEvents",
                     columns: table => new
                     {
-                        Id = table.Column<long>(type: "bigint", nullable: false)
+                        Id = table.Column<int>(type: "int", nullable: false)
                             .Annotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn),
                         UserId = table.Column<string>(type: "nvarchar(450)", maxLength: 450, nullable: false),
                         EventType = table.Column<string>(type: "nvarchar(64)", maxLength: 64, nullable: false),
@@ -93,7 +93,7 @@ namespace SD.ProjectName.WebApp.Data.Migrations
                     name: "LoginAuditEvents",
                     columns: table => new
                     {
-                        Id = table.Column<long>(type: "INTEGER", nullable: false)
+                        Id = table.Column<int>(type: "INTEGER", nullable: false)
                             .Annotation("Sqlite:Autoincrement", true),
                         UserId = table.Column<string>(type: "TEXT", maxLength: 450, nullable: false),
                         EventType = table.Column<string>(type: "TEXT", maxLength: 64, nullable: false),
@@ -115,6 +115,11 @@ namespace SD.ProjectName.WebApp.Data.Migrations
                 name: "IX_LoginAuditEvents_OccurredAt",
                 table: "LoginAuditEvents",
                 column: "OccurredAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_LoginAuditEvents_ExpiresAt",
+                table: "LoginAuditEvents",
+                column: "ExpiresAt");
 
             migrationBuilder.CreateIndex(
                 name: "IX_LoginAuditEvents_UserId",

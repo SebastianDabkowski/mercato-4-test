@@ -86,11 +86,12 @@ namespace SD.ProjectName.WebApp.Services
                 return false;
             }
 
-            var lastSuccess = await _dbContext.LoginAuditEvents
+            var lastSuccess = _dbContext.LoginAuditEvents
                 .Where(e => e.UserId == userId && e.Succeeded)
-                .OrderByDescending(e => e.Id)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(cancellationToken);
+                .AsEnumerable()
+                .OrderByDescending(e => e.OccurredAt)
+                .FirstOrDefault();
 
             if (lastSuccess is null)
             {
@@ -103,24 +104,18 @@ namespace SD.ProjectName.WebApp.Services
         private async Task PruneExpiredAsync(CancellationToken cancellationToken)
         {
             var now = _timeProvider.GetUtcNow();
-            var expiredIds = _dbContext.LoginAuditEvents
-                .Select(e => new { e.Id, e.ExpiresAt })
-                .AsEnumerable()
-                .Where(e => e.ExpiresAt != null && e.ExpiresAt <= now)
-                .Select(e => e.Id)
-                .ToList();
+            var sql = _dbContext.Database.IsSqlite()
+                ? @"DELETE FROM ""LoginAuditEvents"" WHERE ""ExpiresAt"" IS NOT NULL AND ""ExpiresAt"" <= {0}"
+                : @"DELETE FROM [LoginAuditEvents] WHERE [ExpiresAt] IS NOT NULL AND [ExpiresAt] <= @p0";
 
-            if (expiredIds.Count == 0)
+            await _dbContext.Database.ExecuteSqlRawAsync(sql, new object[] { now }, cancellationToken);
+
+            foreach (var tracked in _dbContext.ChangeTracker.Entries<LoginAuditEvent>()
+                         .Where(e => e.Entity.ExpiresAt != null && e.Entity.ExpiresAt <= now)
+                         .ToList())
             {
-                return;
+                tracked.State = EntityState.Detached;
             }
-
-            var expired = await _dbContext.LoginAuditEvents
-                .Where(e => expiredIds.Contains(e.Id))
-                .ToListAsync(cancellationToken);
-
-            _dbContext.LoginAuditEvents.RemoveRange(expired);
-            await _dbContext.SaveChangesAsync(cancellationToken);
         }
     }
 }
