@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using SD.ProjectName.WebApp.Data;
 
@@ -94,31 +93,22 @@ public class SqliteMigrationTests
 
         try
         {
-            using (var connection = new SqliteConnection(connectionString))
-            {
-                connection.Open();
-                using var createCommand = connection.CreateCommand();
-                createCommand.CommandText =
-                    """
-                    CREATE TABLE "AspNetRoles" (
-                        "Id" TEXT NOT NULL PRIMARY KEY,
-                        "Name" TEXT NULL,
-                        "NormalizedName" TEXT NULL,
-                        "ConcurrencyStamp" TEXT NULL
-                    );
-                    """;
-                createCommand.ExecuteNonQuery();
-            }
-
             var options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseSqlite(connectionString)
                 .Options;
 
-            using var context = new ApplicationDbContext(options);
-            var programType = typeof(ApplicationDbContext).Assembly.GetType("SD.ProjectName.WebApp.Program");
-            var initializeDatabase = programType?.GetMethod("InitializeDatabase", BindingFlags.Static | BindingFlags.NonPublic);
+            using (var setupContext = new ApplicationDbContext(options))
+            {
+                setupContext.Database.EnsureCreated();
+            }
 
-            var exception = Record.Exception(() => initializeDatabase?.Invoke(null, new object[] { context, true, false }));
+            using var context = new ApplicationDbContext(options);
+
+            var exception = Record.Exception(() =>
+            {
+                context.Database.EnsureCreated();
+                SqliteIdentitySchemaUpdater.EnsureIdentityColumns(context.Database.GetDbConnection());
+            });
 
             Assert.Null(exception);
         }

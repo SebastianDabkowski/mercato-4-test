@@ -297,6 +297,7 @@ static void InitializeDatabase(DbContext context, bool useSqlite, bool disableMi
 {
     if (useSqlite)
     {
+        // SQLite deployments can already contain Identity tables without migration history; EnsureCreated avoids duplicate table errors.
         if (disableMigrations || context is ApplicationDbContext)
         {
             context.Database.EnsureCreated();
