@@ -85,11 +85,7 @@ public class SqliteMigrationTests
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"dataprotection-migration-{Guid.NewGuid():N}.db");
         var connectionString = $"Data Source={databasePath}";
-
-        if (File.Exists(databasePath))
-        {
-            File.Delete(databasePath);
-        }
+        const string dataProtectionTableName = "DataProtectionKeys";
 
         try
         {
@@ -132,11 +128,12 @@ public class SqliteMigrationTests
             await using var verificationConnection = new SqliteConnection(connectionString);
             await verificationConnection.OpenAsync();
             var verificationCommand = verificationConnection.CreateCommand();
-            verificationCommand.CommandText = """SELECT name FROM sqlite_master WHERE type='table' AND name='DataProtectionKeys';""";
+            verificationCommand.CommandText = "SELECT name FROM sqlite_master WHERE type='table' AND name=@tableName;";
+            verificationCommand.Parameters.AddWithValue("@tableName", dataProtectionTableName);
 
-            var tableName = await verificationCommand.ExecuteScalarAsync();
+            var result = await verificationCommand.ExecuteScalarAsync();
 
-            Assert.NotNull(tableName);
+            Assert.Equal(dataProtectionTableName, result?.ToString());
         }
         finally
         {
