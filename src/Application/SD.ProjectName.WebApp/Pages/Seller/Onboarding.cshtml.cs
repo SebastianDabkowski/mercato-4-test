@@ -253,7 +253,13 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             }
 
             var desired = NormalizeStep(requestedStep);
-            var nextIncomplete = NextStepMap.TryGetValue(user.OnboardingStep, out var next) ? next : OnboardingStep.StoreProfile;
+            var next = OnboardingStep.StoreProfile;
+            if (NextStepMap.TryGetValue(user.OnboardingStep, out var mapped))
+            {
+                next = mapped;
+            }
+
+            var nextIncomplete = next;
 
             if (desired <= user.OnboardingStep)
             {
