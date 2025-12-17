@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Stores;
 
 namespace SD.ProjectName.WebApp.Pages.Seller
 {
@@ -104,10 +105,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             Input.ContactPhone = user.StoreContactPhone ?? user.PhoneNumber ?? string.Empty;
             Input.WebsiteUrl = user.StoreWebsiteUrl ?? string.Empty;
 
-            if (!string.IsNullOrWhiteSpace(user.StoreName))
-            {
-                PublicStoreUrl = Url.Page("/Stores/Profile", pageHandler: null, values: new { storeName = user.StoreName }, protocol: Request.Scheme);
-            }
+            SetPublicStoreUrl(user.StoreName);
 
             StatusMessage ??= "Keep your store details up to date so buyers can reach you.";
 
@@ -235,7 +233,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             TempData["StatusMessage"] = "Store profile saved.";
 
             return RedirectToPage();
-    }
+        }
 
         private static bool HasValidImageSignature(Stream stream, string extension)
         {
@@ -249,6 +247,24 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                 ".jpg" or ".jpeg" => sig.StartsWith(JpegSignature),
                 _ => false
             };
+        }
+
+        private void SetPublicStoreUrl(string? storeName)
+        {
+            if (string.IsNullOrWhiteSpace(storeName))
+            {
+                PublicStoreUrl = null;
+                return;
+            }
+
+            var slug = StoreUrlHelper.ToSlug(storeName);
+            if (string.IsNullOrWhiteSpace(slug))
+            {
+                PublicStoreUrl = null;
+                return;
+            }
+
+            PublicStoreUrl = Url.Page("/Stores/Profile", pageHandler: null, values: new { storeSlug = slug }, protocol: Request.Scheme);
         }
     }
 }
