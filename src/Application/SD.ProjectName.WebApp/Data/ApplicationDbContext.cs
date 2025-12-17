@@ -54,6 +54,33 @@ namespace SD.ProjectName.WebApp.Data
                 entity.Property(u => u.VerificationPersonalIdNumber)
                     .HasMaxLength(100);
 
+                var storeNameProperty = entity.Property(u => u.StoreName)
+                    .HasMaxLength(120);
+
+                if (Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite")
+                {
+                    storeNameProperty.UseCollation("NOCASE");
+                }
+
+                entity.HasIndex(u => u.StoreName)
+                    .IsUnique()
+                    .HasFilter("StoreName IS NOT NULL");
+
+                entity.Property(u => u.StoreDescription)
+                    .HasMaxLength(1000);
+
+                entity.Property(u => u.StoreContactEmail)
+                    .HasMaxLength(320);
+
+                entity.Property(u => u.StoreContactPhone)
+                    .HasMaxLength(64);
+
+                entity.Property(u => u.StoreWebsiteUrl)
+                    .HasMaxLength(2048);
+
+                entity.Property(u => u.StoreLogoPath)
+                    .HasMaxLength(260);
+
                 entity.Property(u => u.FirstName)
                     .IsRequired();
 

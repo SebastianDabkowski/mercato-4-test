@@ -1,0 +1,52 @@
+﻿@page "/stores/{storeName}"
+@model SD.ProjectName.WebApp.Pages.Stores.ProfileModel
+@{
+    ViewData["Title"] = $"{Model.StoreName} - Store";
+}
+
+<div class="row">
+    <div class="col-md-4">
+        @if (!string.IsNullOrWhiteSpace(Model.LogoUrl))
+        {
+            <img src="@Model.LogoUrl" alt="@Model.StoreName logo" class="img-fluid rounded mb-3" data-testid="public-store-logo" />
+        }
+        else
+        {
+            <div class="border rounded bg-light text-center p-4 mb-3" data-testid="public-store-logo-placeholder">
+                <span class="text-muted">No logo provided</span>
+            </div>
+        }
+    </div>
+    <div class="col-md-8">
+        <h1 class="mb-2" data-testid="public-store-name">@Model.StoreName</h1>
+        <p class="text-muted" data-testid="public-store-description">
+            @(!string.IsNullOrWhiteSpace(Model.StoreDescription) ? Model.StoreDescription : "This seller has not added a description yet.")
+        </p>
+
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Contact</h5>
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Email</dt>
+                    <dd class="col-sm-9">
+                        <a href="mailto:@Model.ContactEmail" data-testid="public-store-email">@Model.ContactEmail</a>
+                    </dd>
+                    @if (!string.IsNullOrWhiteSpace(Model.ContactPhone))
+                    {
+                        <dt class="col-sm-3">Phone</dt>
+                        <dd class="col-sm-9" data-testid="public-store-phone">
+                            <a href="tel:@Model.ContactPhone">@Model.ContactPhone</a>
+                        </dd>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(Model.WebsiteUrl))
+                    {
+                        <dt class="col-sm-3">Website</dt>
+                        <dd class="col-sm-9" data-testid="public-store-website">
+                            <a href="@Model.WebsiteUrl" target="_blank" rel="noopener">@Model.WebsiteUrl</a>
+                        </dd>
+                    }
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>

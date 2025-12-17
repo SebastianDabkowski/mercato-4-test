@@ -21,6 +21,10 @@ namespace SD.ProjectName.WebApp.Pages.Seller
 
         public KycStatus KycStatus { get; private set; }
 
+        public string? StoreName { get; private set; }
+
+        public string? PublicStoreUrl { get; private set; }
+
         [TempData]
         public string? StatusMessage { get; set; }
 
@@ -39,6 +43,12 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             {
                 StatusMessage ??= "Complete KYC to access seller tools.";
                 return RedirectToPage("/Seller/Kyc");
+            }
+
+            StoreName = user.StoreName;
+            if (!string.IsNullOrWhiteSpace(user.StoreName))
+            {
+                PublicStoreUrl = Url.Page("/Stores/Profile", pageHandler: null, values: new { storeName = user.StoreName }, protocol: Request.Scheme);
             }
 
             return Page();

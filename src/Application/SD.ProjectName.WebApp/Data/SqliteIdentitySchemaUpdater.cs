@@ -22,6 +22,17 @@ public static class SqliteIdentitySchemaUpdater
             }
         }
 
+        var existingIndexes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """PRAGMA index_list("AspNetUsers");""";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                existingIndexes.Add(reader.GetString(1));
+            }
+        }
+
         const string defaultAccountStatus = "Unverified";
         const string defaultAccountType = "Buyer";
         const string defaultKycStatus = "NotStarted";
@@ -120,6 +131,48 @@ public static class SqliteIdentitySchemaUpdater
             alter.ExecuteNonQuery();
         }
 
+        if (!existingColumns.Contains("StoreName"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""StoreName"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("StoreDescription"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""StoreDescription"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("StoreContactEmail"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""StoreContactEmail"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("StoreContactPhone"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""StoreContactPhone"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("StoreWebsiteUrl"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""StoreWebsiteUrl"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
+        if (!existingColumns.Contains("StoreLogoPath"))
+        {
+            using var alter = connection.CreateCommand();
+            alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""StoreLogoPath"" TEXT NULL;";
+            alter.ExecuteNonQuery();
+        }
+
         if (!existingColumns.Contains("TermsAcceptedAt"))
         {
             using var alter = connection.CreateCommand();
@@ -195,6 +248,13 @@ public static class SqliteIdentitySchemaUpdater
             using var alter = connection.CreateCommand();
             alter.CommandText = @"ALTER TABLE ""AspNetUsers"" ADD COLUMN ""TwoFactorRecoveryCodesGeneratedAt"" TEXT NULL;";
             alter.ExecuteNonQuery();
+        }
+
+        if (!existingIndexes.Contains("IX_AspNetUsers_StoreName"))
+        {
+            using var index = connection.CreateCommand();
+            index.CommandText = """CREATE UNIQUE INDEX IF NOT EXISTS "IX_AspNetUsers_StoreName" ON "AspNetUsers" ("StoreName" COLLATE NOCASE) WHERE "StoreName" IS NOT NULL;""";
+            index.ExecuteNonQuery();
         }
 
         EnsureLoginAuditTable(connection);

@@ -13,3 +13,17 @@
         @Model.StatusMessage
     </div>
 }
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Store profile</h5>
+        <p class="card-text">Manage the store information buyers see on your public page.</p>
+        <div class="d-flex gap-2">
+            <a class="btn btn-primary" asp-page="/Seller/Store" data-testid="store-settings-link">Manage store profile</a>
+            @if (!string.IsNullOrWhiteSpace(Model.PublicStoreUrl))
+            {
+                <a class="btn btn-outline-secondary" href="@Model.PublicStoreUrl" target="_blank" rel="noopener" data-testid="dashboard-store-link">View public page</a>
+            }
+        </div>
+    </div>
+</div>
