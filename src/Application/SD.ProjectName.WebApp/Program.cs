@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
+using Microsoft.AspNetCore.HttpOverrides;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
@@ -39,6 +40,7 @@ var disableMigrations = builder.Configuration.GetValue<bool>("DisableMigrations"
 var useFakeExternalAuth = builder.Configuration.GetValue<bool>("UseFakeExternalAuth");
 var sessionCacheConnection = builder.Configuration.GetConnectionString("SessionCache");
 var sessionCacheInstanceName = builder.Configuration.GetValue<string>("SessionCache:InstanceName") ?? "session-tokens:";
+var runningBehindReverseProxy = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));
 var applicationInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"] ??
     builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
 
@@ -95,6 +97,16 @@ else
 builder.Services.AddDataProtection()
     .PersistKeysToDbContext<ApplicationDbContext>()
     .SetApplicationName("SD.ProjectName");
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    if (runningBehindReverseProxy)
+    {
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    }
+});
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
     {
@@ -265,6 +277,8 @@ else
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
+app.UseForwardedHeaders();
 
 if (!disableHttpsRedirection)
 {
