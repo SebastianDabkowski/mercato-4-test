@@ -92,6 +92,11 @@ namespace SD.ProjectName.WebApp.Data
                     .HasConversion<string>()
                     .HasMaxLength(32)
                     .HasDefaultValue(TwoFactorMethod.None);
+
+                entity.Property(u => u.PayoutDefaultMethod)
+                    .HasConversion<string>()
+                    .HasMaxLength(32)
+                    .HasDefaultValue(PayoutMethod.BankTransfer);
             });
 
             builder.Entity<LoginAuditEvent>(entity =>

@@ -1,0 +1,57 @@
+﻿@page "/seller/payout"
+@using SD.ProjectName.WebApp.Data
+@model SD.ProjectName.WebApp.Pages.Seller.PayoutModel
+@{
+    ViewData["Title"] = "Payout settings";
+}
+
+<h1 class="mb-3" data-testid="payout-heading">Payout settings</h1>
+<p class="text-muted">Configure where your payouts are sent. We protect sensitive payout data and may verify changes for security.</p>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" data-testid="payout-status">
+        @Model.StatusMessage
+    </div>
+}
+
+<form method="post" class="card">
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        <div class="mb-3">
+            <label asp-for="Input.PreferredMethod" class="form-label"></label>
+            <select asp-for="Input.PreferredMethod" asp-items="Model.SupportedMethods" class="form-select" data-testid="payout-method"></select>
+            <span asp-validation-for="Input.PreferredMethod" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Input.PayoutBeneficiaryName" class="form-label"></label>
+            <input asp-for="Input.PayoutBeneficiaryName" class="form-control" data-testid="payout-beneficiary" />
+            <span asp-validation-for="Input.PayoutBeneficiaryName" class="text-danger"></span>
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Input.PayoutAccountNumber" class="form-label"></label>
+            <input asp-for="Input.PayoutAccountNumber" class="form-control" data-testid="payout-account-number" />
+            <span asp-validation-for="Input.PayoutAccountNumber" class="text-danger"></span>
+            @if (!string.IsNullOrWhiteSpace(Model.MaskedAccountNumber))
+            {
+                <div class="form-text" data-testid="payout-account-mask">Current account: @Model.MaskedAccountNumber</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label asp-for="Input.PayoutBankName" class="form-label"></label>
+            <input asp-for="Input.PayoutBankName" class="form-control" data-testid="payout-bank-name" />
+            <span asp-validation-for="Input.PayoutBankName" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="card-footer d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary" data-testid="payout-save">Save payout settings</button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

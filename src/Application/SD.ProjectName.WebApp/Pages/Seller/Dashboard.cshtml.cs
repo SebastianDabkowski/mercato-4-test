@@ -26,6 +26,12 @@ namespace SD.ProjectName.WebApp.Pages.Seller
 
         public string? PublicStoreUrl { get; private set; }
 
+        public bool HasPayoutDetails { get; private set; }
+
+        public string? MaskedPayoutAccount { get; private set; }
+
+        public PayoutMethod PayoutDefaultMethod { get; private set; } = PayoutMethod.BankTransfer;
+
         [TempData]
         public string? StatusMessage { get; set; }
 
@@ -66,6 +72,15 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                 {
                     PublicStoreUrl = Url.Page("/Stores/Profile", pageHandler: null, values: new { storeSlug = slug }, protocol: Request.Scheme);
                 }
+            }
+
+            HasPayoutDetails = !string.IsNullOrWhiteSpace(user.PayoutBeneficiaryName) && !string.IsNullOrWhiteSpace(user.PayoutAccountNumber);
+            MaskedPayoutAccount = PayoutMasking.MaskAccountNumber(user.PayoutAccountNumber);
+            PayoutDefaultMethod = user.PayoutDefaultMethod;
+
+            if (!HasPayoutDetails)
+            {
+                StatusMessage ??= "Add payout details to receive transfers.";
             }
 
             return Page();

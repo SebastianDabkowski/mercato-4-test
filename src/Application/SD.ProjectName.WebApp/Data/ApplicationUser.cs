@@ -30,6 +30,12 @@ namespace SD.ProjectName.WebApp.Data
         Rejected = 4
     }
 
+    public enum PayoutMethod
+    {
+        BankTransfer = 1,
+        PaymentAccount = 2
+    }
+
     public enum TwoFactorMethod
     {
         None = 0,
@@ -137,16 +143,19 @@ namespace SD.ProjectName.WebApp.Data
 
         public bool OnboardingCompleted { get; set; }
 
-        [PersonalData]
+        [ProtectedPersonalData]
         [MaxLength(200)]
         public string? PayoutBeneficiaryName { get; set; }
 
-        [PersonalData]
+        [ProtectedPersonalData]
         [MaxLength(100)]
         public string? PayoutAccountNumber { get; set; }
 
-        [PersonalData]
+        [ProtectedPersonalData]
         [MaxLength(120)]
         public string? PayoutBankName { get; set; }
+
+        [ProtectedPersonalData]
+        public PayoutMethod PayoutDefaultMethod { get; set; } = PayoutMethod.BankTransfer;
     }
 }
