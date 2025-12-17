@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Stores;
 
 namespace SD.ProjectName.WebApp.Pages.Seller
 {
@@ -60,7 +61,11 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             StoreName = user.StoreName;
             if (!string.IsNullOrWhiteSpace(user.StoreName))
             {
-                PublicStoreUrl = Url.Page("/Stores/Profile", pageHandler: null, values: new { storeName = user.StoreName }, protocol: Request.Scheme);
+                var slug = StoreUrlHelper.ToSlug(user.StoreName);
+                if (!string.IsNullOrWhiteSpace(slug))
+                {
+                    PublicStoreUrl = Url.Page("/Stores/Profile", pageHandler: null, values: new { storeSlug = slug }, protocol: Request.Scheme);
+                }
             }
 
             return Page();

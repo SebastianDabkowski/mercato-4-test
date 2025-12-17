@@ -1,4 +1,4 @@
-﻿@page "/stores/{storeName}"
+﻿@page "/store/{storeSlug}"
 @model SD.ProjectName.WebApp.Pages.Stores.ProfileModel
 @{
     ViewData["Title"] = $"{Model.StoreName} - Store";
@@ -49,4 +49,30 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="mt-4">
+    <h2 class="h4 mb-3">Products</h2>
+    @if (Model.ProductPreviews.Any())
+    {
+        <div class="row row-cols-1 row-cols-md-3 g-3" data-testid="public-store-products">
+            @foreach (var product in Model.ProductPreviews)
+            {
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body d-flex flex-column">
+                            <h5 class="card-title" data-testid="public-store-product-name">@product.Name</h5>
+                            <p class="card-text text-muted flex-grow-1">@product.Description</p>
+                            <div class="fw-semibold" data-testid="public-store-product-price">@product.Price.ToString("C")</div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+        <a class="btn btn-outline-primary mt-3" href="/Products/List" data-testid="public-store-products-link">View all products</a>
+    }
+    else
+    {
+        <p class="text-muted" data-testid="public-store-no-products">This store has not listed any products yet.</p>
+    }
 </div>
