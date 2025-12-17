@@ -36,13 +36,25 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                 return Challenge();
             }
 
+            if (!user.OnboardingCompleted)
+            {
+                return RedirectToPage("/Seller/Onboarding");
+            }
+
             RequiresKyc = user.RequiresKyc;
             KycStatus = user.KycStatus;
 
             if (user.RequiresKyc && user.KycStatus != KycStatus.Approved)
             {
-                StatusMessage ??= "Complete KYC to access seller tools.";
-                return RedirectToPage("/Seller/Kyc");
+                if (user.KycStatus == KycStatus.Pending)
+                {
+                    StatusMessage ??= "Your onboarding is pending verification.";
+                }
+                else
+                {
+                    StatusMessage ??= "Complete KYC to access seller tools.";
+                    return RedirectToPage("/Seller/Kyc");
+                }
             }
 
             StoreName = user.StoreName;

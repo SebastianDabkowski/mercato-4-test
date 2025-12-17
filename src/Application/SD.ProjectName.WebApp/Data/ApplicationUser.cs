@@ -38,6 +38,15 @@ namespace SD.ProjectName.WebApp.Data
         Sms = 3
     }
 
+    public enum OnboardingStep
+    {
+        None = 0,
+        StoreProfile = 1,
+        Verification = 2,
+        Payout = 3,
+        Completed = 4
+    }
+
     public class ApplicationUser : IdentityUser
     {
         [PersonalData]
@@ -123,5 +132,21 @@ namespace SD.ProjectName.WebApp.Data
         public DateTimeOffset? TwoFactorLastUsedAt { get; set; }
 
         public DateTimeOffset? TwoFactorRecoveryCodesGeneratedAt { get; set; }
+
+        public OnboardingStep OnboardingStep { get; set; } = OnboardingStep.None;
+
+        public bool OnboardingCompleted { get; set; }
+
+        [PersonalData]
+        [MaxLength(200)]
+        public string? PayoutBeneficiaryName { get; set; }
+
+        [PersonalData]
+        [MaxLength(100)]
+        public string? PayoutAccountNumber { get; set; }
+
+        [PersonalData]
+        [MaxLength(120)]
+        public string? PayoutBankName { get; set; }
     }
 }

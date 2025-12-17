@@ -295,6 +295,8 @@ if (app.Environment.IsDevelopment())
             EmailVerifiedAt = request.EmailConfirmed ? DateTimeOffset.UtcNow : null,
             KycSubmittedAt = request.AccountType == AccountType.Seller ? null : DateTimeOffset.UtcNow,
             KycApprovedAt = request.AccountType == AccountType.Seller ? null : DateTimeOffset.UtcNow,
+            OnboardingStep = request.AccountType == AccountType.Seller ? OnboardingStep.StoreProfile : OnboardingStep.Completed,
+            OnboardingCompleted = request.AccountType != AccountType.Seller,
             EmailConfirmed = request.EmailConfirmed,
             SecurityStamp = Guid.NewGuid().ToString(),
             ConcurrencyStamp = Guid.NewGuid().ToString()

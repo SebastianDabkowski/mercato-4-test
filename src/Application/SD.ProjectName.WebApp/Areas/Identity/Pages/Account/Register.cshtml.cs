@@ -129,6 +129,8 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                 user.TermsAcceptedAt = DateTimeOffset.UtcNow;
                 user.RequiresKyc = Input.AccountType == Data.AccountType.Seller;
                 user.KycStatus = user.RequiresKyc ? KycStatus.NotStarted : KycStatus.Approved;
+                user.OnboardingStep = Input.AccountType == Data.AccountType.Seller ? OnboardingStep.StoreProfile : OnboardingStep.Completed;
+                user.OnboardingCompleted = Input.AccountType != Data.AccountType.Seller;
                 user.EmailVerificationSentAt = DateTimeOffset.UtcNow;
 
                 var result = await _userManager.CreateAsync(user, Input.Password);

@@ -1,0 +1,242 @@
+﻿@page "/seller/onboarding/{step?}"
+@using SD.ProjectName.WebApp.Data
+@model SD.ProjectName.WebApp.Pages.Seller.OnboardingModel
+@{
+    ViewData["Title"] = "Seller onboarding";
+    var step = Model.Step;
+}
+
+<h1 class="mb-2" data-testid="onboarding-heading">Seller onboarding</h1>
+<p class="text-muted">Complete these steps to activate your seller account. You can return later and your progress will be saved.</p>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" role="status" data-testid="onboarding-status">
+        @Model.StatusMessage
+    </div>
+}
+
+<div class="d-flex flex-column flex-md-row gap-2 mb-4">
+    <div class="card flex-fill @(step == 1 ? "border-primary" : string.Empty)" data-testid="onboarding-step-store">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+                <h6 class="card-subtitle text-muted mb-1">Step 1</h6>
+                @if (step > 1)
+                {
+                    <span class="badge bg-success">Done</span>
+                }
+                else
+                {
+                    <span class="badge bg-primary">In progress</span>
+                }
+            </div>
+            <h5 class="card-title mb-0">Store profile</h5>
+            <p class="card-text small text-muted mb-0">Store name, contact email, and description.</p>
+        </div>
+    </div>
+    <div class="card flex-fill @(step == 2 ? "border-primary" : string.Empty)" data-testid="onboarding-step-verification">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+                <h6 class="card-subtitle text-muted mb-1">Step 2</h6>
+                @if (step > 2)
+                {
+                    <span class="badge bg-success">Done</span>
+                }
+                else if (step == 2)
+                {
+                    <span class="badge bg-primary">In progress</span>
+                }
+            </div>
+            <h5 class="card-title mb-0">Verification data</h5>
+            <p class="card-text small text-muted mb-0">Company or individual verification details.</p>
+        </div>
+    </div>
+    <div class="card flex-fill @(step == 3 ? "border-primary" : string.Empty)" data-testid="onboarding-step-payout">
+        <div class="card-body">
+            <div class="d-flex align-items-center justify-content-between">
+                <h6 class="card-subtitle text-muted mb-1">Step 3</h6>
+                @if (step > 3)
+                {
+                    <span class="badge bg-success">Done</span>
+                }
+                else if (step == 3)
+                {
+                    <span class="badge bg-primary">In progress</span>
+                }
+            </div>
+            <h5 class="card-title mb-0">Payout basics</h5>
+            <p class="card-text small text-muted mb-0">Where we send your payouts.</p>
+        </div>
+    </div>
+</div>
+
+<form method="post" class="card" data-testid="onboarding-form">
+    <input asp-for="Input.Step" type="hidden" />
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+        @if (step == 1)
+        {
+            <h4 class="card-title mb-3">Store profile basics</h4>
+            <div class="mb-3">
+                <label asp-for="Input.StoreName" class="form-label"></label>
+                <input asp-for="Input.StoreName" class="form-control" data-testid="onboarding-store-name" />
+                <span asp-validation-for="Input.StoreName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.ContactEmail" class="form-label"></label>
+                <input asp-for="Input.ContactEmail" class="form-control" data-testid="onboarding-contact-email" />
+                <span asp-validation-for="Input.ContactEmail" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.Description" class="form-label"></label>
+                <textarea asp-for="Input.Description" class="form-control" rows="3" data-testid="onboarding-description"></textarea>
+                <span asp-validation-for="Input.Description" class="text-danger"></span>
+            </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="Input.ContactPhone" class="form-label"></label>
+                        <input asp-for="Input.ContactPhone" class="form-control" data-testid="onboarding-contact-phone" />
+                        <span asp-validation-for="Input.ContactPhone" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label asp-for="Input.WebsiteUrl" class="form-label"></label>
+                        <input asp-for="Input.WebsiteUrl" class="form-control" placeholder="https://example.com" data-testid="onboarding-website" />
+                        <span asp-validation-for="Input.WebsiteUrl" class="text-danger"></span>
+                    </div>
+                </div>
+            </div>
+        }
+        else if (step == 2)
+        {
+            <h4 class="card-title mb-3">Verification data</h4>
+            <div class="mb-3">
+                <label class="form-label">Seller type</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Input.SellerType" value="@SellerType.Company" id="onboarding-seller-type-company" data-testid="onboarding-seller-type-company" />
+                    <label class="form-check-label" for="onboarding-seller-type-company">Company</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="Input.SellerType" value="@SellerType.Individual" id="onboarding-seller-type-individual" data-testid="onboarding-seller-type-individual" />
+                    <label class="form-check-label" for="onboarding-seller-type-individual">Individual</label>
+                </div>
+                <span asp-validation-for="Input.SellerType" class="text-danger"></span>
+            </div>
+
+            <div class="border rounded p-3 mb-3 @(Model.Input.SellerType == SellerType.Company ? string.Empty : "d-none")" data-section="company">
+                <h5 class="h6 text-uppercase text-muted mb-3">Company details</h5>
+                <div class="mb-3">
+                    <label asp-for="Input.CompanyName" class="form-label"></label>
+                    <input asp-for="Input.CompanyName" class="form-control" data-testid="onboarding-company-name" />
+                    <span asp-validation-for="Input.CompanyName" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.RegistrationNumber" class="form-label"></label>
+                    <input asp-for="Input.RegistrationNumber" class="form-control" data-testid="onboarding-registration-number" />
+                    <span asp-validation-for="Input.RegistrationNumber" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.TaxId" class="form-label"></label>
+                    <input asp-for="Input.TaxId" class="form-control" data-testid="onboarding-tax-id" />
+                    <span asp-validation-for="Input.TaxId" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.ContactPerson" class="form-label"></label>
+                    <input asp-for="Input.ContactPerson" class="form-control" data-testid="onboarding-contact-person" />
+                    <span asp-validation-for="Input.ContactPerson" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="border rounded p-3 mb-3 @(Model.Input.SellerType == SellerType.Individual ? string.Empty : "d-none")" data-section="individual">
+                <h5 class="h6 text-uppercase text-muted mb-3">Individual details</h5>
+                <div class="mb-3">
+                    <label asp-for="Input.FullName" class="form-label"></label>
+                    <input asp-for="Input.FullName" class="form-control" data-testid="onboarding-full-name" />
+                    <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Input.PersonalIdNumber" class="form-label"></label>
+                    <input asp-for="Input.PersonalIdNumber" class="form-control" data-testid="onboarding-personal-id" />
+                    <span asp-validation-for="Input.PersonalIdNumber" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.RegisteredAddress" class="form-label"></label>
+                <textarea asp-for="Input.RegisteredAddress" class="form-control" rows="2" data-testid="onboarding-registered-address"></textarea>
+                <span asp-validation-for="Input.RegisteredAddress" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.ContactPhoneVerification" class="form-label"></label>
+                <input asp-for="Input.ContactPhoneVerification" class="form-control" data-testid="onboarding-verification-phone" />
+                <span asp-validation-for="Input.ContactPhoneVerification" class="text-danger"></span>
+            </div>
+        }
+        else if (step == 3)
+        {
+            <h4 class="card-title mb-3">Payout basics</h4>
+            <p class="text-muted">Tell us where to send your payouts. You can update this later.</p>
+            <div class="mb-3">
+                <label asp-for="Input.PayoutBeneficiaryName" class="form-label"></label>
+                <input asp-for="Input.PayoutBeneficiaryName" class="form-control" data-testid="onboarding-beneficiary" />
+                <span asp-validation-for="Input.PayoutBeneficiaryName" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.PayoutAccountNumber" class="form-label"></label>
+                <input asp-for="Input.PayoutAccountNumber" class="form-control" data-testid="onboarding-account-number" />
+                <span asp-validation-for="Input.PayoutAccountNumber" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Input.PayoutBankName" class="form-label"></label>
+                <input asp-for="Input.PayoutBankName" class="form-control" data-testid="onboarding-bank-name" />
+                <span asp-validation-for="Input.PayoutBankName" class="text-danger"></span>
+            </div>
+        }
+    </div>
+    <div class="card-footer d-flex justify-content-between align-items-center">
+        <div>
+            @if (step > 1)
+            {
+                <a class="btn btn-outline-secondary" asp-page="/Seller/Onboarding" asp-route-step="@(step - 1)" data-testid="onboarding-back">Back</a>
+            }
+        </div>
+        <div class="d-flex gap-2">
+            @if (step < 3)
+            {
+                <button type="submit" class="btn btn-primary" data-testid="onboarding-continue">Save and continue</button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-success" data-testid="onboarding-submit">Submit onboarding</button>
+            }
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const companySection = document.querySelector('[data-section="company"]');
+            const individualSection = document.querySelector('[data-section="individual"]');
+            const typeInputs = document.querySelectorAll('input[name="Input.SellerType"]');
+
+            function toggleSections() {
+                const selected = document.querySelector('input[name="Input.SellerType"]:checked')?.value;
+                if (selected === '@SellerType.Company') {
+                    companySection?.classList.remove('d-none');
+                    individualSection?.classList.add('d-none');
+                } else if (selected === '@SellerType.Individual') {
+                    individualSection?.classList.remove('d-none');
+                    companySection?.classList.add('d-none');
+                }
+            }
+
+            typeInputs.forEach(r => r.addEventListener('change', toggleSections));
+            toggleSections();
+        })();
+    </script>
+}
