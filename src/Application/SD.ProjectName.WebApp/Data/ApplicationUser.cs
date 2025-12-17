@@ -72,6 +72,30 @@ namespace SD.ProjectName.WebApp.Data
         [MaxLength(100)]
         public string? VerificationPersonalIdNumber { get; set; }
 
+        [PersonalData]
+        [MaxLength(120)]
+        public string? StoreName { get; set; }
+
+        [PersonalData]
+        [MaxLength(1000)]
+        public string? StoreDescription { get; set; }
+
+        [PersonalData]
+        [MaxLength(320)]
+        public string? StoreContactEmail { get; set; }
+
+        [PersonalData]
+        [MaxLength(64)]
+        public string? StoreContactPhone { get; set; }
+
+        [PersonalData]
+        [MaxLength(2048)]
+        public string? StoreWebsiteUrl { get; set; }
+
+        [PersonalData]
+        [MaxLength(260)]
+        public string? StoreLogoPath { get; set; }
+
         public AccountType AccountType { get; set; }
 
         public AccountStatus AccountStatus { get; set; } = AccountStatus.Unverified;
