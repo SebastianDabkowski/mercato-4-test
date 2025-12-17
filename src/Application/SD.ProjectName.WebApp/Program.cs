@@ -39,6 +39,16 @@ var disableMigrations = builder.Configuration.GetValue<bool>("DisableMigrations"
 var useFakeExternalAuth = builder.Configuration.GetValue<bool>("UseFakeExternalAuth");
 var sessionCacheConnection = builder.Configuration.GetConnectionString("SessionCache");
 var sessionCacheInstanceName = builder.Configuration.GetValue<string>("SessionCache:InstanceName") ?? "session-tokens:";
+var applicationInsightsConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"] ??
+    builder.Configuration["APPLICATIONINSIGHTS_CONNECTION_STRING"];
+
+if (!string.IsNullOrWhiteSpace(applicationInsightsConnectionString))
+{
+    builder.Services.AddApplicationInsightsTelemetry(options =>
+    {
+        options.ConnectionString = applicationInsightsConnectionString;
+    });
+}
 
 builder.Services.AddSingleton(TimeProvider.System);
 
