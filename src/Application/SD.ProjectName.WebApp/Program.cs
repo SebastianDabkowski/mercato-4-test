@@ -40,6 +40,7 @@ var disableMigrations = builder.Configuration.GetValue<bool>("DisableMigrations"
 var useFakeExternalAuth = builder.Configuration.GetValue<bool>("UseFakeExternalAuth");
 var sessionCacheConnection = builder.Configuration.GetConnectionString("SessionCache");
 var sessionCacheInstanceName = builder.Configuration.GetValue<string>("SessionCache:InstanceName") ?? "session-tokens:";
+var runningBehindReverseProxy = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));
 
 builder.Services.AddSingleton(TimeProvider.System);
 
@@ -90,8 +91,11 @@ builder.Services.AddDataProtection()
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
+    if (runningBehindReverseProxy)
+    {
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    }
 });
 
 builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
