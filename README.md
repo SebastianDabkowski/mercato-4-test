@@ -52,6 +52,9 @@ This ensures traceability from business goals to implementation.
 ## Project Status
 The project is in the MVP definition and architecture phase. Requirements and scope are validated based on stakeholder interviews. Development is planned to proceed iteratively, starting with core marketplace capabilities.
 
+## Telemetry
+Configure Azure Application Insights by setting `ApplicationInsights:ConnectionString` (or the `APPLICATIONINSIGHTS_CONNECTION_STRING` environment variable) to the connection string provided for the Poland Central resource.
+
 ## Next Steps
 - Finalize MVP backlog.
 - Confirm technology stack and cloud provider.
