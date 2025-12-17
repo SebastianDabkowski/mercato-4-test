@@ -31,13 +31,11 @@ namespace SD.ProjectName.WebApp.Data
 
                 entity.Property(u => u.SellerType)
                     .HasConversion<string>()
-                    .HasMaxLength(32)
-                    .HasDefaultValue(SellerType.Individual);
+                    .HasMaxLength(32);
 
                 entity.Property(u => u.KycStatus)
                     .HasConversion<string>()
-                    .HasMaxLength(32)
-                    .HasDefaultValue(KycStatus.NotStarted);
+                    .HasMaxLength(32);
 
                 entity.Property(u => u.RequiresKyc)
                     .HasDefaultValue(false);
