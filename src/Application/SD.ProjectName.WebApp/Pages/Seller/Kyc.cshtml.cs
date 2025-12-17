@@ -138,6 +138,11 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                 return Challenge();
             }
 
+            if (!user.OnboardingCompleted)
+            {
+                return RedirectToPage("/Seller/Onboarding");
+            }
+
             RequiresKyc = user.RequiresKyc;
             KycStatus = user.KycStatus;
 
@@ -172,6 +177,11 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             if (user is null)
             {
                 return Challenge();
+            }
+
+            if (!user.OnboardingCompleted)
+            {
+                return RedirectToPage("/Seller/Onboarding");
             }
 
             RequiresKyc = user.RequiresKyc;
