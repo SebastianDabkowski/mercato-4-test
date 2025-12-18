@@ -85,8 +85,8 @@ public class PublicStorePageTests
 
         var products = new List<ProductModel>
         {
-            new() { Id = 1, Name = "Product 1", Description = "First product", Price = 10m, Status = "active", Category = "General", Stock = 5, SellerId = storeOwner.Id },
-            new() { Id = 2, Name = "Product 2", Description = "Second product", Price = 20m, Status = "active", Category = "General", Stock = 3, SellerId = storeOwner.Id }
+            new() { Id = 1, Name = "Product 1", Description = "First product", Price = 10m, Status = ProductStatuses.Active, Category = "General", Stock = 5, SellerId = storeOwner.Id },
+            new() { Id = 2, Name = "Product 2", Description = "Second product", Price = 20m, Status = ProductStatuses.Active, Category = "General", Stock = 3, SellerId = storeOwner.Id }
         };
 
         var getProducts = new GetProducts(new FakeProductRepository(products));

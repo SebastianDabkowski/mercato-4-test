@@ -22,7 +22,7 @@ namespace SD.ProjectName.Modules.Products.Domain
         public async Task<List<ProductModel>> GetList()
         {
             return await _context.Set<ProductModel>()
-                .Where(p => p.Status == "active")
+                .Where(p => p.Status == ProductStatuses.Active)
                 .ToListAsync();
         }
 
@@ -33,7 +33,7 @@ namespace SD.ProjectName.Modules.Products.Domain
 
             if (!includeDrafts)
             {
-                query = query.Where(p => p.Status == "active");
+                query = query.Where(p => p.Status == ProductStatuses.Active);
             }
 
             return await query.ToListAsync();

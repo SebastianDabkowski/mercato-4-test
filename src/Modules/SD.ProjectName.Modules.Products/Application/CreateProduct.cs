@@ -23,7 +23,7 @@ namespace SD.ProjectName.Modules.Products.Application
                 Stock = request.Stock,
                 Category = request.Category.Trim(),
                 SellerId = sellerId,
-                Status = "draft"
+                Status = ProductStatuses.Draft
             };
 
             return await _repository.Add(product);
