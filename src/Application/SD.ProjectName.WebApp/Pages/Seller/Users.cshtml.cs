@@ -18,6 +18,12 @@ namespace SD.ProjectName.WebApp.Pages.Seller
     [Authorize(Roles = IdentityRoles.Seller)]
     public class UsersModel : PageModel
     {
+        private const string PendingFirstName = "Pending";
+        private const string PendingLastName = "User";
+        private const string DefaultStoreLabel = "this store";
+        private const string RoleDescriptionText = "Roles: StoreOwner (full access), CatalogManager (products), OrderManager (orders), Accounting (reports), ReadOnly (view-only).";
+        private static readonly DateTimeOffset PendingTerms = DateTimeOffset.MinValue;
+        private static readonly DateTimeOffset PermanentLockout = DateTimeOffset.MaxValue;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailSender _emailSender;
         private readonly FeatureFlags _featureFlags;
@@ -38,6 +44,8 @@ namespace SD.ProjectName.WebApp.Pages.Seller
         public IList<InternalUserViewModel> InternalUsers { get; private set; } = new List<InternalUserViewModel>();
 
         public bool FeatureEnabled => _featureFlags.EnableSellerInternalUsers;
+
+        public string RoleDescriptions => RoleDescriptionText;
 
         [TempData]
         public string? StatusMessage { get; set; }
@@ -75,6 +83,11 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                 return Challenge();
             }
 
+            if (owner.SellerRole != SellerTeamRole.StoreOwner)
+            {
+                return Forbid();
+            }
+
             await LoadInternalUsers(owner);
 
             return Page();
@@ -100,6 +113,13 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                 return Forbid();
             }
 
+            if (string.IsNullOrWhiteSpace(owner.StoreName))
+            {
+                ModelState.AddModelError(string.Empty, "Set your store profile before inviting team members.");
+                await LoadInternalUsers(owner);
+                return Page();
+            }
+
             if (!ModelState.IsValid)
             {
                 await LoadInternalUsers(owner);
@@ -112,7 +132,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             {
                 if (existing.Id != owner.Id && existing.StoreOwnerId != owner.Id)
                 {
-                    ModelState.AddModelError(string.Empty, "This email is already in use.");
+                    ModelState.AddModelError(string.Empty, "This email already belongs to another account and cannot be invited.");
                     await LoadInternalUsers(owner);
                     return Page();
                 }
@@ -124,8 +144,14 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                     return Page();
                 }
 
+                if (existing.StoreOwnerId != owner.Id)
+                {
+                    ModelState.AddModelError(string.Empty, "Existing users must already be linked to this store.");
+                    await LoadInternalUsers(owner);
+                    return Page();
+                }
+
                 existing.SellerRole = InviteInput.Role;
-                existing.StoreOwnerId ??= owner.Id;
                 existing.AccountStatus = existing.AccountStatus == AccountStatus.Suspended ? AccountStatus.Unverified : existing.AccountStatus;
 
                 var updateExisting = await _userManager.UpdateAsync(existing);
@@ -145,18 +171,18 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             {
                 Email = trimmedEmail,
                 UserName = trimmedEmail,
-                FirstName = "Pending",
-                LastName = "User",
+                FirstName = PendingFirstName,
+                LastName = PendingLastName,
                 AccountType = AccountType.Seller,
                 AccountStatus = AccountStatus.Unverified,
-                TermsAcceptedAt = DateTimeOffset.UtcNow,
+                TermsAcceptedAt = PendingTerms,
                 RequiresKyc = false,
                 KycStatus = KycStatus.Approved,
                 OnboardingStep = OnboardingStep.Completed,
                 OnboardingCompleted = true,
                 SellerRole = InviteInput.Role,
                 StoreOwnerId = owner.Id,
-                EmailConfirmed = true
+                EmailConfirmed = false
             };
 
             var createResult = await _userManager.CreateAsync(invitedUser);
@@ -169,18 +195,28 @@ namespace SD.ProjectName.WebApp.Pages.Seller
 
             await _userManager.AddToRoleAsync(invitedUser, IdentityRoles.Seller);
 
-            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(invitedUser);
-            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(resetToken));
+            var confirmationToken = await _userManager.GenerateEmailConfirmationTokenAsync(invitedUser);
+            var encodedConfirmation = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(confirmationToken));
+            var confirmUrl = Url.Page(
+                "/Account/ConfirmEmail",
+                pageHandler: null,
+                values: new { area = "Identity", userId = invitedUser.Id, code = encodedConfirmation },
+                protocol: Request.Scheme);
+
+            // Use a one-time reset token so the invitee can set their initial password after confirming email.
+            var invitationToken = await _userManager.GeneratePasswordResetTokenAsync(invitedUser);
+            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(invitationToken));
             var callbackUrl = Url.Page(
                 "/Account/ResetPassword",
                 pageHandler: null,
                 values: new { area = "Identity", code = encodedToken, email = invitedUser.Email },
                 protocol: Request.Scheme);
 
+            var storeLabel = HtmlEncoder.Default.Encode(owner.StoreName ?? DefaultStoreLabel);
             await _emailSender.SendEmailAsync(
                 invitedUser.Email!,
                 "You have been invited to the seller panel",
-                $"You have been invited to manage {(owner.StoreName ?? "this store")}. Set your password to accept: <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>accept invitation</a>.");
+                $"You have been invited to manage {storeLabel}. Confirm your email: <a href='{HtmlEncoder.Default.Encode(confirmUrl!)}'>confirm email</a>. Then set your password: <a href='{HtmlEncoder.Default.Encode(callbackUrl!)}'>set password</a>.");
 
             invitedUser.EmailVerificationSentAt = DateTimeOffset.UtcNow;
             await _userManager.UpdateAsync(invitedUser);
@@ -265,7 +301,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             }
 
             user.AccountStatus = AccountStatus.Suspended;
-            user.LockoutEnd = DateTimeOffset.MaxValue;
+            user.LockoutEnd = PermanentLockout;
 
             var result = await _userManager.UpdateAsync(user);
             if (!result.Succeeded)
@@ -275,7 +311,13 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                 return Page();
             }
 
-            await _userManager.UpdateSecurityStampAsync(user);
+            var stampResult = await _userManager.UpdateSecurityStampAsync(user);
+            if (!stampResult.Succeeded)
+            {
+                AddErrors(stampResult);
+                await LoadInternalUsers(owner);
+                return Page();
+            }
 
             StatusMessage = "User deactivated and sessions revoked.";
             return RedirectToPage();
@@ -300,7 +342,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller
 
         private static string ResolveStatus(ApplicationUser user)
         {
-            if (user.AccountStatus == AccountStatus.Suspended || (user.LockoutEnd.HasValue && user.LockoutEnd.Value.UtcDateTime > DateTime.UtcNow))
+            if (user.AccountStatus == AccountStatus.Suspended || (user.LockoutEnd.HasValue && user.LockoutEnd.Value > DateTimeOffset.UtcNow))
             {
                 return "Deactivated";
             }

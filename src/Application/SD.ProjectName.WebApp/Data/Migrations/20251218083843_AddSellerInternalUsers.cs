@@ -24,11 +24,32 @@ namespace SD.ProjectName.WebApp.Data.Migrations
                 type: "TEXT",
                 maxLength: 450,
                 nullable: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_AspNetUsers_StoreOwnerId",
+                table: "AspNetUsers",
+                column: "StoreOwnerId");
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_AspNetUsers_AspNetUsers_StoreOwnerId",
+                table: "AspNetUsers",
+                column: "StoreOwnerId",
+                principalTable: "AspNetUsers",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_AspNetUsers_AspNetUsers_StoreOwnerId",
+                table: "AspNetUsers");
+
+            migrationBuilder.DropIndex(
+                name: "IX_AspNetUsers_StoreOwnerId",
+                table: "AspNetUsers");
+
             migrationBuilder.DropColumn(
                 name: "SellerRole",
                 table: "AspNetUsers");

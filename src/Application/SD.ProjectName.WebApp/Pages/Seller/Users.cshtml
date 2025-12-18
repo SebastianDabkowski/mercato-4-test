@@ -49,9 +49,7 @@
                 <div asp-validation-summary="ModelOnly" class="text-danger"></div>
             </div>
         </form>
-        <p class="text-muted small mt-2 mb-0">
-            Roles: StoreOwner (full access), CatalogManager (products), OrderManager (orders), Accounting (reports), ReadOnly (view-only).
-        </p>
+        <p class="text-muted small mt-2 mb-0">@Model.RoleDescriptions</p>
     </div>
 </div>
 

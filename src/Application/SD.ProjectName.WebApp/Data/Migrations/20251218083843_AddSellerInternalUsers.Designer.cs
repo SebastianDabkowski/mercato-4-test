@@ -381,6 +381,8 @@ namespace SD.ProjectName.WebApp.Data.Migrations
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
+                    b.HasIndex("StoreOwnerId");
+
                     b.HasIndex("StoreName")
                         .IsUnique()
                         .HasFilter("StoreName IS NOT NULL");
@@ -446,6 +448,14 @@ namespace SD.ProjectName.WebApp.Data.Migrations
                         .HasForeignKey("RoleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("SD.ProjectName.WebApp.Data.ApplicationUser", b =>
+                {
+                    b.HasOne("SD.ProjectName.WebApp.Data.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("StoreOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<string>", b =>

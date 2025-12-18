@@ -91,7 +91,7 @@ if (!string.IsNullOrWhiteSpace(sessionCacheConnection))
 }
 else
 {
-builder.Services.AddDistributedMemoryCache();
+    builder.Services.AddDistributedMemoryCache();
 }
 
 builder.Services.AddDataProtection()
