@@ -27,3 +27,25 @@
         </div>
     </div>
 </div>
+
+<div class="card mt-3">
+    <div class="card-body">
+        <h5 class="card-title">Payout settings</h5>
+        <p class="card-text">Update your bank account details and default payout method.</p>
+        @if (Model.HasPayoutDetails)
+        {
+            <p class="text-muted small mb-2">
+                Default method: @Model.PayoutDefaultMethod
+                @if (!string.IsNullOrWhiteSpace(Model.MaskedPayoutAccount))
+                {
+                    <span class="ms-2" data-testid="dashboard-payout-account">Account: @Model.MaskedPayoutAccount</span>
+                }
+            </p>
+        }
+        else
+        {
+            <p class="text-muted small mb-2">Add payout details to enable transfers.</p>
+        }
+        <a class="btn btn-primary" asp-page="/Seller/Payout" data-testid="payout-settings-link">Manage payout settings</a>
+    </div>
+</div>

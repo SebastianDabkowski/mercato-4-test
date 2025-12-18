@@ -255,6 +255,13 @@ namespace SD.ProjectName.WebApp.Data.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PayoutDefaultMethod")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("BankTransfer");
+
                     b.Property<string>("PayoutBeneficiaryName")
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");

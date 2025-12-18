@@ -209,6 +209,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                     user.PayoutBeneficiaryName = Input.PayoutBeneficiaryName.Trim();
                     user.PayoutAccountNumber = Input.PayoutAccountNumber.Trim();
                     user.PayoutBankName = string.IsNullOrWhiteSpace(Input.PayoutBankName) ? null : Input.PayoutBankName.Trim();
+                    user.PayoutDefaultMethod = PayoutMethod.BankTransfer;
                     user.OnboardingStep = OnboardingStep.Completed;
                     user.OnboardingCompleted = true;
                     user.RequiresKyc = true;
@@ -252,14 +253,13 @@ namespace SD.ProjectName.WebApp.Pages.Seller
                 return OnboardingStep.Completed;
             }
 
-            var desired = NormalizeStep(requestedStep);
             var next = OnboardingStep.StoreProfile;
             if (NextStepMap.TryGetValue(user.OnboardingStep, out var mapped))
             {
                 next = mapped;
             }
 
-            var nextIncomplete = next;
+            var desired = requestedStep.HasValue ? NormalizeStep(requestedStep) : next;
 
             if (desired <= user.OnboardingStep)
             {
