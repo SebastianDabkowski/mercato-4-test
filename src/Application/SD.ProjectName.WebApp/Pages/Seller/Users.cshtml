@@ -1,0 +1,134 @@
+﻿@page "/seller/users"
+@model SD.ProjectName.WebApp.Pages.Seller.UsersModel
+@using SD.ProjectName.WebApp.Data
+@{
+    ViewData["Title"] = "Store team";
+}
+
+<h1 data-testid="internal-users-heading">Store team</h1>
+<p class="text-muted">Invite and manage team members with roles tailored to the seller panel.</p>
+
+@if (!Model.FeatureEnabled)
+{
+    <div class="alert alert-warning" data-testid="internal-users-disabled">
+        Internal user management is planned for phase 2 and is currently feature-flagged off.
+    </div>
+    return;
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" data-testid="internal-users-status">
+        @Model.StatusMessage
+    </div>
+}
+
+<div class="card mb-4" data-testid="invite-card">
+    <div class="card-body">
+        <h5 class="card-title">Invite a team member</h5>
+        <form method="post" asp-page-handler="Invite" class="row g-3" data-testid="invite-form">
+            <div class="col-md-7">
+                <label asp-for="InviteInput.Email" class="form-label"></label>
+                <input asp-for="InviteInput.Email" class="form-control" data-testid="invite-email" />
+                <span asp-validation-for="InviteInput.Email" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="InviteInput.Role" class="form-label"></label>
+                <select asp-for="InviteInput.Role" class="form-select" data-testid="invite-role">
+                    @foreach (SellerTeamRole role in Enum.GetValues(typeof(SellerTeamRole)))
+                    {
+                        <option value="@((int)role)">@role</option>
+                    }
+                </select>
+                <span asp-validation-for="InviteInput.Role" class="text-danger"></span>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100" data-testid="invite-submit">Send invitation</button>
+            </div>
+            <div class="col-12">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            </div>
+        </form>
+        <p class="text-muted small mt-2 mb-0">@Model.RoleDescriptions</p>
+    </div>
+</div>
+
+<div class="card" data-testid="internal-users-card">
+    <div class="card-body">
+        <h5 class="card-title">Team members</h5>
+        @if (!Model.InternalUsers.Any())
+        {
+            <p class="text-muted mb-0">No internal users yet.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table align-middle" data-testid="internal-users-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Email</th>
+                            <th scope="col">Role</th>
+                            <th scope="col">Status</th>
+                            <th scope="col" class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in Model.InternalUsers)
+                        {
+                            <tr>
+                                <td>
+                                    <span data-testid="internal-user-email">@user.Email</span>
+                                    @if (user.IsOwner)
+                                    {
+                                        <span class="badge bg-secondary ms-2" data-testid="owner-badge">Owner</span>
+                                    }
+                                </td>
+                                <td>
+                                    @if (user.IsOwner)
+                                    {
+                                        <span>@user.Role</span>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="ChangeRole" class="d-flex gap-2 align-items-center">
+                                            <input type="hidden" name="userId" value="@user.Id" />
+                                            <select name="role" class="form-select form-select-sm" data-testid="role-select-@user.Id">
+                                                @foreach (SellerTeamRole role in Enum.GetValues(typeof(SellerTeamRole)))
+                                                {
+                                                    <option value="@((int)role)" selected="@(role == user.Role)">@role</option>
+                                                }
+                                            </select>
+                                            <button type="submit" class="btn btn-outline-primary btn-sm" data-testid="save-role-@user.Id">Save</button>
+                                        </form>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge @(user.Status == "Active" ? "bg-success" : user.Status == "Pending" ? "bg-warning text-dark" : "bg-secondary")" data-testid="internal-user-status">
+                                        @user.Status
+                                    </span>
+                                </td>
+                                <td class="text-end">
+                                    @if (user.IsOwner)
+                                    {
+                                        <span class="text-muted small">Owner cannot be changed</span>
+                                    }
+                                    else
+                                    {
+                                        <form method="post" asp-page-handler="Deactivate" class="d-inline" onsubmit="return confirm('Deactivate this user?')" data-testid="deactivate-form-@user.Id">
+                                            <input type="hidden" name="userId" value="@user.Id" />
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" data-testid="deactivate-@user.Id">Deactivate</button>
+                                        </form>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
