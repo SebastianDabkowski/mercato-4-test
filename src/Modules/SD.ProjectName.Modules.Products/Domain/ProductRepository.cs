@@ -21,7 +21,29 @@ namespace SD.ProjectName.Modules.Products.Domain
 
         public async Task<List<ProductModel>> GetList()
         {
-            return await _context.Set<ProductModel>().ToListAsync();
+            return await _context.Set<ProductModel>()
+                .Where(p => p.Status == ProductStatuses.Active)
+                .ToListAsync();
+        }
+
+        public async Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts)
+        {
+            var query = _context.Set<ProductModel>()
+                .Where(p => p.SellerId == sellerId);
+
+            if (!includeDrafts)
+            {
+                query = query.Where(p => p.Status == ProductStatuses.Active);
+            }
+
+            return await query.ToListAsync();
+        }
+
+        public async Task<ProductModel> Add(ProductModel product)
+        {
+            _context.Set<ProductModel>().Add(product);
+            await _context.SaveChangesAsync();
+            return product;
         }
     }
 }
