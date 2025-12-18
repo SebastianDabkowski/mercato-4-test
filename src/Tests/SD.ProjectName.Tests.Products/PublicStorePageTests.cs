@@ -132,7 +132,7 @@ public class PublicStorePageTests
         {
             var items = includeDrafts
                 ? _products
-                : _products.Where(p => p.Status == "active").ToList();
+                : _products.Where(p => p.Status == ProductStatuses.Active).ToList();
             return Task.FromResult(items);
         }
 

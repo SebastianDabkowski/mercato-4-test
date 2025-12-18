@@ -36,7 +36,7 @@ namespace SD.ProjectName.Tests.Products
 
             // Assert
             Assert.NotNull(result);
-            Assert.Equal("draft", result.Status);
+            Assert.Equal(ProductStatuses.Draft, result.Status);
             Assert.Equal(sellerId, result.SellerId);
             Assert.Equal(request.Title, result.Name);
             Assert.Equal(request.Category, result.Category);
