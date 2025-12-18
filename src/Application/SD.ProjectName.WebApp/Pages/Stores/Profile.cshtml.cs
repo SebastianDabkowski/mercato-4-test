@@ -70,7 +70,7 @@ namespace SD.ProjectName.WebApp.Pages.Stores
             ContactPhone = storeOwner.StoreContactPhone ?? storeOwner.PhoneNumber;
             WebsiteUrl = storeOwner.StoreWebsiteUrl;
             LogoUrl = storeOwner.StoreLogoPath;
-            ProductPreviews = (await _getProducts.GetList())
+            ProductPreviews = (await _getProducts.GetBySeller(storeOwner.Id, includeDrafts: false))
                 .Take(3)
                 .ToList();
 

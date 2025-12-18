@@ -232,6 +232,7 @@ builder.Services.AddAuthorization(options =>
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<GetProducts>();
+builder.Services.AddScoped<CreateProduct>();
 
 builder.Services.AddRazorPages(options =>
 {

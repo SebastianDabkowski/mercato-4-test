@@ -1,0 +1,61 @@
+﻿@page
+@model SD.ProjectName.WebApp.Pages.Seller.Products.IndexModel
+@{
+    ViewData["Title"] = "My products";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+        <h1 class="h3 mb-1" data-testid="seller-products-heading">My products</h1>
+        <p class="text-muted mb-0">Draft products are not visible to buyers until you activate them.</p>
+    </div>
+    <a class="btn btn-primary" asp-page="./Create" data-testid="add-product-button">Add product</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" role="status" data-testid="products-status">
+        @Model.StatusMessage
+    </div>
+}
+
+@if (Model.Products.Any())
+{
+    <div class="table-responsive">
+        <table class="table align-middle" data-testid="seller-products-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Category</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var product in Model.Products)
+                {
+                    <tr data-testid="seller-product-row">
+                        <td>@product.Name</td>
+                        <td>@product.Category</td>
+                        <td>@product.Stock</td>
+                        <td>@product.Price.ToString("C")</td>
+                        <td>
+                            <span class="badge bg-secondary text-uppercase" data-testid="product-status">@product.Status</span>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+else
+{
+    <div class="alert alert-secondary" data-testid="seller-products-empty">
+        You haven't added any products yet. Start by creating your first one.
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -85,8 +85,8 @@ public class PublicStorePageTests
 
         var products = new List<ProductModel>
         {
-            new() { Id = 1, Name = "Product 1", Description = "First product", Price = 10m },
-            new() { Id = 2, Name = "Product 2", Description = "Second product", Price = 20m }
+            new() { Id = 1, Name = "Product 1", Description = "First product", Price = 10m, Status = "active", Category = "General", Stock = 5, SellerId = storeOwner.Id },
+            new() { Id = 2, Name = "Product 2", Description = "Second product", Price = 20m, Status = "active", Category = "General", Stock = 3, SellerId = storeOwner.Id }
         };
 
         var getProducts = new GetProducts(new FakeProductRepository(products));
@@ -127,5 +127,19 @@ public class PublicStorePageTests
         }
 
         public Task<List<ProductModel>> GetList() => Task.FromResult(_products);
+
+        public Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts)
+        {
+            var items = includeDrafts
+                ? _products
+                : _products.Where(p => p.Status == "active").ToList();
+            return Task.FromResult(items);
+        }
+
+        public Task<ProductModel> Add(ProductModel product)
+        {
+            _products.Add(product);
+            return Task.FromResult(product);
+        }
     }
 }
