@@ -91,12 +91,14 @@ if (!string.IsNullOrWhiteSpace(sessionCacheConnection))
 }
 else
 {
-    builder.Services.AddDistributedMemoryCache();
+builder.Services.AddDistributedMemoryCache();
 }
 
 builder.Services.AddDataProtection()
     .PersistKeysToDbContext<ApplicationDbContext>()
     .SetApplicationName("SD.ProjectName");
+
+builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("Features"));
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

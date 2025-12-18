@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Options;
+using SD.ProjectName.WebApp;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
 using SD.ProjectName.WebApp.Stores;
@@ -12,10 +14,12 @@ namespace SD.ProjectName.WebApp.Pages.Seller
     public class DashboardModel : PageModel
     {
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly FeatureFlags _featureFlags;
 
-        public DashboardModel(UserManager<ApplicationUser> userManager)
+        public DashboardModel(UserManager<ApplicationUser> userManager, IOptions<FeatureFlags> featureOptions)
         {
             _userManager = userManager;
+            _featureFlags = featureOptions.Value;
         }
 
         public bool RequiresKyc { get; private set; }
@@ -31,6 +35,8 @@ namespace SD.ProjectName.WebApp.Pages.Seller
         public string? MaskedPayoutAccount { get; private set; }
 
         public PayoutMethod PayoutDefaultMethod { get; private set; } = PayoutMethod.BankTransfer;
+
+        public bool SellerUserManagementEnabled { get; private set; }
 
         [TempData]
         public string? StatusMessage { get; set; }
@@ -82,6 +88,8 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             {
                 StatusMessage ??= "Add payout details to receive transfers.";
             }
+
+            SellerUserManagementEnabled = _featureFlags.EnableSellerInternalUsers;
 
             return Page();
         }

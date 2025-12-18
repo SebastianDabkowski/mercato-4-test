@@ -49,3 +49,14 @@
         <a class="btn btn-primary" asp-page="/Seller/Payout" data-testid="payout-settings-link">Manage payout settings</a>
     </div>
 </div>
+
+@if (Model.SellerUserManagementEnabled)
+{
+    <div class="card mt-3">
+        <div class="card-body">
+            <h5 class="card-title">Team access</h5>
+            <p class="card-text">Invite and manage internal users and roles for your store.</p>
+            <a class="btn btn-primary" asp-page="/Seller/Users" data-testid="seller-users-link">Manage team</a>
+        </div>
+    </div>
+}

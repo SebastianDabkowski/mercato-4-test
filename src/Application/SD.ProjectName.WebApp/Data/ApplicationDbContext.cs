@@ -31,11 +31,13 @@ namespace SD.ProjectName.WebApp.Data
 
                 entity.Property(u => u.SellerType)
                     .HasConversion<string>()
-                    .HasMaxLength(32);
+                    .HasMaxLength(32)
+                    .HasDefaultValue(SellerType.Individual);
 
                 entity.Property(u => u.KycStatus)
                     .HasConversion<string>()
-                    .HasMaxLength(32);
+                    .HasMaxLength(32)
+                    .HasDefaultValue(KycStatus.NotStarted);
 
                 entity.Property(u => u.RequiresKyc)
                     .HasDefaultValue(false);
@@ -97,6 +99,14 @@ namespace SD.ProjectName.WebApp.Data
                     .HasConversion<string>()
                     .HasMaxLength(32)
                     .HasDefaultValue(PayoutMethod.BankTransfer);
+
+                entity.Property(u => u.SellerRole)
+                    .HasConversion<string>()
+                    .HasMaxLength(32)
+                    .HasDefaultValue(SellerTeamRole.StoreOwner);
+
+                entity.Property(u => u.StoreOwnerId)
+                    .HasMaxLength(450);
             });
 
             builder.Entity<LoginAuditEvent>(entity =>

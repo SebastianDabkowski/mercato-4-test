@@ -36,6 +36,15 @@ namespace SD.ProjectName.WebApp.Data
         PaymentAccount = 2
     }
 
+    public enum SellerTeamRole
+    {
+        StoreOwner = 1,
+        CatalogManager = 2,
+        OrderManager = 3,
+        Accounting = 4,
+        ReadOnly = 5
+    }
+
     public enum TwoFactorMethod
     {
         None = 0,
@@ -157,5 +166,9 @@ namespace SD.ProjectName.WebApp.Data
 
         [ProtectedPersonalData]
         public PayoutMethod PayoutDefaultMethod { get; set; } = PayoutMethod.BankTransfer;
+
+        public SellerTeamRole SellerRole { get; set; } = SellerTeamRole.StoreOwner;
+
+        public string? StoreOwnerId { get; set; }
     }
 }
