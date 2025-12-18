@@ -18,14 +18,30 @@ namespace SD.ProjectName.Modules.Products.Application
             _repository = repository;
         }
 
-        public async Task<List<ProductModel>> GetList()
+        public async Task<List<ProductModel>> GetList(string? category = null)
         {
-            return await _repository.GetList();
+            return await _repository.GetList(category);
         }
 
         public async Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts = true)
         {
             return await _repository.GetBySeller(sellerId, includeDrafts);
+        }
+
+        public async Task<ProductModel?> GetById(int id, bool includeDrafts = true)
+        {
+            var product = await _repository.GetById(id);
+            if (product is null)
+            {
+                return null;
+            }
+
+            if (!includeDrafts && product.Status != ProductStatuses.Active)
+            {
+                return null;
+            }
+
+            return product;
         }
 
     }

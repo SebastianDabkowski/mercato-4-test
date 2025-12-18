@@ -30,6 +30,7 @@
                     <th>Stock</th>
                     <th>Price</th>
                     <th>Status</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
@@ -42,6 +43,9 @@
                         <td>@product.Price.ToString("C")</td>
                         <td>
                             <span class="badge bg-secondary text-uppercase" data-testid="product-status">@product.Status</span>
+                        </td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" asp-page="./Edit" asp-route-id="@product.Id" data-testid="edit-product-link">Edit</a>
                         </td>
                     </tr>
                 }

@@ -16,6 +16,12 @@ namespace SD.ProjectName.Modules.Products.Domain
         public string Status { get; set; } = ProductStatuses.Draft;
         public string SellerId { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        public string ImageUrls { get; set; } = string.Empty;
+        public decimal WeightKg { get; set; }
+        public decimal LengthCm { get; set; }
+        public decimal WidthCm { get; set; }
+        public decimal HeightCm { get; set; }
+        public string ShippingMethods { get; set; } = string.Empty;
     }
 
     public static class ProductStatuses

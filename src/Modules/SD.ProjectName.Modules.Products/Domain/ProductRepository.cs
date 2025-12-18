@@ -19,11 +19,18 @@ namespace SD.ProjectName.Modules.Products.Domain
             _context = context;
         }
 
-        public async Task<List<ProductModel>> GetList()
+        public async Task<List<ProductModel>> GetList(string? category = null)
         {
-            return await _context.Set<ProductModel>()
-                .Where(p => p.Status == ProductStatuses.Active)
-                .ToListAsync();
+            var query = _context.Set<ProductModel>()
+                .Where(p => p.Status == ProductStatuses.Active);
+
+            var normalizedCategory = category?.Trim();
+            if (!string.IsNullOrWhiteSpace(normalizedCategory))
+            {
+                query = query.Where(p => p.Category == normalizedCategory);
+            }
+
+            return await query.ToListAsync();
         }
 
         public async Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts)
@@ -44,6 +51,18 @@ namespace SD.ProjectName.Modules.Products.Domain
             _context.Set<ProductModel>().Add(product);
             await _context.SaveChangesAsync();
             return product;
+        }
+
+        public async Task<ProductModel?> GetById(int id)
+        {
+            return await _context.Set<ProductModel>()
+                .FirstOrDefaultAsync(p => p.Id == id);
+        }
+
+        public async Task Update(ProductModel product)
+        {
+            _context.Set<ProductModel>().Update(product);
+            await _context.SaveChangesAsync();
         }
     }
 }

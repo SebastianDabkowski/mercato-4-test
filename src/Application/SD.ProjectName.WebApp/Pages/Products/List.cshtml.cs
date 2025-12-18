@@ -18,9 +18,12 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
         public List<ProductModel> Products { get; set; } = new();
 
+        [BindProperty(SupportsGet = true)]
+        public string? Category { get; set; }
+
         public async Task OnGetAsync()
         {
-            Products = await _getProducts.GetList();
+            Products = await _getProducts.GetList(Category);
         }
     }
 }

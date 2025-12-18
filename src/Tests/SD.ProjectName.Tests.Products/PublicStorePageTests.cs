@@ -126,7 +126,16 @@ public class PublicStorePageTests
             _products = products;
         }
 
-        public Task<List<ProductModel>> GetList() => Task.FromResult(_products);
+        public Task<List<ProductModel>> GetList(string? category = null)
+        {
+            var query = _products.AsEnumerable();
+            if (!string.IsNullOrWhiteSpace(category))
+            {
+                query = query.Where(p => p.Category == category);
+            }
+
+            return Task.FromResult(query.ToList());
+        }
 
         public Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts)
         {
@@ -134,6 +143,22 @@ public class PublicStorePageTests
                 ? _products
                 : _products.Where(p => p.Status == ProductStatuses.Active).ToList();
             return Task.FromResult(items);
+        }
+
+        public Task<ProductModel?> GetById(int id)
+        {
+            return Task.FromResult(_products.FirstOrDefault(p => p.Id == id));
+        }
+
+        public Task Update(ProductModel product)
+        {
+            var existing = _products.FirstOrDefault(p => p.Id == product.Id);
+            if (existing is not null)
+            {
+                _products.Remove(existing);
+            }
+            _products.Add(product);
+            return Task.CompletedTask;
         }
 
         public Task<ProductModel> Add(ProductModel product)

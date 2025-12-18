@@ -33,9 +33,19 @@ namespace SD.ProjectName.Modules.Products.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("HeightCm")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Category")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ImageUrls")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<decimal>("LengthCm")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -43,6 +53,10 @@ namespace SD.ProjectName.Modules.Products.Migrations
 
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ShippingMethods")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SellerId")
                         .IsRequired()
@@ -54,6 +68,12 @@ namespace SD.ProjectName.Modules.Products.Migrations
 
                     b.Property<int>("Stock")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("WeightKg")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("WidthCm")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("Id");
 

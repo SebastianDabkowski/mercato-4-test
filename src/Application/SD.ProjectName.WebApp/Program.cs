@@ -233,6 +233,7 @@ builder.Services.AddAuthorization(options =>
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<GetProducts>();
 builder.Services.AddScoped<CreateProduct>();
+builder.Services.AddScoped<UpdateProduct>();
 
 builder.Services.AddRazorPages(options =>
 {
@@ -242,6 +243,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/AccessDenied");
     options.Conventions.AllowAnonymousToPage("/Index");
     options.Conventions.AllowAnonymousToPage("/Products/List");
+    options.Conventions.AllowAnonymousToPage("/Products/Details");
     options.Conventions.AllowAnonymousToPage("/Privacy");
 });
 

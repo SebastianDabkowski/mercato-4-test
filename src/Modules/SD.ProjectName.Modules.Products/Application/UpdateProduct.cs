@@ -5,35 +5,41 @@ using SD.ProjectName.Modules.Products.Domain.Interfaces;
 
 namespace SD.ProjectName.Modules.Products.Application
 {
-    public class CreateProduct
+    public class UpdateProduct
     {
         private readonly IProductRepository _repository;
 
-        public CreateProduct(IProductRepository repository)
+        public UpdateProduct(IProductRepository repository)
         {
             _repository = repository;
         }
 
-        public async Task<ProductModel> CreateAsync(Request request, string sellerId)
+        public async Task<ProductModel?> UpdateAsync(int productId, Request request, string sellerId)
         {
-            var product = new ProductModel
+            var existing = await _repository.GetById(productId);
+            if (existing is null || !string.Equals(existing.SellerId, sellerId, StringComparison.OrdinalIgnoreCase))
             {
-                Name = request.Title.Trim(),
-                Description = request.Description?.Trim() ?? string.Empty,
-                Price = request.Price,
-                Stock = request.Stock,
-                Category = request.Category.Trim(),
-                ImageUrls = NormalizeMultiline(request.ImageUrls),
-                WeightKg = request.WeightKg ?? 0,
-                LengthCm = request.LengthCm ?? 0,
-                WidthCm = request.WidthCm ?? 0,
-                HeightCm = request.HeightCm ?? 0,
-                ShippingMethods = NormalizeMultiline(request.ShippingMethods),
-                SellerId = sellerId,
-                Status = ProductStatuses.Draft
-            };
+                return null;
+            }
 
-            return await _repository.Add(product);
+            existing.Name = request.Title.Trim();
+            existing.Description = request.Description?.Trim() ?? string.Empty;
+            existing.Price = request.Price;
+            existing.Stock = request.Stock;
+            existing.Category = request.Category.Trim();
+            existing.ImageUrls = NormalizeMultiline(request.ImageUrls);
+            existing.WeightKg = request.WeightKg ?? 0;
+            existing.LengthCm = request.LengthCm ?? 0;
+            existing.WidthCm = request.WidthCm ?? 0;
+            existing.HeightCm = request.HeightCm ?? 0;
+            existing.ShippingMethods = NormalizeMultiline(request.ShippingMethods);
+            if (request.Publish)
+            {
+                existing.Status = ProductStatuses.Active;
+            }
+
+            await _repository.Update(existing);
+            return existing;
         }
 
         private static string NormalizeMultiline(string? value)
@@ -86,6 +92,8 @@ namespace SD.ProjectName.Modules.Products.Application
 
             [StringLength(1000)]
             public string? ShippingMethods { get; set; }
+
+            public bool Publish { get; set; }
         }
     }
 }
