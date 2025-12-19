@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using System;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Collections.Generic;
 using SD.ProjectName.Modules.Products.Domain;
@@ -37,17 +38,19 @@ namespace SD.ProjectName.Modules.Products.Application
             existing.HeightCm = request.HeightCm ?? 0;
             existing.ShippingMethods = NormalizeMultiline(request.ShippingMethods);
 
-            var targetStatus = DetermineTargetStatus(existing.Status, request.Publish);
+            var currentStatus = existing.Status;
+            var targetStatus = DetermineTargetStatus(currentStatus, request.Publish);
+            existing.Status = targetStatus;
+
             if (targetStatus == ProductStatuses.Active)
             {
                 var validationErrors = ValidateActivation(existing);
                 if (validationErrors.Any())
                 {
+                    existing.Status = currentStatus;
                     throw new ProductActivationException(validationErrors);
                 }
             }
-
-            existing.Status = targetStatus;
 
             await _repository.Update(existing);
             return existing;
