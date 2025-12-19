@@ -20,7 +20,7 @@ namespace SD.ProjectName.Modules.Products.Application
         {
             var existing = await _repository.GetById(productId);
             if (existing is null
-                || existing.Status == ProductStatuses.Archived
+                || string.Equals(existing.Status, ProductStatuses.Archived, StringComparison.OrdinalIgnoreCase)
                 || !string.Equals(existing.SellerId, sellerId, StringComparison.OrdinalIgnoreCase))
             {
                 return null;
@@ -161,9 +161,9 @@ namespace SD.ProjectName.Modules.Products.Application
         public class ProductActivationException : Exception
         {
             public ProductActivationException(IReadOnlyCollection<string> errors)
-                : base(errors.Any()
-                    ? $"Product cannot be activated. Please fix: {string.Join("; ", errors)}"
-                    : "Product cannot be activated due to validation errors.")
+                : base(errors is null || !errors.Any()
+                    ? throw new ArgumentException("At least one activation validation error is required.", nameof(errors))
+                    : $"Product cannot be activated. Please fix: {string.Join("; ", errors)}")
             {
                 Errors = errors;
             }
