@@ -91,13 +91,8 @@ namespace SD.ProjectName.Modules.Products.Application
                 errors.Add("Description is required to activate the product.");
             }
 
-            var images = (product.ImageUrls ?? string.Empty)
-                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(i => i.Trim())
-                .Where(i => !string.IsNullOrWhiteSpace(i))
-                .ToList();
-
-            if (!images.Any())
+            var normalizedImages = NormalizeMultiline(product.ImageUrls);
+            if (string.IsNullOrWhiteSpace(normalizedImages))
             {
                 errors.Add("At least one product image is required to activate the product.");
             }
