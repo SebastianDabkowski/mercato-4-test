@@ -169,17 +169,20 @@ namespace SD.ProjectName.Modules.Products.Application
 
         public class Request
         {
+            public const decimal MaxPriceValue = 1_000_000;
+            public const int MaxStockValue = 1_000_000;
+
             [Required]
             public List<int> ProductIds { get; set; } = new();
 
             public PriceOperation PriceOperation { get; set; } = PriceOperation.None;
 
-            [Range(0, 1_000_000)]
+            [Range(0, (double)MaxPriceValue)]
             public decimal PriceValue { get; set; }
 
             public StockOperation StockOperation { get; set; } = StockOperation.None;
 
-            [Range(0, 1_000_000)]
+            [Range(0, MaxStockValue)]
             public int StockValue { get; set; }
 
             public bool ApplyChanges { get; set; } = true;

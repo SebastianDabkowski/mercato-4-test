@@ -71,7 +71,9 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
                 ModelState.AddModelError(string.Empty, "Select a price or stock change.");
             }
 
-            if (BulkUpdate.PriceOperation != BulkUpdateProducts.PriceOperation.None && (BulkUpdate.PriceValue is null || BulkUpdate.PriceValue <= 0))
+            var isPricePercent = BulkUpdate.PriceOperation is BulkUpdateProducts.PriceOperation.IncreaseByPercentage
+                or BulkUpdateProducts.PriceOperation.DecreaseByPercentage;
+            if (BulkUpdate.PriceOperation != BulkUpdateProducts.PriceOperation.None && (BulkUpdate.PriceValue is null || (!isPricePercent && BulkUpdate.PriceValue <= 0)))
             {
                 ModelState.AddModelError(nameof(BulkUpdate.PriceValue), "Enter a price amount greater than zero.");
             }
@@ -79,6 +81,11 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             if (BulkUpdate.StockOperation != BulkUpdateProducts.StockOperation.None && BulkUpdate.StockValue is null)
             {
                 ModelState.AddModelError(nameof(BulkUpdate.StockValue), "Enter a stock amount.");
+            }
+
+            if (BulkUpdate.StockValue is < 0)
+            {
+                ModelState.AddModelError(nameof(BulkUpdate.StockValue), "Stock change cannot be negative.");
             }
 
             if (!ModelState.IsValid)
