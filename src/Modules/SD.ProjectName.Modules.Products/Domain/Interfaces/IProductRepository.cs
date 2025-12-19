@@ -13,5 +13,7 @@ namespace SD.ProjectName.Modules.Products.Domain.Interfaces
         Task<ProductModel?> GetById(int id);
         Task Update(ProductModel product);
         Task<ProductModel> Add(ProductModel product);
+        Task<bool> AnyWithCategory(string categoryName);
+        Task<int> UpdateCategoryName(string oldCategoryName, string newCategoryName);
     }
 }

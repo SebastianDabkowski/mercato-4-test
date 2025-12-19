@@ -1,0 +1,66 @@
+﻿@page
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model SD.ProjectName.WebApp.Pages.Admin.CategoriesModel
+@{
+    ViewData["Title"] = "Category management";
+    var parentOptions = new List<SelectListItem> { new("(No parent)", "") };
+    parentOptions.AddRange(Model.ParentOptions);
+}
+
+<h1 class="display-6 mb-3" data-testid="categories-heading">Category management</h1>
+<p class="text-muted">Manage the global product category tree.</p>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success" role="alert" data-testid="status-message">@Model.StatusMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger" role="alert" data-testid="error-message">@Model.ErrorMessage</div>
+}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Create category</h2>
+        <form method="post" asp-page-handler="Create" class="row g-3" data-testid="create-category-form">
+            <div class="col-md-6">
+                <label asp-for="CreateInput.Name" class="form-label"></label>
+                <input asp-for="CreateInput.Name" class="form-control" data-testid="category-name-input" />
+                <span asp-validation-for="CreateInput.Name" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="CreateInput.ParentId" class="form-label"></label>
+                <select asp-for="CreateInput.ParentId" asp-items="parentOptions" class="form-select" data-testid="category-parent-select"></select>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary" data-testid="create-category-button">Add category</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h2 class="h5 mb-3">Category tree</h2>
+        <div data-testid="category-tree">
+            @if (Model.Tree.Any())
+            {
+                <ul class="list-unstyled">
+                    @foreach (var node in Model.Tree)
+                    {
+                        @await Html.PartialAsync("_CategoryNode", node)
+                    }
+                </ul>
+            }
+            else
+            {
+                <p class="text-muted mb-0" data-testid="empty-categories">No categories defined yet.</p>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

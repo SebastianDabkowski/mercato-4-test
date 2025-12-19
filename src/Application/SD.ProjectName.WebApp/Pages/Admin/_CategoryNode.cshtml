@@ -1,0 +1,49 @@
+﻿@model SD.ProjectName.Modules.Products.Application.CategoryManagement.CategoryTreeItem
+@{
+    var badgeClass = Model.IsActive ? "bg-success" : "bg-secondary";
+}
+
+<li class="mb-2" data-testid="category-node" data-category-id="@Model.Id">
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="fw-semibold">@Model.Name</span>
+        <span class="badge @badgeClass">@(@Model.IsActive ? "Active" : "Inactive")</span>
+        <form method="post" asp-page="/Admin/Categories" asp-page-handler="Move" class="d-inline">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="direction" value="up" />
+            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Move up" data-testid="move-up">↑</button>
+        </form>
+        <form method="post" asp-page="/Admin/Categories" asp-page-handler="Move" class="d-inline">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="direction" value="down" />
+            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Move down" data-testid="move-down">↓</button>
+        </form>
+        <form method="post" asp-page="/Admin/Categories" asp-page-handler="Toggle" class="d-inline">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="hidden" name="isActive" value="@(!Model.IsActive)" />
+            <button type="submit" class="btn btn-sm @(Model.IsActive ? "btn-outline-warning" : "btn-outline-success")" data-testid="toggle-category">
+                @(Model.IsActive ? "Deactivate" : "Activate")
+            </button>
+        </form>
+        <form method="post" asp-page="/Admin/Categories" asp-page-handler="Delete" class="d-inline" onsubmit="return confirm('Delete this category?');">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <button type="submit" class="btn btn-sm btn-outline-danger" data-testid="delete-category">Delete</button>
+        </form>
+    </div>
+    <div class="mt-2 mb-2">
+        <form method="post" asp-page="/Admin/Categories" asp-page-handler="Rename" class="d-flex gap-2 align-items-center flex-wrap" data-testid="rename-form">
+            <input type="hidden" name="id" value="@Model.Id" />
+            <input type="text" name="name" value="@Model.Name" class="form-control form-control-sm w-auto" data-testid="rename-input" />
+            <button type="submit" class="btn btn-sm btn-primary" data-testid="rename-button">Rename</button>
+        </form>
+    </div>
+
+    @if (Model.Children.Any())
+    {
+        <ul class="list-unstyled ms-4">
+            @foreach (var child in Model.Children)
+            {
+                @await Html.PartialAsync("_CategoryNode", child)
+            }
+        </ul>
+    }
+</li>

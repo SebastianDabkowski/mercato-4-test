@@ -166,5 +166,24 @@ public class PublicStorePageTests
             _products.Add(product);
             return Task.FromResult(product);
         }
+
+        public Task<bool> AnyWithCategory(string categoryName)
+        {
+            var normalized = categoryName.Trim();
+            return Task.FromResult(_products.Any(p => string.Equals(p.Category, normalized, StringComparison.Ordinal)));
+        }
+
+        public Task<int> UpdateCategoryName(string oldCategoryName, string newCategoryName)
+        {
+            var normalizedOld = oldCategoryName.Trim();
+            var updated = 0;
+            foreach (var product in _products.Where(p => string.Equals(p.Category, normalizedOld, StringComparison.Ordinal)))
+            {
+                product.Category = newCategoryName.Trim();
+                updated++;
+            }
+
+            return Task.FromResult(updated);
+        }
     }
 }

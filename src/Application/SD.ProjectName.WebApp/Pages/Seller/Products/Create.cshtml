@@ -16,11 +16,25 @@
         <span asp-validation-for="Input.Title" class="text-danger"></span>
     </div>
 
-    <div class="mb-3">
-        <label asp-for="Input.Category" class="form-label"></label>
+<div class="mb-3">
+    <label asp-for="Input.Category" class="form-label"></label>
+    @if (Model.CategoryOptions.Any())
+    {
+        <select asp-for="Input.Category" class="form-select" data-testid="product-category">
+            <option value="">Select a category</option>
+            @foreach (var option in Model.CategoryOptions)
+            {
+                <option value="@option.Name">@option.DisplayName</option>
+            }
+        </select>
+    }
+    else
+    {
         <input asp-for="Input.Category" class="form-control" data-testid="product-category" />
-        <span asp-validation-for="Input.Category" class="text-danger"></span>
-    </div>
+        <div class="form-text">Create a category as an admin to make it selectable.</div>
+    }
+    <span asp-validation-for="Input.Category" class="text-danger"></span>
+</div>
 
     <div class="row">
         <div class="col-md-6">

@@ -14,11 +14,13 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly CreateProduct _createProduct;
+        private readonly CategoryManagement _categoryManagement;
 
-        public CreateModel(UserManager<ApplicationUser> userManager, CreateProduct createProduct)
+        public CreateModel(UserManager<ApplicationUser> userManager, CreateProduct createProduct, CategoryManagement categoryManagement)
         {
             _userManager = userManager;
             _createProduct = createProduct;
+            _categoryManagement = categoryManagement;
         }
 
         [BindProperty]
@@ -27,12 +29,17 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
         [TempData]
         public string? StatusMessage { get; set; }
 
-        public void OnGet()
+        public async Task OnGet()
         {
+            await LoadCategoriesAsync();
         }
 
         public async Task<IActionResult> OnPostAsync()
         {
+            await LoadCategoriesAsync();
+
+            ValidateCategoryAgainstOptions();
+
             if (!ModelState.IsValid)
             {
                 return Page();
@@ -61,6 +68,21 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
 
             StatusMessage = "Product saved as draft.";
             return RedirectToPage("./Index");
+        }
+
+        public IReadOnlyList<CategoryManagement.CategoryOption> CategoryOptions { get; private set; } = Array.Empty<CategoryManagement.CategoryOption>();
+
+        private async Task LoadCategoriesAsync()
+        {
+            CategoryOptions = await _categoryManagement.GetActiveOptions();
+        }
+
+        private void ValidateCategoryAgainstOptions()
+        {
+            if (CategoryOptions.Any() && !CategoryOptions.Any(c => string.Equals(c.Name, Input.Category, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError(nameof(Input.Category), "Select a valid category.");
+            }
         }
 
         public class InputModel
