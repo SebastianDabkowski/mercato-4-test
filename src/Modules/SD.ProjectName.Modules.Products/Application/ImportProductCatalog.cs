@@ -137,7 +137,7 @@ namespace SD.ProjectName.Modules.Products.Application
             var rowsToUpdate = validRows.Count(r => r.IsUpdate);
 
             return new ImportPreviewResult(
-                parseResult.Rows.Count,
+                parseResult.TotalRows,
                 rowsToCreate,
                 rowsToUpdate,
                 parseResult.Errors.Count,
@@ -179,11 +179,12 @@ namespace SD.ProjectName.Modules.Products.Application
             var errors = new List<ImportError>();
             var rows = new List<ImportRow>();
             var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            var totalRows = Math.Max(0, lines.Length - 1);
 
             if (lines.Length == 0)
             {
                 errors.Add(new ImportError(0, "The uploaded file is empty."));
-                return new ImportParseResult(rows, errors, new Dictionary<string, ProductModel>(StringComparer.OrdinalIgnoreCase), true);
+                return new ImportParseResult(rows, errors, new Dictionary<string, ProductModel>(StringComparer.OrdinalIgnoreCase), true, totalRows);
             }
 
             var header = SplitCsvLine(lines[0]);
@@ -192,7 +193,7 @@ namespace SD.ProjectName.Modules.Products.Application
             if (missingColumns.Any())
             {
                 errors.Add(new ImportError(0, $"Missing required columns: {string.Join(", ", missingColumns)}."));
-                return new ImportParseResult(rows, errors, new Dictionary<string, ProductModel>(StringComparer.OrdinalIgnoreCase), true);
+                return new ImportParseResult(rows, errors, new Dictionary<string, ProductModel>(StringComparer.OrdinalIgnoreCase), true, totalRows);
             }
 
             for (int i = 1; i < lines.Length; i++)
@@ -226,7 +227,7 @@ namespace SD.ProjectName.Modules.Products.Application
                 }
             }
 
-            return new ImportParseResult(rows, errors, existingLookup, false);
+            return new ImportParseResult(rows, errors, existingLookup, false, totalRows);
         }
 
         private static ImportRow BuildRow(IReadOnlyList<string> values, Dictionary<string, int> map, int rowNumber)
@@ -406,7 +407,8 @@ namespace SD.ProjectName.Modules.Products.Application
             List<ImportRow> Rows,
             List<ImportError> Errors,
             Dictionary<string, ProductModel> ExistingBySku,
-            bool HasFatalErrors);
+            bool HasFatalErrors,
+            int TotalRows);
 
         public record ImportError(int RowNumber, string Message);
 
