@@ -16,12 +16,14 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly GetProducts _getProducts;
         private readonly UpdateProduct _updateProduct;
+        private readonly CategoryManagement _categoryManagement;
 
-        public EditModel(UserManager<ApplicationUser> userManager, GetProducts getProducts, UpdateProduct updateProduct)
+        public EditModel(UserManager<ApplicationUser> userManager, GetProducts getProducts, UpdateProduct updateProduct, CategoryManagement categoryManagement)
         {
             _userManager = userManager;
             _getProducts = getProducts;
             _updateProduct = updateProduct;
+            _categoryManagement = categoryManagement;
         }
 
         [BindProperty]
@@ -29,6 +31,8 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
 
         [TempData]
         public string? StatusMessage { get; set; }
+
+        public IReadOnlyList<CategoryManagement.CategoryOption> CategoryOptions { get; private set; } = Array.Empty<CategoryManagement.CategoryOption>();
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
@@ -43,6 +47,8 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             {
                 return Forbid();
             }
+
+            await LoadCategoriesAsync();
 
             Input = new InputModel
             {
@@ -65,6 +71,10 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
 
         public async Task<IActionResult> OnPostAsync(int id)
         {
+            await LoadCategoriesAsync();
+
+            ValidateCategory();
+
             if (!ModelState.IsValid)
             {
                 return Page();
@@ -110,6 +120,19 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
                 }
 
                 return Page();
+            }
+        }
+
+        private async Task LoadCategoriesAsync()
+        {
+            CategoryOptions = await _categoryManagement.GetActiveOptions();
+        }
+
+        private void ValidateCategory()
+        {
+            if (CategoryOptions.Any() && !CategoryOptions.Any(c => string.Equals(c.Name, Input.Category, StringComparison.OrdinalIgnoreCase)))
+            {
+                ModelState.AddModelError(nameof(Input.Category), "Select a valid category.");
             }
         }
 

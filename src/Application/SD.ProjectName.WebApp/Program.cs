@@ -235,6 +235,8 @@ builder.Services.AddScoped<GetProducts>();
 builder.Services.AddScoped<CreateProduct>();
 builder.Services.AddScoped<UpdateProduct>();
 builder.Services.AddScoped<DeleteProduct>();
+builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
+builder.Services.AddScoped<CategoryManagement>();
 
 builder.Services.AddRazorPages(options =>
 {
@@ -348,6 +350,20 @@ if (app.Environment.IsDevelopment())
         if (!addToRoleResult.Succeeded)
         {
             return Results.BadRequest(addToRoleResult.Errors.Select(e => e.Description));
+        }
+
+        if (request.IsAdmin)
+        {
+            if (!await roleManager.RoleExistsAsync(IdentityRoles.Admin))
+            {
+                await roleManager.CreateAsync(new IdentityRole(IdentityRoles.Admin));
+            }
+
+            var addAdminResult = await userManager.AddToRoleAsync(user, IdentityRoles.Admin);
+            if (!addAdminResult.Succeeded)
+            {
+                return Results.BadRequest(addAdminResult.Errors.Select(e => e.Description));
+            }
         }
 
         if (request.EnableTwoFactor)

@@ -7,7 +7,7 @@ using SD.ProjectName.Modules.Products.Infrastructure;
 
 #nullable disable
 
-namespace SD.ProjectName.Modules.Products.Migrations
+namespace SD.ProjectName.Modules.Products.Infrastructure.Migrations
 {
     [DbContext(typeof(ProductDbContext))]
     partial class ProductDbContextModelSnapshot : ModelSnapshot
@@ -20,6 +20,47 @@ namespace SD.ProjectName.Modules.Products.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("SD.ProjectName.Modules.Products.Domain.CategoryModel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("ParentId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique();
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("Category", (string)null);
+                });
 
             modelBuilder.Entity("SD.ProjectName.Modules.Products.Domain.ProductModel", b =>
                 {
@@ -78,6 +119,21 @@ namespace SD.ProjectName.Modules.Products.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ProductModel", (string)null);
+                });
+
+            modelBuilder.Entity("SD.ProjectName.Modules.Products.Domain.CategoryModel", b =>
+                {
+                    b.HasOne("SD.ProjectName.Modules.Products.Domain.CategoryModel", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("SD.ProjectName.Modules.Products.Domain.CategoryModel", b =>
+                {
+                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }

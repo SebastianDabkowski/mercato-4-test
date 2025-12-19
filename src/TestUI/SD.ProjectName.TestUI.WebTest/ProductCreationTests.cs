@@ -133,7 +133,7 @@ namespace SD.ProjectName.TestUI.WebTest
             await Page.GetByTestId("delete-product-button").First.ClickAsync();
 
             await Expect(Page.GetByTestId("products-status")).ToContainTextAsync("archived");
-            await Expect(Page.GetByTestId("seller-products-table")).NotToContainTextAsync("Delete Me");
+            await Expect(Page.GetByTestId("seller-products-table").Locator("text=Delete Me")).ToHaveCountAsync(0);
 
             await Page.GotoAsync($"{_fixture.BaseUrl}/products/list?category=Archive");
             await Expect(Page.Locator("[data-testid='product-row']")).ToHaveCountAsync(0);

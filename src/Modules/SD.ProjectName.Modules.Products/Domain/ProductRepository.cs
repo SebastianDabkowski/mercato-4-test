@@ -64,5 +64,32 @@ namespace SD.ProjectName.Modules.Products.Domain
             _context.Set<ProductModel>().Update(product);
             await _context.SaveChangesAsync();
         }
+
+        public async Task<bool> AnyWithCategory(string categoryName)
+        {
+            if (string.IsNullOrWhiteSpace(categoryName))
+            {
+                return false;
+            }
+
+            var normalized = categoryName.Trim();
+            return await _context.Set<ProductModel>()
+                .AnyAsync(p => p.Category == normalized);
+        }
+
+        public async Task<int> UpdateCategoryName(string oldCategoryName, string newCategoryName)
+        {
+            if (string.IsNullOrWhiteSpace(oldCategoryName) || string.IsNullOrWhiteSpace(newCategoryName))
+            {
+                return 0;
+            }
+
+            var normalizedOld = oldCategoryName.Trim();
+            var normalizedNew = newCategoryName.Trim();
+
+            return await _context.Set<ProductModel>()
+                .Where(p => p.Category == normalizedOld)
+                .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.Category, normalizedNew));
+        }
     }
 }
