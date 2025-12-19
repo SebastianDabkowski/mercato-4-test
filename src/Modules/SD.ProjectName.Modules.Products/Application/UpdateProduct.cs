@@ -112,9 +112,9 @@ namespace SD.ProjectName.Modules.Products.Application
                 errors.Add("Price must be greater than zero to activate the product.");
             }
 
-            if (product.Stock <= 0)
+            if (product.Stock < 0)
             {
-                errors.Add("Stock must be greater than zero to activate the product.");
+                errors.Add("Stock cannot be negative when activating the product.");
             }
 
             return errors;
