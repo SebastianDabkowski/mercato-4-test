@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Collections.Generic;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
 
@@ -17,7 +18,9 @@ namespace SD.ProjectName.Modules.Products.Application
         public async Task<ProductModel?> UpdateAsync(int productId, Request request, string sellerId)
         {
             var existing = await _repository.GetById(productId);
-            if (existing is null || !string.Equals(existing.SellerId, sellerId, StringComparison.OrdinalIgnoreCase))
+            if (existing is null
+                || existing.Status == ProductStatuses.Archived
+                || !string.Equals(existing.SellerId, sellerId, StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
@@ -33,10 +36,18 @@ namespace SD.ProjectName.Modules.Products.Application
             existing.WidthCm = request.WidthCm ?? 0;
             existing.HeightCm = request.HeightCm ?? 0;
             existing.ShippingMethods = NormalizeMultiline(request.ShippingMethods);
-            if (request.Publish)
+
+            var targetStatus = DetermineTargetStatus(existing.Status, request.Publish);
+            if (targetStatus == ProductStatuses.Active)
             {
-                existing.Status = ProductStatuses.Active;
+                var validationErrors = ValidateActivation(existing);
+                if (validationErrors.Any())
+                {
+                    throw new ProductActivationException(validationErrors);
+                }
             }
+
+            existing.Status = targetStatus;
 
             await _repository.Update(existing);
             return existing;
@@ -54,6 +65,59 @@ namespace SD.ProjectName.Modules.Products.Application
                 .Where(l => !string.IsNullOrWhiteSpace(l));
 
             return string.Join(Environment.NewLine, lines);
+        }
+
+        private static string DetermineTargetStatus(string currentStatus, bool publishRequested)
+        {
+            if (publishRequested)
+            {
+                return ProductStatuses.Active;
+            }
+
+            if (string.Equals(currentStatus, ProductStatuses.Active, StringComparison.OrdinalIgnoreCase))
+            {
+                return ProductStatuses.Suspended;
+            }
+
+            return currentStatus;
+        }
+
+        private static List<string> ValidateActivation(ProductModel product)
+        {
+            var errors = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(product.Description))
+            {
+                errors.Add("Description is required to activate the product.");
+            }
+
+            var images = (product.ImageUrls ?? string.Empty)
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(i => i.Trim())
+                .Where(i => !string.IsNullOrWhiteSpace(i))
+                .ToList();
+
+            if (!images.Any())
+            {
+                errors.Add("At least one product image is required to activate the product.");
+            }
+
+            if (string.IsNullOrWhiteSpace(product.Category))
+            {
+                errors.Add("Category is required to activate the product.");
+            }
+
+            if (product.Price <= 0)
+            {
+                errors.Add("Price must be greater than zero to activate the product.");
+            }
+
+            if (product.Stock <= 0)
+            {
+                errors.Add("Stock must be greater than zero to activate the product.");
+            }
+
+            return errors;
         }
 
         public class Request
@@ -94,6 +158,19 @@ namespace SD.ProjectName.Modules.Products.Application
             public string? ShippingMethods { get; set; }
 
             public bool Publish { get; set; }
+        }
+
+        public class ProductActivationException : Exception
+        {
+            public ProductActivationException(IReadOnlyCollection<string> errors)
+                : base(errors.Any()
+                    ? $"Product cannot be activated. Please fix: {string.Join("; ", errors)}"
+                    : "Product cannot be activated due to validation errors.")
+            {
+                Errors = errors;
+            }
+
+            public IReadOnlyCollection<string> Errors { get; }
         }
     }
 }

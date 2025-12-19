@@ -67,6 +67,75 @@ namespace SD.ProjectName.Tests.Products
         }
 
         [Fact]
+        public async Task UpdateAsync_ShouldSuspend_WhenUnpublishingActiveProduct()
+        {
+            var repository = new Mock<IProductRepository>();
+            var existing = new ProductModel
+            {
+                Id = 12,
+                SellerId = "seller-12",
+                Name = "Published",
+                Category = "Books",
+                Description = "Desc",
+                Price = 5,
+                Stock = 2,
+                ImageUrls = "https://example.com/img",
+                Status = ProductStatuses.Active
+            };
+
+            repository.Setup(r => r.GetById(existing.Id)).ReturnsAsync(existing);
+            repository.Setup(r => r.Update(existing)).Returns(Task.CompletedTask);
+
+            var handler = new UpdateProduct(repository.Object);
+            var request = new UpdateProduct.Request
+            {
+                Title = existing.Name,
+                Description = existing.Description,
+                Category = existing.Category,
+                Price = existing.Price,
+                Stock = existing.Stock,
+                ImageUrls = existing.ImageUrls,
+                Publish = false
+            };
+
+            var result = await handler.UpdateAsync(existing.Id, request, existing.SellerId);
+
+            Assert.Equal(ProductStatuses.Suspended, result!.Status);
+            repository.Verify(r => r.Update(existing), Times.Once);
+        }
+
+        [Fact]
+        public async Task UpdateAsync_ShouldThrow_WhenActivatingWithMissingRequiredFields()
+        {
+            var repository = new Mock<IProductRepository>();
+            var existing = new ProductModel
+            {
+                Id = 25,
+                SellerId = "seller-25",
+                Status = ProductStatuses.Draft
+            };
+
+            repository.Setup(r => r.GetById(existing.Id)).ReturnsAsync(existing);
+
+            var handler = new UpdateProduct(repository.Object);
+            var request = new UpdateProduct.Request
+            {
+                Title = "Draft product",
+                Category = "Home",
+                Price = 10,
+                Stock = 0,
+                Description = "",
+                ImageUrls = " ",
+                Publish = true
+            };
+
+            await Assert.ThrowsAsync<UpdateProduct.ProductActivationException>(() =>
+                handler.UpdateAsync(existing.Id, request, existing.SellerId));
+
+            repository.Verify(r => r.Update(It.IsAny<ProductModel>()), Times.Never);
+        }
+
+        [Fact]
         public async Task UpdateAsync_ShouldReturnNull_WhenNotOwner()
         {
             var repository = new Mock<IProductRepository>();

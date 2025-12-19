@@ -76,29 +76,41 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
                 return Challenge();
             }
 
-            var updated = await _updateProduct.UpdateAsync(id, new UpdateProduct.Request
+            try
             {
-                Title = Input.Title,
-                Description = Input.Description,
-                Price = Input.Price,
-                Stock = Input.Stock,
-                Category = Input.Category,
-                ImageUrls = Input.ImageUrls,
-                WeightKg = Input.WeightKg,
-                LengthCm = Input.LengthCm,
-                WidthCm = Input.WidthCm,
-                HeightCm = Input.HeightCm,
-                ShippingMethods = Input.ShippingMethods,
-                Publish = Input.Publish
-            }, user.Id);
+                var updated = await _updateProduct.UpdateAsync(id, new UpdateProduct.Request
+                {
+                    Title = Input.Title,
+                    Description = Input.Description,
+                    Price = Input.Price,
+                    Stock = Input.Stock,
+                    Category = Input.Category,
+                    ImageUrls = Input.ImageUrls,
+                    WeightKg = Input.WeightKg,
+                    LengthCm = Input.LengthCm,
+                    WidthCm = Input.WidthCm,
+                    HeightCm = Input.HeightCm,
+                    ShippingMethods = Input.ShippingMethods,
+                    Publish = Input.Publish
+                }, user.Id);
 
-            if (updated is null)
-            {
-                return Forbid();
+                if (updated is null)
+                {
+                    return Forbid();
+                }
+
+                StatusMessage = "Product updated.";
+                return RedirectToPage("./Index");
             }
+            catch (UpdateProduct.ProductActivationException ex)
+            {
+                foreach (var error in ex.Errors)
+                {
+                    ModelState.AddModelError(string.Empty, error);
+                }
 
-            StatusMessage = "Product updated.";
-            return RedirectToPage("./Index");
+                return Page();
+            }
         }
 
         public class InputModel
