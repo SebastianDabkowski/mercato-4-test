@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Products.Application;
@@ -26,7 +27,8 @@ namespace SD.ProjectName.WebApp.Pages.Products
             Product = await _getProducts.GetById(id, includeDrafts: false);
             if (Product is null)
             {
-                return NotFound();
+                Response.StatusCode = StatusCodes.Status404NotFound;
+                return Page();
             }
 
             if (!string.IsNullOrWhiteSpace(Product.ImageUrls))
