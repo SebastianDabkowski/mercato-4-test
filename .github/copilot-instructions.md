@@ -61,6 +61,11 @@ Each module in `src/Modules/` represents a bounded context with:
 
 Currently implemented modules: Products (more to be added incrementally)
 
+## Engineering Approach
+- Act as a senior .NET engineer: optimize for correctness, clarity, and testability.
+- Prefer clean, modular design with CQRS and DDD when it improves clarity; keep business logic in the application/domain layers and controllers/infrastructure thin.
+- Use small, focused methods and intent-revealing names; avoid premature optimization and unnecessary abstractions.
+
 ## Coding Expectations
 - Prioritize the simplest change that satisfies the requirement; avoid new abstractions, patterns, or refactors unless explicitly asked for.  
 - Maintain existing naming, style, and folder structure; align with established domain language.  
@@ -70,6 +75,8 @@ Currently implemented modules: Products (more to be added incrementally)
 ## Tests and Documentation
 - Add or update tests only when directly required by the requested change; reuse existing test patterns and fixtures.  
 - Keep test scope minimal and targeted; do not expand coverage beyond the change request.  
+- Default to xUnit with FluentAssertions or built-in assertions; cover significant business rules and relevant edge cases.
+- When adding or modifying a UI view, add or update Playwright tests that verify rendering, happy-path flows, and at least one validation or visibility rule using stable locators (e.g., `data-testid`).
 - Update documentation only when the change affects documented behavior; keep edits scoped and consistent with existing documents.
 
 ## Dependencies and Infrastructure
