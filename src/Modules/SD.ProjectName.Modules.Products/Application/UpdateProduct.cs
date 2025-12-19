@@ -47,7 +47,6 @@ namespace SD.ProjectName.Modules.Products.Application
                 var validationErrors = ValidateActivation(existing);
                 if (validationErrors.Any())
                 {
-                    existing.Status = currentStatus;
                     throw new ProductActivationException(validationErrors);
                 }
             }
@@ -161,14 +160,22 @@ namespace SD.ProjectName.Modules.Products.Application
         public class ProductActivationException : Exception
         {
             public ProductActivationException(IReadOnlyCollection<string> errors)
-                : base(errors is null || !errors.Any()
-                    ? throw new ArgumentException("At least one activation validation error is required.", nameof(errors))
-                    : $"Product cannot be activated. Please fix: {string.Join("; ", errors)}")
+                : base(BuildMessage(errors))
             {
                 Errors = errors;
             }
 
             public IReadOnlyCollection<string> Errors { get; }
+
+            private static string BuildMessage(IReadOnlyCollection<string> errors)
+            {
+                if (errors is null || !errors.Any())
+                {
+                    throw new ArgumentException("At least one activation validation error is required.", nameof(errors));
+                }
+
+                return $"Product cannot be activated. Please fix: {string.Join("; ", errors)}";
+            }
         }
     }
 }
