@@ -235,6 +235,7 @@ builder.Services.AddScoped<GetProducts>();
 builder.Services.AddScoped<CreateProduct>();
 builder.Services.AddScoped<UpdateProduct>();
 builder.Services.AddScoped<DeleteProduct>();
+builder.Services.AddScoped<ImportProductCatalog>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<CategoryManagement>();
 

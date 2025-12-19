@@ -1,0 +1,145 @@
+﻿@page
+@model SD.ProjectName.WebApp.Pages.Seller.Products.ImportModel
+@{
+    ViewData["Title"] = "Import products";
+}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <div>
+        <h1 class="h3 mb-1" data-testid="import-heading">Import product catalog</h1>
+        <p class="text-muted mb-0">Upload a CSV/XLS file that follows the template below. Matching is done by SKU per seller.</p>
+    </div>
+    <a class="btn btn-outline-secondary" asp-page="./Index" data-testid="back-to-products">Back to products</a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-info" data-testid="import-status">@Model.StatusMessage</div>
+}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h2 class="h5">Template</h2>
+        <p class="text-muted">Required columns: SKU, Title, Price, Stock, Category. Optional: Description, ImageUrls (pipe or newline separated), ShippingMethods, WeightKg, LengthCm, WidthCm, HeightCm.</p>
+        <table class="table table-sm" data-testid="import-template">
+            <thead>
+                <tr>
+                    <th>Column</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>SKU</td><td>Stable identifier used to update existing products.</td></tr>
+                <tr><td>Title</td><td>Product name.</td></tr>
+                <tr><td>Description</td><td>Optional product description.</td></tr>
+                <tr><td>Price</td><td>Decimal, e.g. 19.99</td></tr>
+                <tr><td>Stock</td><td>Integer quantity on hand.</td></tr>
+                <tr><td>Category</td><td>Category text.</td></tr>
+                <tr><td>ImageUrls</td><td>One or more URLs separated by | or new lines.</td></tr>
+                <tr><td>ShippingMethods</td><td>List separated by | or new lines.</td></tr>
+                <tr><td>WeightKg</td><td>Optional decimal.</td></tr>
+                <tr><td>LengthCm</td><td>Optional decimal.</td></tr>
+                <tr><td>WidthCm</td><td>Optional decimal.</td></tr>
+                <tr><td>HeightCm</td><td>Optional decimal.</td></tr>
+            </tbody>
+        </table>
+
+        <form method="post" enctype="multipart/form-data" asp-page-handler="Preview">
+            <div class="mb-3">
+                <label asp-for="Upload" class="form-label">CSV/XLS file</label>
+                <input asp-for="Upload" class="form-control" accept=".csv,.xls,.xlsx,text/csv" data-testid="import-upload" />
+                <span asp-validation-for="Upload" class="text-danger" data-testid="upload-validation"></span>
+            </div>
+            <button type="submit" class="btn btn-primary" data-testid="import-preview-button">Preview import</button>
+        </form>
+    </div>
+</div>
+
+@if (Model.Preview is not null)
+{
+    <div class="card mb-3" data-testid="import-preview-summary">
+        <div class="card-body">
+            <h2 class="h5">Preview</h2>
+            <p class="mb-2">Total rows: <strong>@Model.Preview.TotalRows</strong>. To create: <strong>@Model.Preview.CreateCount</strong>. To update: <strong>@Model.Preview.UpdateCount</strong>. Errors: <strong>@Model.Preview.ErrorCount</strong>.</p>
+            @if (Model.Preview.HasFatalErrors)
+            {
+                <div class="alert alert-danger">Fix the template errors before importing.</div>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="Import" class="mb-3">
+                    <input type="hidden" asp-for="PreviewFileContent" />
+                    <input type="hidden" asp-for="PreviewFileName" />
+                    <button type="submit" class="btn btn-success" data-testid="import-confirm-button">Confirm import</button>
+                </form>
+            }
+
+            @if (Model.Preview.Errors.Any())
+            {
+                <div class="alert alert-warning" data-testid="import-errors">
+                    <ul class="mb-0">
+                        @foreach (var error in Model.Preview.Errors.Take(50))
+                        {
+                            <li>Row @error.RowNumber: @error.Message</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<div class="card">
+    <div class="card-body">
+        <h2 class="h5 d-flex align-items-center justify-content-between">
+            <span>Import history</span>
+        </h2>
+        @if (Model.History.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-sm align-middle" data-testid="import-history-table">
+                    <thead>
+                        <tr>
+                            <th>Uploaded</th>
+                            <th>File</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Updated</th>
+                            <th>Failed</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var job in Model.History)
+                        {
+                            <tr data-testid="import-history-row">
+                                <td>@job.CreatedAt.LocalDateTime</td>
+                                <td>@job.FileName</td>
+                                <td><span class="badge bg-secondary text-uppercase">@job.Status</span></td>
+                                <td>@job.CreatedCount</td>
+                                <td>@job.UpdatedCount</td>
+                                <td>@job.FailedCount</td>
+                                <td class="text-end">
+                                    @if (!string.IsNullOrWhiteSpace(job.ErrorReport) && job.FailedCount > 0)
+                                    {
+                                        <a asp-page-handler="ErrorReport" asp-route-id="@job.Id" class="btn btn-sm btn-outline-secondary" data-testid="import-error-report">Download errors</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-secondary" data-testid="import-history-empty">
+                No imports yet. Upload your first CSV/XLS file to start.
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

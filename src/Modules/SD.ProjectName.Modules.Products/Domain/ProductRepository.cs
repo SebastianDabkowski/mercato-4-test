@@ -53,6 +53,18 @@ namespace SD.ProjectName.Modules.Products.Domain
             return product;
         }
 
+        public async Task AddRange(IEnumerable<ProductModel> products)
+        {
+            var items = products.ToList();
+            if (!items.Any())
+            {
+                return;
+            }
+
+            _context.Set<ProductModel>().AddRange(items);
+            await _context.SaveChangesAsync();
+        }
+
         public async Task<ProductModel?> GetById(int id)
         {
             return await _context.Set<ProductModel>()
@@ -63,6 +75,36 @@ namespace SD.ProjectName.Modules.Products.Domain
         {
             _context.Set<ProductModel>().Update(product);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task UpdateRange(IEnumerable<ProductModel> products)
+        {
+            var items = products.ToList();
+            if (!items.Any())
+            {
+                return;
+            }
+
+            _context.Set<ProductModel>().UpdateRange(items);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<List<ProductModel>> GetBySellerAndSkus(string sellerId, IEnumerable<string> skus)
+        {
+            var normalizedSkus = skus
+                .Where(s => !string.IsNullOrWhiteSpace(s))
+                .Select(s => s.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (!normalizedSkus.Any())
+            {
+                return new List<ProductModel>();
+            }
+
+            return await _context.Set<ProductModel>()
+                .Where(p => p.SellerId == sellerId && normalizedSkus.Contains(p.Sku))
+                .ToListAsync();
         }
 
         public async Task<bool> AnyWithCategory(string categoryName)

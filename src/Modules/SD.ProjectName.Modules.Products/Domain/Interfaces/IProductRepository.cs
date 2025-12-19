@@ -11,8 +11,11 @@ namespace SD.ProjectName.Modules.Products.Domain.Interfaces
         Task<List<ProductModel>> GetList(string? category = null);
         Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts);
         Task<ProductModel?> GetById(int id);
+        Task<List<ProductModel>> GetBySellerAndSkus(string sellerId, IEnumerable<string> skus);
         Task Update(ProductModel product);
+        Task UpdateRange(IEnumerable<ProductModel> products);
         Task<ProductModel> Add(ProductModel product);
+        Task AddRange(IEnumerable<ProductModel> products);
         Task<bool> AnyWithCategory(string categoryName);
         Task<int> UpdateCategoryName(string oldCategoryName, string newCategoryName);
     }

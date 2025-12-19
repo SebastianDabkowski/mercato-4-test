@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using Microsoft.Playwright;
 using Xunit;
 
@@ -13,13 +14,16 @@ namespace SD.ProjectName.TestUI.WebTest
 
     public class WebAppFixture : IAsyncLifetime
     {
-        private readonly string _baseUrl = "http://localhost:5055";
+        private readonly string _baseUrl;
         private readonly string _databasePath = Path.Combine(Path.GetTempPath(), $"identity-tests-{Guid.NewGuid():N}.db");
         private readonly string _connectionString;
+        private readonly StringBuilder _stderr = new();
         private Process? _process;
 
         public WebAppFixture()
         {
+            var port = GetFreePort();
+            _baseUrl = $"http://localhost:{port}";
             _connectionString = $"Data Source={_databasePath};Cache=Shared";
         }
 
@@ -64,6 +68,7 @@ namespace SD.ProjectName.TestUI.WebTest
                 {
                     if (!string.IsNullOrWhiteSpace(e.Data))
                     {
+                        _stderr.AppendLine(e.Data);
                         Console.WriteLine($"[webapp-err] {e.Data}");
                     }
                 };
@@ -88,12 +93,14 @@ namespace SD.ProjectName.TestUI.WebTest
             using var client = new HttpClient();
             var start = DateTime.UtcNow;
 
-            while (DateTime.UtcNow - start < TimeSpan.FromSeconds(60))
+            while (DateTime.UtcNow - start < TimeSpan.FromSeconds(120))
             {
                 if (_process?.HasExited == true)
                 {
-                    var errors = await _process.StandardError.ReadToEndAsync();
-                    throw new InvalidOperationException($"Application exited early. Errors: {errors}");
+                    var errors = _stderr.ToString();
+                    throw new InvalidOperationException(string.IsNullOrWhiteSpace(errors)
+                        ? "Application exited early."
+                        : $"Application exited early. Errors: {errors}");
                 }
 
                 try
@@ -113,6 +120,15 @@ namespace SD.ProjectName.TestUI.WebTest
             }
 
             throw new TimeoutException("Web application did not start in time for Playwright tests.");
+        }
+
+        private static int GetFreePort()
+        {
+            var listener = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
+            listener.Stop();
+            return port;
         }
     }
 }
