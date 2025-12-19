@@ -41,7 +41,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             var product = await _getProducts.GetById(id);
             if (product is null || product.SellerId != user.Id)
             {
-                return NotFound();
+                return Forbid();
             }
 
             Input = new InputModel
@@ -94,7 +94,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
 
             if (updated is null)
             {
-                return NotFound();
+                return Forbid();
             }
 
             StatusMessage = "Product updated.";

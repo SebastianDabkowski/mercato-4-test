@@ -36,7 +36,7 @@ namespace SD.ProjectName.Modules.Products.Domain
         public async Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts)
         {
             var query = _context.Set<ProductModel>()
-                .Where(p => p.SellerId == sellerId);
+                .Where(p => p.SellerId == sellerId && p.Status != ProductStatuses.Archived);
 
             if (!includeDrafts)
             {

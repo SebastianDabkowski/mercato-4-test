@@ -1,4 +1,5 @@
-﻿using System.Net.Http.Json;
+﻿using System;
+using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
@@ -106,6 +107,40 @@ namespace SD.ProjectName.TestUI.WebTest
             await Expect(Page.GetByTestId("product-shipping-methods")).ToContainTextAsync("Courier Express");
             var imageCount = await Page.GetByTestId("product-images").Locator("img").CountAsync();
             Assert.True(imageCount >= 2);
+        }
+
+        [Fact]
+        public async Task SellerCanDeleteProduct_RemovesFromListingsAndDetails()
+        {
+            var email = await SeedSellerAsync();
+
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Login", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await Page.GetByTestId("login-email").FillAsync(email);
+            await Page.GetByTestId("login-password").FillAsync(Password);
+            await Page.GetByTestId("login-submit").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/dashboard", RegexOptions.IgnoreCase));
+
+            await Page.GotoAsync($"{_fixture.BaseUrl}/seller/products/create");
+            await Page.GetByTestId("product-title").FillAsync("Delete Me");
+            await Page.GetByTestId("product-category").FillAsync("Archive");
+            await Page.GetByTestId("product-price").FillAsync("5.00");
+            await Page.GetByTestId("product-stock").FillAsync("2");
+            await Page.GetByTestId("save-product").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/products", RegexOptions.IgnoreCase));
+            var editHref = await Page.GetByTestId("edit-product-link").First.GetAttributeAsync("href");
+            await Page.GetByTestId("delete-product-button").First.ClickAsync();
+
+            await Expect(Page.GetByTestId("products-status")).ToContainTextAsync("archived");
+            await Expect(Page.GetByTestId("seller-products-table")).NotToContainTextAsync("Delete Me");
+
+            await Page.GotoAsync($"{_fixture.BaseUrl}/products/list?category=Archive");
+            await Expect(Page.Locator("[data-testid='product-row']")).ToHaveCountAsync(0);
+
+            var productId = editHref?.Split('/', StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+            await Page.GotoAsync($"{_fixture.BaseUrl}/products/{productId}");
+            await Expect(Page.GetByTestId("product-not-found")).ToContainTextAsync("unavailable");
         }
 
         private async Task<string> SeedSellerAsync()

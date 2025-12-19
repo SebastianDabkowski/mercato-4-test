@@ -46,6 +46,9 @@
                         </td>
                         <td class="text-end">
                             <a class="btn btn-sm btn-outline-primary" asp-page="./Edit" asp-route-id="@product.Id" data-testid="edit-product-link">Edit</a>
+                            <form method="post" asp-page-handler="Delete" asp-route-id="@product.Id" class="d-inline">
+                                <button type="submit" class="btn btn-sm btn-outline-danger ms-1" data-testid="delete-product-button">Delete</button>
+                            </form>
                         </td>
                     </tr>
                 }

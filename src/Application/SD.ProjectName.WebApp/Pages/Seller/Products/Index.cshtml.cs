@@ -14,11 +14,13 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly GetProducts _getProducts;
+        private readonly DeleteProduct _deleteProduct;
 
-        public IndexModel(UserManager<ApplicationUser> userManager, GetProducts getProducts)
+        public IndexModel(UserManager<ApplicationUser> userManager, GetProducts getProducts, DeleteProduct deleteProduct)
         {
             _userManager = userManager;
             _getProducts = getProducts;
+            _deleteProduct = deleteProduct;
         }
 
         public List<ProductModel> Products { get; private set; } = new();
@@ -35,6 +37,24 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             }
 
             Products = await _getProducts.GetBySeller(user.Id);
+        }
+
+        public async Task<IActionResult> OnPostDeleteAsync(int id)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user is null)
+            {
+                return Challenge();
+            }
+
+            var deleted = await _deleteProduct.ArchiveAsync(id, user.Id);
+            if (!deleted)
+            {
+                return Forbid();
+            }
+
+            StatusMessage = "Product archived.";
+            return RedirectToPage();
         }
     }
 }
