@@ -19,7 +19,7 @@ namespace SD.ProjectName.Tests.Products
             };
 
             var mockRepository = new Mock<IProductRepository>(MockBehavior.Strict);
-            mockRepository.Setup(r => r.GetList()).ReturnsAsync(expectedProducts);
+            mockRepository.Setup(r => r.GetList(null)).ReturnsAsync(expectedProducts);
 
             var getProducts = new GetProducts(mockRepository.Object);
 
@@ -30,7 +30,7 @@ namespace SD.ProjectName.Tests.Products
             Assert.NotNull(result);
             Assert.Equal(3, result.Count);
             Assert.Equal(expectedProducts, result);
-            mockRepository.Verify(r => r.GetList(), Times.Once);
+            mockRepository.Verify(r => r.GetList(null), Times.Once);
         }
 
         [Fact]
@@ -40,7 +40,7 @@ namespace SD.ProjectName.Tests.Products
             var expectedProducts = new List<ProductModel>();
 
             var mockRepository = new Mock<IProductRepository>(MockBehavior.Strict);
-            mockRepository.Setup(r => r.GetList()).ReturnsAsync(expectedProducts);
+            mockRepository.Setup(r => r.GetList(null)).ReturnsAsync(expectedProducts);
 
             var getProducts = new GetProducts(mockRepository.Object);
 
@@ -50,7 +50,7 @@ namespace SD.ProjectName.Tests.Products
             // Assert
             Assert.NotNull(result);
             Assert.Empty(result);
-            mockRepository.Verify(r => r.GetList(), Times.Once);
+            mockRepository.Verify(r => r.GetList(null), Times.Once);
         }
 
         [Fact]
@@ -63,7 +63,7 @@ namespace SD.ProjectName.Tests.Products
             };
 
             var mockRepository = new Mock<IProductRepository>(MockBehavior.Strict);
-            mockRepository.Setup(r => r.GetList()).ReturnsAsync(expectedProducts);
+            mockRepository.Setup(r => r.GetList(null)).ReturnsAsync(expectedProducts);
 
             var getProducts = new GetProducts(mockRepository.Object);
 
@@ -71,7 +71,7 @@ namespace SD.ProjectName.Tests.Products
             var result = await getProducts.GetList();
 
             // Assert
-            mockRepository.Verify(r => r.GetList(), Times.Once);
+            mockRepository.Verify(r => r.GetList(null), Times.Once);
         }
 
         [Fact]

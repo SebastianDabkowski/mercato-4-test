@@ -64,6 +64,7 @@
                             <h5 class="card-title" data-testid="public-store-product-name">@product.Name</h5>
                             <p class="card-text text-muted flex-grow-1">@product.Description</p>
                             <div class="fw-semibold" data-testid="public-store-product-price">@product.Price.ToString("C")</div>
+                            <a class="btn btn-sm btn-outline-primary mt-2" href="/products/@product.Id" data-testid="public-store-product-link">View details</a>
                         </div>
                     </div>
                 </div>

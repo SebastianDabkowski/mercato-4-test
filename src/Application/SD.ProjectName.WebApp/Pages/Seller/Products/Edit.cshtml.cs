@@ -4,21 +4,24 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Products.Application;
+using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
 
 namespace SD.ProjectName.WebApp.Pages.Seller.Products
 {
     [Authorize(Roles = IdentityRoles.Seller)]
-    public class CreateModel : PageModel
+    public class EditModel : PageModel
     {
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly CreateProduct _createProduct;
+        private readonly GetProducts _getProducts;
+        private readonly UpdateProduct _updateProduct;
 
-        public CreateModel(UserManager<ApplicationUser> userManager, CreateProduct createProduct)
+        public EditModel(UserManager<ApplicationUser> userManager, GetProducts getProducts, UpdateProduct updateProduct)
         {
             _userManager = userManager;
-            _createProduct = createProduct;
+            _getProducts = getProducts;
+            _updateProduct = updateProduct;
         }
 
         [BindProperty]
@@ -27,11 +30,40 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
         [TempData]
         public string? StatusMessage { get; set; }
 
-        public void OnGet()
+        public async Task<IActionResult> OnGetAsync(int id)
         {
+            var user = await _userManager.GetUserAsync(User);
+            if (user is null)
+            {
+                return Challenge();
+            }
+
+            var product = await _getProducts.GetById(id);
+            if (product is null || product.SellerId != user.Id)
+            {
+                return NotFound();
+            }
+
+            Input = new InputModel
+            {
+                Title = product.Name,
+                Description = product.Description,
+                Price = product.Price,
+                Stock = product.Stock,
+                Category = product.Category,
+                ImageUrls = product.ImageUrls,
+                WeightKg = product.WeightKg,
+                LengthCm = product.LengthCm,
+                WidthCm = product.WidthCm,
+                HeightCm = product.HeightCm,
+                ShippingMethods = product.ShippingMethods,
+                Publish = product.Status == ProductStatuses.Active
+            };
+
+            return Page();
         }
 
-        public async Task<IActionResult> OnPostAsync()
+        public async Task<IActionResult> OnPostAsync(int id)
         {
             if (!ModelState.IsValid)
             {
@@ -44,22 +76,28 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
                 return Challenge();
             }
 
-            await _createProduct.CreateAsync(new CreateProduct.Request
+            var updated = await _updateProduct.UpdateAsync(id, new UpdateProduct.Request
             {
                 Title = Input.Title,
-                Category = Input.Category,
                 Description = Input.Description,
                 Price = Input.Price,
                 Stock = Input.Stock,
+                Category = Input.Category,
                 ImageUrls = Input.ImageUrls,
                 WeightKg = Input.WeightKg,
                 LengthCm = Input.LengthCm,
                 WidthCm = Input.WidthCm,
                 HeightCm = Input.HeightCm,
-                ShippingMethods = Input.ShippingMethods
+                ShippingMethods = Input.ShippingMethods,
+                Publish = Input.Publish
             }, user.Id);
 
-            StatusMessage = "Product saved as draft.";
+            if (updated is null)
+            {
+                return NotFound();
+            }
+
+            StatusMessage = "Product updated.";
             return RedirectToPage("./Index");
         }
 
@@ -112,6 +150,9 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             [StringLength(1000)]
             [Display(Name = "Shipping methods (one per line)")]
             public string? ShippingMethods { get; set; }
+
+            [Display(Name = "Make product visible to buyers")]
+            public bool Publish { get; set; }
         }
     }
 }

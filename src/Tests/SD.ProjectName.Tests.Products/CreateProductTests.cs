@@ -27,7 +27,13 @@ namespace SD.ProjectName.Tests.Products
                 Category = "Books",
                 Description = "A great book",
                 Price = 19.99m,
-                Stock = 10
+                Stock = 10,
+                ImageUrls = "https://example.com/1\n https://example.com/2 ",
+                WeightKg = 1.2m,
+                LengthCm = 10.5m,
+                WidthCm = 5.2m,
+                HeightCm = 3.0m,
+                ShippingMethods = "Courier\nParcel locker"
             };
             var sellerId = "seller-123";
 
@@ -42,6 +48,12 @@ namespace SD.ProjectName.Tests.Products
             Assert.Equal(request.Category, result.Category);
             Assert.Equal(request.Price, result.Price);
             Assert.Equal(request.Stock, result.Stock);
+            Assert.Equal("https://example.com/1\nhttps://example.com/2", result.ImageUrls);
+            Assert.Equal(request.WeightKg, result.WeightKg);
+            Assert.Equal(request.LengthCm, result.LengthCm);
+            Assert.Equal(request.WidthCm, result.WidthCm);
+            Assert.Equal(request.HeightCm, result.HeightCm);
+            Assert.Equal("Courier\nParcel locker", result.ShippingMethods);
             repository.Verify(r => r.Add(It.IsAny<ProductModel>()), Times.Once);
             Assert.Equal(saved, result);
         }

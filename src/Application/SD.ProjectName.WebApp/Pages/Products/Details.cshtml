@@ -1,0 +1,63 @@
+﻿@page "/products/{id:int}"
+@model SD.ProjectName.WebApp.Pages.Products.DetailsModel
+@{
+    ViewData["Title"] = Model.Product?.Name ?? "Product";
+}
+
+@if (Model.Product is null)
+{
+    <p data-testid="product-not-found">Product not found.</p>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-md-7">
+            <h1 class="h3" data-testid="product-title">@Model.Product.Name</h1>
+            <div class="text-muted mb-2" data-testid="product-category">Category: @Model.Product.Category</div>
+            <div class="h4 text-primary" data-testid="product-price">@Model.Product.Price.ToString("C")</div>
+            <div class="mb-3" data-testid="product-stock">In stock: @Model.Product.Stock</div>
+            <p data-testid="product-description">@Model.Product.Description</p>
+
+            <div class="mt-3">
+                <h5>Shipping details</h5>
+                <ul class="list-unstyled mb-0">
+                    <li data-testid="product-weight">Weight: @(Model.Product.WeightKg > 0 ? $"{Model.Product.WeightKg:F2} kg" : "Not provided")</li>
+                    <li data-testid="product-dimensions">Dimensions: @(Model.Product.LengthCm > 0 && Model.Product.WidthCm > 0 && Model.Product.HeightCm > 0
+                        ? $"{Model.Product.LengthCm:F1} x {Model.Product.WidthCm:F1} x {Model.Product.HeightCm:F1} cm"
+                        : "Not provided")</li>
+                    <li data-testid="product-shipping-methods">
+                        Shipping methods:
+                        @if (Model.ShippingMethods.Any())
+                        {
+                            <span>@string.Join(", ", Model.ShippingMethods)</span>
+                        }
+                        else
+                        {
+                            <span>Not provided</span>
+                        }
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Images</h5>
+                    @if (Model.ImageUrls.Any())
+                    {
+                        <div class="d-flex flex-column gap-2" data-testid="product-images">
+                            @foreach (var url in Model.ImageUrls)
+                            {
+                                <img src="@url" alt="@Model.Product.Name image" class="img-fluid rounded border" />
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted mb-0" data-testid="product-images-empty">No images provided.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}

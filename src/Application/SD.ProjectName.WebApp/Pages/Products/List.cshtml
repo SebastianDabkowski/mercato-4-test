@@ -6,23 +6,41 @@
 
 <h1>Products</h1>
 
+<form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-sm-6 col-md-4">
+        <label asp-for="Category" class="form-label">Category filter</label>
+        <input asp-for="Category" class="form-control" placeholder="e.g. Books" data-testid="category-filter" />
+    </div>
+    <div class="col-sm-3">
+        <button type="submit" class="btn btn-outline-primary" data-testid="apply-category-filter">Apply</button>
+    </div>
+</form>
+
 @if (Model.Products.Any())
 {
     <table class="table">
         <thead>
             <tr>
                 <th>Id</th>
-                <th>Name</th>
+                <th>Title</th>
+                <th>Category</th>
                 <th>Price</th>
+                <th>Stock</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
             @foreach (var product in Model.Products)
             {
-                <tr>
+                <tr data-testid="product-row">
                     <td>@product.Id</td>
                     <td>@product.Name</td>
+                    <td>@product.Category</td>
                     <td>@product.Price.ToString("C")</td>
+                    <td>@product.Stock</td>
+                    <td>
+                        <a asp-page="/Products/Details" asp-route-id="@product.Id" class="btn btn-sm btn-outline-primary" data-testid="product-detail-link">View</a>
+                    </td>
                 </tr>
             }
         </tbody>
