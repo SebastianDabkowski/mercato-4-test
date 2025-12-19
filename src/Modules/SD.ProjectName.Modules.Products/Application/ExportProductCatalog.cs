@@ -10,6 +10,10 @@ namespace SD.ProjectName.Modules.Products.Application
     public class ExportProductCatalog
     {
         private const int DefaultBackgroundThreshold = 500;
+        private static readonly string[] ExportHeaders =
+        {
+            "Sku","Title","Description","Category","Price","Stock","WeightKg","LengthCm","WidthCm","HeightCm","ShippingMethods","ImageUrls","Status"
+        };
         private readonly IProductRepository _repository;
         private readonly ProductDbContext _dbContext;
         private readonly int _backgroundThreshold;
@@ -25,8 +29,8 @@ namespace SD.ProjectName.Modules.Products.Application
         {
             var products = await _repository.GetBySeller(sellerId, request.IncludeDrafts);
             var filtered = request.ApplyFilters ? ApplyFilters(products, request) : products.ToList();
-            var fileName = $"product-catalog-{DateTime.UtcNow:yyyyMMddHHmmss}.{GetExtension(request.Format)}";
-            var contentType = request.Format == ExportFormat.Xls ? "application/vnd.ms-excel" : "text/csv";
+            var fileName = $"product-catalog-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}.{GetExtension(request.Format)}";
+            var contentType = ResolveContentType(request.Format);
 
             if (filtered.Count >= _backgroundThreshold)
             {
@@ -65,7 +69,11 @@ namespace SD.ProjectName.Modules.Products.Application
                 return null;
             }
 
-            return new ExportDownload(job.FileName, string.IsNullOrWhiteSpace(job.ContentType) ? "text/csv" : job.ContentType, job.FileContent);
+            var contentType = string.IsNullOrWhiteSpace(job.ContentType)
+                ? ResolveContentType(ParseFormat(job.Format))
+                : job.ContentType;
+
+            return new ExportDownload(job.FileName, contentType, job.FileContent);
         }
 
         public async Task<IReadOnlyList<ProductExportJob>> GetHistoryAsync(string sellerId, int take = 20, CancellationToken cancellationToken = default)
@@ -93,7 +101,7 @@ namespace SD.ProjectName.Modules.Products.Application
                 filtered = filtered.Where(p =>
                     p.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                     p.Sku.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                    p.Description.Contains(search, StringComparison.OrdinalIgnoreCase));
+                    (p.Description?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false));
             }
 
             if (!request.IncludeDrafts)
@@ -106,8 +114,20 @@ namespace SD.ProjectName.Modules.Products.Application
 
         private static byte[] BuildPayload(IReadOnlyList<ProductModel> products, ExportFormat format)
         {
+            if (format == ExportFormat.Xls)
+            {
+                var xml = BuildSpreadsheetMlDocument(products);
+                return Encoding.UTF8.GetBytes(xml);
+            }
+
+            var csv = BuildCsvDocument(products);
+            return Encoding.UTF8.GetBytes(csv);
+        }
+
+        private static string BuildCsvDocument(IReadOnlyList<ProductModel> products)
+        {
             var builder = new StringBuilder();
-            builder.AppendLine("Sku,Title,Description,Category,Price,Stock,WeightKg,LengthCm,WidthCm,HeightCm,ShippingMethods,ImageUrls,Status");
+            builder.AppendLine(string.Join(",", ExportHeaders));
 
             foreach (var product in products.OrderBy(p => p.Name))
             {
@@ -132,8 +152,7 @@ namespace SD.ProjectName.Modules.Products.Application
                 builder.AppendLine(line);
             }
 
-            var content = builder.ToString();
-            return Encoding.UTF8.GetBytes(content);
+            return builder.ToString();
         }
 
         private static string Escape(string? value)
@@ -160,7 +179,7 @@ namespace SD.ProjectName.Modules.Products.Application
             }
 
             var lines = value
-                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                .Split(new[] { '\r', '\n', '|', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
             return string.Join(Environment.NewLine, lines);
         }
@@ -168,6 +187,69 @@ namespace SD.ProjectName.Modules.Products.Application
         private static string GetExtension(ExportFormat format)
         {
             return format == ExportFormat.Xls ? "xls" : "csv";
+        }
+
+        private static string BuildSpreadsheetMlDocument(IReadOnlyList<ProductModel> products)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine("<?xml version=\"1.0\"?>");
+            builder.AppendLine("<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\">");
+            builder.AppendLine("<Worksheet ss:Name=\"Products\">");
+            builder.AppendLine("<Table>");
+
+            builder.AppendLine("<Row>");
+            foreach (var header in ExportHeaders)
+            {
+                builder.AppendLine($"<Cell><Data ss:Type=\"String\">{EscapeXml(header)}</Data></Cell>");
+            }
+            builder.AppendLine("</Row>");
+
+            foreach (var product in products.OrderBy(p => p.Name))
+            {
+                var values = new[]
+                {
+                    product.Sku,
+                    product.Name,
+                    product.Description,
+                    product.Category,
+                    product.Price.ToString(CultureInfo.InvariantCulture),
+                    product.Stock.ToString(CultureInfo.InvariantCulture),
+                    product.WeightKg.ToString(CultureInfo.InvariantCulture),
+                    product.LengthCm.ToString(CultureInfo.InvariantCulture),
+                    product.WidthCm.ToString(CultureInfo.InvariantCulture),
+                    product.HeightCm.ToString(CultureInfo.InvariantCulture),
+                    NormalizeMultiline(product.ShippingMethods),
+                    NormalizeMultiline(product.ImageUrls),
+                    product.Status
+                };
+
+                builder.AppendLine("<Row>");
+                foreach (var value in values)
+                {
+                    builder.AppendLine($"<Cell><Data ss:Type=\"String\">{EscapeXml(value)}</Data></Cell>");
+                }
+                builder.AppendLine("</Row>");
+            }
+
+            builder.AppendLine("</Table>");
+            builder.AppendLine("</Worksheet>");
+            builder.AppendLine("</Workbook>");
+            return builder.ToString();
+        }
+
+        private static string ResolveContentType(ExportFormat format)
+        {
+            return format == ExportFormat.Xls ? "application/vnd.ms-excel" : "text/csv";
+        }
+
+        private static ExportFormat ParseFormat(string format)
+        {
+            return Enum.TryParse<ExportFormat>(format, true, out var parsed) ? parsed : ExportFormat.Csv;
+        }
+
+        private static string EscapeXml(string value)
+        {
+            return System.Security.SecurityElement.Escape(value) ?? string.Empty;
         }
 
         private static string BuildDownloadLink(Guid jobId)

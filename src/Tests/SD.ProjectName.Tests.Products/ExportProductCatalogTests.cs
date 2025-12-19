@@ -8,6 +8,9 @@ namespace SD.ProjectName.Tests.Products
 {
     public class ExportProductCatalogTests
     {
+        private const int DefaultThreshold = 50;
+        private const int SmallThreshold = 2;
+
         [Fact]
         public async Task ExportAsync_ShouldApplyFiltersAndReturnCsv()
         {
@@ -25,7 +28,7 @@ namespace SD.ProjectName.Tests.Products
                 new ProductModel { SellerId = "seller-2", Name = "Other Seller", Sku = "OTHER", Category = "Books", Price = 5, Stock = 1, Status = ProductStatuses.Active }
             });
 
-            var exporter = new ExportProductCatalog(repository, context, backgroundThreshold: 50);
+            var exporter = new ExportProductCatalog(repository, context, backgroundThreshold: DefaultThreshold);
             var request = new ExportProductCatalog.ExportRequest
             {
                 Format = ExportProductCatalog.ExportFormat.Csv,
@@ -65,7 +68,7 @@ namespace SD.ProjectName.Tests.Products
                 new ProductModel { SellerId = "seller-1", Name = "Three", Sku = "THREE", Category = "Books", Price = 15, Stock = 7, Status = ProductStatuses.Active }
             });
 
-            var exporter = new ExportProductCatalog(repository, context, backgroundThreshold: 2);
+            var exporter = new ExportProductCatalog(repository, context, backgroundThreshold: SmallThreshold);
 
             var result = await exporter.ExportAsync(new ExportProductCatalog.ExportRequest
             {
