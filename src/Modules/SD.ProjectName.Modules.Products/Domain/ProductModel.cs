@@ -28,6 +28,7 @@ namespace SD.ProjectName.Modules.Products.Domain
     {
         public const string Draft = "draft";
         public const string Active = "active";
+        public const string Suspended = "suspended";
         public const string Archived = "archived";
     }
 }
