@@ -17,10 +17,16 @@ namespace SD.ProjectName.Modules.Products.Infrastructure
 
         public DbSet<ProductModel> Products { get; set; }
         public DbSet<CategoryModel> Categories { get; set; }
+        public DbSet<ProductImportJob> ImportJobs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<ProductModel>().ToTable("ProductModel");
+            modelBuilder.Entity<ProductModel>(entity =>
+            {
+                entity.Property(p => p.Sku)
+                    .HasMaxLength(100);
+            });
 
             modelBuilder.Entity<CategoryModel>(entity =>
             {
@@ -41,6 +47,16 @@ namespace SD.ProjectName.Modules.Products.Infrastructure
                     .WithMany(c => c.Children)
                     .HasForeignKey(c => c.ParentId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ProductImportJob>(entity =>
+            {
+                entity.ToTable("ProductImportJob");
+                entity.Property(p => p.Status)
+                    .HasMaxLength(50);
+                entity.Property(p => p.FileName)
+                    .HasMaxLength(255);
+                entity.HasIndex(p => p.SellerId);
             });
         }
 

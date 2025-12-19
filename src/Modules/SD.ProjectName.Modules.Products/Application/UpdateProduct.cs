@@ -27,6 +27,7 @@ namespace SD.ProjectName.Modules.Products.Application
             }
 
             existing.Name = request.Title.Trim();
+            existing.Sku = request.Sku?.Trim() ?? existing.Sku;
             existing.Description = request.Description?.Trim() ?? string.Empty;
             existing.Price = request.Price;
             existing.Stock = request.Stock;
@@ -122,6 +123,9 @@ namespace SD.ProjectName.Modules.Products.Application
             [Required]
             [StringLength(200, MinimumLength = 3)]
             public string Title { get; set; } = string.Empty;
+
+            [StringLength(100)]
+            public string? Sku { get; set; }
 
             [StringLength(2000)]
             public string? Description { get; set; }

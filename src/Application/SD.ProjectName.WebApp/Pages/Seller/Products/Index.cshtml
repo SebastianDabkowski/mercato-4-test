@@ -9,7 +9,10 @@
         <h1 class="h3 mb-1" data-testid="seller-products-heading">My products</h1>
         <p class="text-muted mb-0">Draft products are not visible to buyers until you activate them.</p>
     </div>
-    <a class="btn btn-primary" asp-page="./Create" data-testid="add-product-button">Add product</a>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" asp-page="./Import" data-testid="import-products-button">Import catalog</a>
+        <a class="btn btn-primary" asp-page="./Create" data-testid="add-product-button">Add product</a>
+    </div>
 </div>
 
 @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))

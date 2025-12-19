@@ -167,6 +167,34 @@ public class PublicStorePageTests
             return Task.FromResult(product);
         }
 
+        public Task AddRange(IEnumerable<ProductModel> products)
+        {
+            _products.AddRange(products);
+            return Task.CompletedTask;
+        }
+
+        public Task<List<ProductModel>> GetBySellerAndSkus(string sellerId, IEnumerable<string> skus)
+        {
+            var normalized = new HashSet<string>(skus.Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()), StringComparer.OrdinalIgnoreCase);
+            var matches = _products.Where(p => normalized.Contains(p.Sku)).ToList();
+            return Task.FromResult(matches);
+        }
+
+        public Task UpdateRange(IEnumerable<ProductModel> products)
+        {
+            foreach (var product in products)
+            {
+                var existing = _products.FirstOrDefault(p => p.Id == product.Id);
+                if (existing is not null)
+                {
+                    _products.Remove(existing);
+                }
+                _products.Add(product);
+            }
+
+            return Task.CompletedTask;
+        }
+
         public Task<bool> AnyWithCategory(string categoryName)
         {
             var normalized = categoryName.Trim();
