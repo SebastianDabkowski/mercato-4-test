@@ -160,5 +160,63 @@ namespace SD.ProjectName.TestUI.WebTest
             response.EnsureSuccessStatusCode();
             return email;
         }
+
+        [Fact]
+        public async Task SellerCanPreviewAndApplyBulkUpdates_WithValidationFeedback()
+        {
+            var email = await SeedSellerAsync();
+
+            await Page.GotoAsync($"{_fixture.BaseUrl}/Identity/Account/Login", new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+            await Page.GetByTestId("login-email").FillAsync(email);
+            await Page.GetByTestId("login-password").FillAsync(Password);
+            await Page.GetByTestId("login-submit").ClickAsync();
+
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/dashboard", RegexOptions.IgnoreCase));
+
+            await CreateProductAsync("Bulk Product A", "BulkCat", "10.00", "5");
+            await CreateProductAsync("Bulk Product B", "BulkCat", "20.00", "3");
+
+            await Expect(Page.GetByTestId("seller-products-table")).ToBeVisibleAsync();
+            await Page.GetByTestId("bulk-select-product").Nth(0).CheckAsync();
+            await Page.GetByTestId("bulk-select-product").Nth(1).CheckAsync();
+
+            await Page.GetByTestId("bulk-price-operation").SelectOptionAsync(new SelectOptionValue { Label = "Increase by %" });
+            await Page.GetByTestId("bulk-price-value").FillAsync("10");
+            await Page.GetByTestId("bulk-stock-operation").SelectOptionAsync(new SelectOptionValue { Label = "Decrease by amount" });
+            await Page.GetByTestId("bulk-stock-value").FillAsync("1");
+
+            await Page.GetByTestId("bulk-preview-button").ClickAsync();
+            await Expect(Page.GetByTestId("bulk-summary-card")).ToBeVisibleAsync();
+            await Expect(Page.GetByTestId("bulk-updated-table")).ToContainTextAsync("Bulk Product A");
+            await Expect(Page.GetByTestId("bulk-updated-table")).ToContainTextAsync("11");
+            await Expect(Page.GetByTestId("bulk-updated-table")).ToContainTextAsync("22");
+
+            await Page.GetByTestId("bulk-apply-button").ClickAsync();
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/products", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByTestId("products-status")).ToContainTextAsync("Updated", new() { Timeout = 15000 });
+            await Expect(Page.GetByTestId("seller-product-row").First).ToContainTextAsync("11");
+
+            await Page.GetByTestId("bulk-select-product").First.CheckAsync();
+            await Page.GetByTestId("bulk-price-operation").SelectOptionAsync(new SelectOptionValue { Label = "Set to amount" });
+            await Page.GetByTestId("bulk-price-value").FillAsync("0");
+            await Page.GetByTestId("bulk-stock-operation").SelectOptionAsync(new SelectOptionValue { Label = "Decrease by amount" });
+            await Page.GetByTestId("bulk-stock-value").FillAsync("10");
+            await Page.GetByTestId("bulk-apply-button").ClickAsync();
+
+            await Expect(Page.GetByTestId("bulk-summary-card")).ToBeVisibleAsync();
+            await Expect(Page.GetByTestId("bulk-failed-list")).ToContainTextAsync("cannot be negative", new() { Timeout = 15000 });
+        }
+
+        private async Task CreateProductAsync(string title, string category, string price, string stock)
+        {
+            await Page.GotoAsync($"{_fixture.BaseUrl}/seller/products/create");
+            await Page.GetByTestId("product-title").FillAsync(title);
+            await Page.GetByTestId("product-category").FillAsync(category);
+            await Page.GetByTestId("product-price").FillAsync(price);
+            await Page.GetByTestId("product-stock").FillAsync(stock);
+            await Page.GetByTestId("product-description").FillAsync("Bulk update scenario.");
+            await Page.GetByTestId("save-product").ClickAsync();
+            await Expect(Page).ToHaveURLAsync(new Regex("/seller/products", RegexOptions.IgnoreCase));
+        }
     }
 }

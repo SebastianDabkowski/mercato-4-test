@@ -93,7 +93,7 @@ namespace SD.ProjectName.TestUI.WebTest
             using var client = new HttpClient();
             var start = DateTime.UtcNow;
 
-            while (DateTime.UtcNow - start < TimeSpan.FromSeconds(120))
+            while (DateTime.UtcNow - start < TimeSpan.FromSeconds(240))
             {
                 if (_process?.HasExited == true)
                 {

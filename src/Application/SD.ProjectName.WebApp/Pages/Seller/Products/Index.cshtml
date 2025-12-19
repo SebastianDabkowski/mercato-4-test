@@ -24,10 +24,51 @@
 
 @if (Model.Products.Any())
 {
+    <form id="bulk-update-form" method="post" asp-page-handler="BulkUpdate" class="mb-3">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <h2 class="h5 mb-1">Bulk update price and stock</h2>
+                        <p class="text-muted small mb-0">Select products below, preview changes, then apply them.</p>
+                    </div>
+                </div>
+                <div asp-validation-summary="ModelOnly" class="text-danger" data-testid="bulk-validation"></div>
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label asp-for="BulkUpdate.PriceOperation" class="form-label">Price change</label>
+                        <select asp-for="BulkUpdate.PriceOperation" asp-items="Html.GetEnumSelectList<SD.ProjectName.Modules.Products.Application.BulkUpdateProducts.PriceOperation>()" class="form-select" data-testid="bulk-price-operation"></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="BulkUpdate.PriceValue" class="form-label">Price amount / %</label>
+                        <input asp-for="BulkUpdate.PriceValue" class="form-control" data-testid="bulk-price-value" />
+                        <span asp-validation-for="BulkUpdate.PriceValue" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="BulkUpdate.StockOperation" class="form-label">Stock change</label>
+                        <select asp-for="BulkUpdate.StockOperation" asp-items="Html.GetEnumSelectList<SD.ProjectName.Modules.Products.Application.BulkUpdateProducts.StockOperation>()" class="form-select" data-testid="bulk-stock-operation"></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label asp-for="BulkUpdate.StockValue" class="form-label">Stock amount</label>
+                        <input asp-for="BulkUpdate.StockValue" class="form-control" data-testid="bulk-stock-value" />
+                        <span asp-validation-for="BulkUpdate.StockValue" class="text-danger"></span>
+                    </div>
+                </div>
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" name="submitAction" value="preview" class="btn btn-outline-secondary" data-testid="bulk-preview-button">Preview changes</button>
+                    <button type="submit" name="submitAction" value="apply" class="btn btn-primary" data-testid="bulk-apply-button">Apply updates</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
     <div class="table-responsive">
         <table class="table align-middle" data-testid="seller-products-table">
             <thead>
                 <tr>
+                    <th scope="col">
+                        <span class="text-muted small">Select</span>
+                    </th>
                     <th>Title</th>
                     <th>Category</th>
                     <th>Stock</th>
@@ -40,6 +81,9 @@
                 @foreach (var product in Model.Products)
                 {
                     <tr data-testid="seller-product-row">
+                        <td>
+                            <input type="checkbox" form="bulk-update-form" class="form-check-input" value="@product.Id" name="BulkUpdate.ProductIds" data-testid="bulk-select-product" />
+                        </td>
                         <td>@product.Name</td>
                         <td>@product.Category</td>
                         <td>@product.Stock</td>
@@ -58,6 +102,57 @@
             </tbody>
         </table>
     </div>
+
+    @if (Model.BulkResult is not null && (Model.BulkResult.Updated.Any() || Model.BulkResult.Failed.Any()))
+    {
+        <div class="card mt-3" data-testid="bulk-summary-card">
+            <div class="card-header">
+                Bulk update summary
+            </div>
+            <div class="card-body">
+                <p class="mb-3">
+                    Updated @Model.BulkResult.Updated.Count product(s). @Model.BulkResult.Failed.Count failed.
+                </p>
+
+                @if (Model.BulkResult.Updated.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle" data-testid="bulk-updated-table">
+                            <thead>
+                                <tr>
+                                    <th>Product</th>
+                                    <th>Price</th>
+                                    <th>Stock</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var result in Model.BulkResult.Updated)
+                                {
+                                    <tr>
+                                        <td>@result.Name</td>
+                                        <td>@result.OldPrice.ToString("C") → @result.NewPrice.ToString("C")</td>
+                                        <td>@result.OldStock → @result.NewStock</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+
+                @if (Model.BulkResult.Failed.Any())
+                {
+                    <div class="alert alert-warning mt-3" data-testid="bulk-failed-list">
+                        <ul class="mb-0">
+                            @foreach (var failure in Model.BulkResult.Failed)
+                            {
+                                <li><strong>@(string.IsNullOrWhiteSpace(failure.Name) ? $"Product #{failure.ProductId}" : failure.Name)</strong>: @failure.Reason</li>
+                            }
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    }
 }
 else
 {
