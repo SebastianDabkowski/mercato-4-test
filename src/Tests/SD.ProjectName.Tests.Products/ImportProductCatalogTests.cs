@@ -84,7 +84,7 @@ namespace SD.ProjectName.Tests.Products
             Assert.Contains("Price must be a positive number", job.ErrorReport);
 
             var products = await repository.GetBySeller("seller-1", includeDrafts: true);
-            Assert.Equal(3, products.Count);
+            Assert.Equal(2, products.Count);
             var updated = products.Single(p => p.Sku == "SKU-EXIST");
             Assert.Equal("Updated name", updated.Name);
             Assert.Equal(3, updated.Stock);

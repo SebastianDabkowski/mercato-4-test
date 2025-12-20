@@ -18,6 +18,7 @@ namespace SD.ProjectName.Modules.Products.Infrastructure
         public DbSet<ProductModel> Products { get; set; }
         public DbSet<CategoryModel> Categories { get; set; }
         public DbSet<ProductImportJob> ImportJobs { get; set; }
+        public DbSet<ProductExportJob> ExportJobs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -55,6 +56,20 @@ namespace SD.ProjectName.Modules.Products.Infrastructure
                 entity.Property(p => p.Status)
                     .HasMaxLength(50);
                 entity.Property(p => p.FileName)
+                    .HasMaxLength(255);
+                entity.HasIndex(p => p.SellerId);
+            });
+
+            modelBuilder.Entity<ProductExportJob>(entity =>
+            {
+                entity.ToTable("ProductExportJob");
+                entity.Property(p => p.Status)
+                    .HasMaxLength(50);
+                entity.Property(p => p.FileName)
+                    .HasMaxLength(255);
+                entity.Property(p => p.Format)
+                    .HasMaxLength(20);
+                entity.Property(p => p.ContentType)
                     .HasMaxLength(255);
                 entity.HasIndex(p => p.SellerId);
             });
