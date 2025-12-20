@@ -340,6 +340,7 @@ Create ADRs for:
 4. Data ownership and cross-module communication approach.
 5. Payout scheduling and settlement model.
 6. Observability stack and logging policy.
+7. Product image storage approach (ADR-005).
 
 ## 14. Open Questions — Resolved
 
@@ -387,4 +388,3 @@ Create ADRs for:
 
 15. KPIs and SLA  
     Target uptime is 90%. Availability is handled at infrastructure level by Azure.
-
