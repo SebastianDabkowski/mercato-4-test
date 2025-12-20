@@ -1,11 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Products.Application;
+using SD.ProjectName.Modules.Products.Domain.Interfaces;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Seller.Products
 {
@@ -15,12 +18,21 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly CreateProduct _createProduct;
         private readonly CategoryManagement _categoryManagement;
+        private readonly IProductRepository _productRepository;
+        private readonly ProductImageService _imageService;
 
-        public CreateModel(UserManager<ApplicationUser> userManager, CreateProduct createProduct, CategoryManagement categoryManagement)
+        public CreateModel(
+            UserManager<ApplicationUser> userManager,
+            CreateProduct createProduct,
+            CategoryManagement categoryManagement,
+            IProductRepository productRepository,
+            ProductImageService imageService)
         {
             _userManager = userManager;
             _createProduct = createProduct;
             _categoryManagement = categoryManagement;
+            _productRepository = productRepository;
+            _imageService = imageService;
         }
 
         [BindProperty]
@@ -29,9 +41,12 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
         [TempData]
         public string? StatusMessage { get; set; }
 
+        public IReadOnlyList<ProductImageView> ExistingImages { get; private set; } = Array.Empty<ProductImageView>();
+
         public async Task OnGet()
         {
             await LoadCategoriesAsync();
+            ExistingImages = _imageService.BuildViews(Input.ImageUrls);
         }
 
         public async Task<IActionResult> OnPostAsync()
@@ -39,9 +54,11 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             await LoadCategoriesAsync();
 
             ValidateCategoryAgainstOptions();
+            _imageService.ValidateUploads(Input.Uploads, ModelState, nameof(Input.Uploads));
 
             if (!ModelState.IsValid)
             {
+                ExistingImages = _imageService.BuildViews(Input.ImageUrls);
                 return Page();
             }
 
@@ -51,20 +68,30 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
                 return Challenge();
             }
 
-            await _createProduct.CreateAsync(new CreateProduct.Request
+            var manualImages = _imageService.Parse(Input.ImageUrls);
+
+            var product = await _createProduct.CreateAsync(new CreateProduct.Request
             {
                 Title = Input.Title,
                 Category = Input.Category,
                 Description = Input.Description,
                 Price = Input.Price,
                 Stock = Input.Stock,
-                ImageUrls = Input.ImageUrls,
+                ImageUrls = _imageService.BuildMultiline(manualImages),
                 WeightKg = Input.WeightKg,
                 LengthCm = Input.LengthCm,
                 WidthCm = Input.WidthCm,
                 HeightCm = Input.HeightCm,
                 ShippingMethods = Input.ShippingMethods
             }, user.Id);
+
+            var uploadedImages = await _imageService.SaveUploadsAsync(product.Id, Input.Uploads);
+            var merged = _imageService.MergeAndOrderImages(manualImages, uploadedImages, Input.MainImage);
+            if (!string.IsNullOrWhiteSpace(merged) && !string.Equals(product.ImageUrls, merged, StringComparison.Ordinal))
+            {
+                product.ImageUrls = merged;
+                await _productRepository.Update(product);
+            }
 
             StatusMessage = "Product saved as draft.";
             return RedirectToPage("./Index");
@@ -112,8 +139,14 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             public string Category { get; set; } = string.Empty;
 
             [StringLength(4000)]
-            [Display(Name = "Image URLs (one per line)")]
+            [Display(Name = "Existing image URLs (optional)")]
             public string? ImageUrls { get; set; }
+
+            [Display(Name = "Product images")]
+            public List<IFormFile> Uploads { get; set; } = new();
+
+            [Display(Name = "Main image")]
+            public string? MainImage { get; set; }
 
             [Range(0.0, 1000.0)]
             [Display(Name = "Weight (kg)")]

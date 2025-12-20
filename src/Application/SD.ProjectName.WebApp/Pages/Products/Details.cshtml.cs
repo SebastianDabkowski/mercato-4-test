@@ -4,21 +4,24 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Products
 {
     public class DetailsModel : PageModel
     {
         private readonly GetProducts _getProducts;
+        private readonly ProductImageService _imageService;
 
-        public DetailsModel(GetProducts getProducts)
+        public DetailsModel(GetProducts getProducts, ProductImageService imageService)
         {
             _getProducts = getProducts;
+            _imageService = imageService;
         }
 
         public ProductModel? Product { get; private set; }
 
-        public List<string> ImageUrls { get; } = new();
+        public List<ProductImageView> Images { get; } = new();
 
         public List<string> ShippingMethods { get; } = new();
 
@@ -31,13 +34,7 @@ namespace SD.ProjectName.WebApp.Pages.Products
                 return Page();
             }
 
-            if (!string.IsNullOrWhiteSpace(Product.ImageUrls))
-            {
-                ImageUrls.AddRange(Product.ImageUrls
-                    .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(i => i.Trim())
-                    .Where(i => !string.IsNullOrWhiteSpace(i)));
-            }
+            Images.AddRange(_imageService.BuildViews(Product.ImageUrls));
 
             if (!string.IsNullOrWhiteSpace(Product.ShippingMethods))
             {

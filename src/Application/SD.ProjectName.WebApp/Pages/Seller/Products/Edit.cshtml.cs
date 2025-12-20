@@ -1,5 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
@@ -7,6 +8,7 @@ using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Seller.Products
 {
@@ -17,13 +19,20 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
         private readonly GetProducts _getProducts;
         private readonly UpdateProduct _updateProduct;
         private readonly CategoryManagement _categoryManagement;
+        private readonly ProductImageService _imageService;
 
-        public EditModel(UserManager<ApplicationUser> userManager, GetProducts getProducts, UpdateProduct updateProduct, CategoryManagement categoryManagement)
+        public EditModel(
+            UserManager<ApplicationUser> userManager,
+            GetProducts getProducts,
+            UpdateProduct updateProduct,
+            CategoryManagement categoryManagement,
+            ProductImageService imageService)
         {
             _userManager = userManager;
             _getProducts = getProducts;
             _updateProduct = updateProduct;
             _categoryManagement = categoryManagement;
+            _imageService = imageService;
         }
 
         [BindProperty]
@@ -33,6 +42,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
         public string? StatusMessage { get; set; }
 
         public IReadOnlyList<CategoryManagement.CategoryOption> CategoryOptions { get; private set; } = Array.Empty<CategoryManagement.CategoryOption>();
+        public IReadOnlyList<ProductImageView> ExistingImages { get; private set; } = Array.Empty<ProductImageView>();
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
@@ -63,9 +73,11 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
                 WidthCm = product.WidthCm,
                 HeightCm = product.HeightCm,
                 ShippingMethods = product.ShippingMethods,
-                Publish = product.Status == ProductStatuses.Active
+                Publish = product.Status == ProductStatuses.Active,
+                MainImage = _imageService.GetMainImage(product.ImageUrls)
             };
 
+            ExistingImages = _imageService.BuildViews(product.ImageUrls, Input.MainImage);
             return Page();
         }
 
@@ -74,9 +86,11 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             await LoadCategoriesAsync();
 
             ValidateCategory();
+            _imageService.ValidateUploads(Input.Uploads, ModelState, nameof(Input.Uploads));
 
             if (!ModelState.IsValid)
             {
+                ExistingImages = _imageService.BuildViews(Input.ImageUrls, Input.MainImage);
                 return Page();
             }
 
@@ -85,6 +99,17 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             {
                 return Challenge();
             }
+
+            var product = await _getProducts.GetById(id);
+            if (product is null || !string.Equals(product.SellerId, user.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                return Forbid();
+            }
+
+            var uploadedImages = await _imageService.SaveUploadsAsync(product.Id, Input.Uploads);
+            var mergedImages = _imageService.MergeAndOrderImages(_imageService.Parse(product.ImageUrls), uploadedImages, Input.MainImage);
+            Input.ImageUrls = mergedImages;
+            Input.MainImage = _imageService.GetMainImage(mergedImages);
 
             try
             {
@@ -114,6 +139,7 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             }
             catch (UpdateProduct.ProductActivationException ex)
             {
+                ExistingImages = _imageService.BuildViews(Input.ImageUrls, Input.MainImage);
                 foreach (var error in ex.Errors)
                 {
                     ModelState.AddModelError(string.Empty, error);
@@ -163,8 +189,14 @@ namespace SD.ProjectName.WebApp.Pages.Seller.Products
             public string Category { get; set; } = string.Empty;
 
             [StringLength(4000)]
-            [Display(Name = "Image URLs (one per line)")]
+            [Display(Name = "Existing image URLs")]
             public string? ImageUrls { get; set; }
+
+            [Display(Name = "Product images")]
+            public List<IFormFile> Uploads { get; set; } = new();
+
+            [Display(Name = "Main image")]
+            public string? MainImage { get; set; }
 
             [Range(0.0, 1000.0)]
             [Display(Name = "Weight (kg)")]

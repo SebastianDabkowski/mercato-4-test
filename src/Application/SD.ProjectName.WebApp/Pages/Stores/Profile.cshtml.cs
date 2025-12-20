@@ -6,6 +6,7 @@ using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Stores;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Stores
 {
@@ -13,11 +14,13 @@ namespace SD.ProjectName.WebApp.Pages.Stores
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly GetProducts _getProducts;
+        private readonly ProductImageService _imageService;
 
-        public ProfileModel(UserManager<ApplicationUser> userManager, GetProducts getProducts)
+        public ProfileModel(UserManager<ApplicationUser> userManager, GetProducts getProducts, ProductImageService imageService)
         {
             _userManager = userManager;
             _getProducts = getProducts;
+            _imageService = imageService;
         }
 
         public string StoreName { get; private set; } = string.Empty;
@@ -32,7 +35,7 @@ namespace SD.ProjectName.WebApp.Pages.Stores
 
         public string? LogoUrl { get; private set; }
 
-        public List<ProductModel> ProductPreviews { get; private set; } = new();
+        public List<StoreProductPreview> ProductPreviews { get; private set; } = new();
 
         public async Task<IActionResult> OnGetAsync(string storeSlug)
         {
@@ -70,11 +73,23 @@ namespace SD.ProjectName.WebApp.Pages.Stores
             ContactPhone = storeOwner.StoreContactPhone ?? storeOwner.PhoneNumber;
             WebsiteUrl = storeOwner.StoreWebsiteUrl;
             LogoUrl = storeOwner.StoreLogoPath;
-            ProductPreviews = (await _getProducts.GetBySeller(storeOwner.Id, includeDrafts: false))
+            var products = (await _getProducts.GetBySeller(storeOwner.Id, includeDrafts: false))
                 .Take(3)
+                .ToList();
+
+            ProductPreviews = products
+                .Select(p =>
+                {
+                    var main = _imageService.GetMainImage(p.ImageUrls);
+                    return new StoreProductPreview(
+                        p,
+                        _imageService.GetVariant(main, ImageVariant.Thumbnail));
+                })
                 .ToList();
 
             return Page();
         }
+
+        public record StoreProductPreview(ProductModel Product, string? ThumbnailUrl);
     }
 }

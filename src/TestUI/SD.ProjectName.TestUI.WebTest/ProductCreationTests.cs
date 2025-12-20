@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net.Http.Json;
+using System.IO;
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Microsoft.Playwright.Xunit;
@@ -78,7 +79,9 @@ namespace SD.ProjectName.TestUI.WebTest
             await Page.GetByTestId("product-price").FillAsync("29.99");
             await Page.GetByTestId("product-stock").FillAsync("8");
             await Page.GetByTestId("product-description").FillAsync("Updated description for buyers.");
-            await Page.GetByTestId("product-images").FillAsync("https://example.com/image1.jpg\nhttps://example.com/image2.jpg");
+            var imagePath1 = CreateTempImage();
+            var imagePath2 = CreateTempImage();
+            await Page.GetByTestId("product-image-upload").SetInputFilesAsync(new[] { imagePath1, imagePath2 });
             await Page.GetByTestId("product-weight").FillAsync("2.5");
             await Page.GetByTestId("product-length").FillAsync("10");
             await Page.GetByTestId("product-width").FillAsync("5");
@@ -217,6 +220,14 @@ namespace SD.ProjectName.TestUI.WebTest
             await Page.GetByTestId("product-description").FillAsync("Bulk update scenario.");
             await Page.GetByTestId("save-product").ClickAsync();
             await Expect(Page).ToHaveURLAsync(new Regex("/seller/products", RegexOptions.IgnoreCase));
+        }
+
+        private static string CreateTempImage()
+        {
+            var bytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAuMBgSOkH3cAAAAASUVORK5CYII=");
+            var path = Path.Combine(Path.GetTempPath(), $"img-{Guid.NewGuid():N}.png");
+            File.WriteAllBytes(path, bytes);
+            return path;
         }
     }
 }
