@@ -23,6 +23,7 @@ namespace SD.ProjectName.Modules.Products.Domain
         public decimal WidthCm { get; set; }
         public decimal HeightCm { get; set; }
         public string ShippingMethods { get; set; } = string.Empty;
+        public string VariantsJson { get; set; } = string.Empty;
     }
 
     public static class ProductStatuses

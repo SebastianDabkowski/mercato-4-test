@@ -30,6 +30,7 @@ namespace SD.ProjectName.Modules.Products.Application
                 WidthCm = request.WidthCm ?? 0,
                 HeightCm = request.HeightCm ?? 0,
                 ShippingMethods = NormalizeMultiline(request.ShippingMethods),
+                VariantsJson = request.VariantsJson?.Trim() ?? string.Empty,
                 SellerId = sellerId,
                 Status = ProductStatuses.Draft
             };
@@ -90,6 +91,9 @@ namespace SD.ProjectName.Modules.Products.Application
 
             [StringLength(1000)]
             public string? ShippingMethods { get; set; }
+
+            [StringLength(8000)]
+            public string? VariantsJson { get; set; }
         }
     }
 }
