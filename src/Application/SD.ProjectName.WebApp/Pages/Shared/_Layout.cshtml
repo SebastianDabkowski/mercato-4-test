@@ -27,6 +27,10 @@
                             <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
                         </li>
                     </ul>
+                    <form class="d-flex me-3" method="get" asp-page="/Search/Index" role="search">
+                        <input class="form-control me-2" type="search" name="Q" placeholder="Search products" aria-label="Search" data-testid="global-search-input" value="@(Context?.Request?.Query["Q"])" />
+                        <button class="btn btn-outline-success" type="submit" data-testid="global-search-submit">Search</button>
+                    </form>
                     <partial name="_LoginPartial" />
                 </div>
             </div>

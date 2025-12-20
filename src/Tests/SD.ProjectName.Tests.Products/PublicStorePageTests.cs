@@ -141,6 +141,24 @@ public class PublicStorePageTests
             return Task.FromResult(query.ToList());
         }
 
+        public Task<List<ProductModel>> Search(string keyword)
+        {
+            var normalized = NormalizeSearchKeyword(keyword);
+            if (normalized is null)
+            {
+                return Task.FromResult(new List<ProductModel>());
+            }
+
+            var searchTerm = normalized.ToLowerInvariant();
+            var matches = _products
+                .Where(p => p.Status == ProductStatuses.Active)
+                .Where(p => p.Name.ToLowerInvariant().Contains(searchTerm) ||
+                            p.Description.ToLowerInvariant().Contains(searchTerm))
+                .ToList();
+
+            return Task.FromResult(matches);
+        }
+
         public Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts)
         {
             var items = includeDrafts
@@ -216,6 +234,17 @@ public class PublicStorePageTests
             }
 
             return Task.FromResult(updated);
+        }
+
+        private static string? NormalizeSearchKeyword(string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return null;
+            }
+
+            var trimmed = keyword.Trim();
+            return trimmed.Length > 200 ? trimmed[..200] : trimmed;
         }
     }
 
