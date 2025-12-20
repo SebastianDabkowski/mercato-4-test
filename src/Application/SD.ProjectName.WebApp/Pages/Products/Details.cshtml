@@ -43,12 +43,12 @@ else
             <div class="card">
                 <div class="card-body">
                     <h5 class="card-title">Images</h5>
-                    @if (Model.ImageUrls.Any())
+                    @if (Model.Images.Any())
                     {
                         <div class="d-flex flex-column gap-2" data-testid="product-images">
-                            @foreach (var url in Model.ImageUrls)
+                            @foreach (var image in Model.Images)
                             {
-                                <img src="@url" alt="@Model.Product.Name image" class="img-fluid rounded border" />
+                                <img src="@image.MediumUrl" alt="@Model.Product.Name image" class="img-fluid rounded border" />
                             }
                         </div>
                     }

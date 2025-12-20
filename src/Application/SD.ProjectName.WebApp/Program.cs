@@ -239,6 +239,7 @@ builder.Services.AddScoped<BulkUpdateProducts>();
 builder.Services.AddScoped<ImportProductCatalog>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();
 builder.Services.AddScoped<CategoryManagement>();
+builder.Services.AddScoped<ProductImageService>();
 
 builder.Services.AddRazorPages(options =>
 {

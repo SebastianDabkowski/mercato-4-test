@@ -1,15 +1,19 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.AspNetCore.Hosting;
+using System.IO;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Pages.Stores;
 using SD.ProjectName.WebApp.Stores;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.Tests.Products;
 
@@ -44,7 +48,7 @@ public class PublicStorePageTests
         await userManager.CreateAsync(storeOwner);
 
         var getProducts = new GetProducts(new FakeProductRepository([]));
-        var page = new ProfileModel(userManager, getProducts);
+        var page = new ProfileModel(userManager, getProducts, new ProductImageService(new FakeWebHostEnvironment()));
 
         var result = await page.OnGetAsync(StoreUrlHelper.ToSlug(storeOwner.StoreName!));
 
@@ -90,7 +94,7 @@ public class PublicStorePageTests
         };
 
         var getProducts = new GetProducts(new FakeProductRepository(products));
-        var page = new ProfileModel(userManager, getProducts);
+        var page = new ProfileModel(userManager, getProducts, new ProductImageService(new FakeWebHostEnvironment()));
 
         var result = await page.OnGetAsync(StoreUrlHelper.ToSlug(storeOwner.StoreName!));
 
@@ -99,14 +103,14 @@ public class PublicStorePageTests
         Assert.Equal(storeOwner.StoreDescription, page.StoreDescription);
         Assert.Equal(storeOwner.StoreContactEmail, page.ContactEmail);
         Assert.Equal(products.Count, page.ProductPreviews.Count);
-        Assert.Equal(products[0].Name, page.ProductPreviews[0].Name);
+        Assert.Equal(products[0].Name, page.ProductPreviews[0].Product.Name);
     }
 
-    private static ServiceProvider BuildProvider(SqliteConnection connection)
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection));
+        private static ServiceProvider BuildProvider(SqliteConnection connection)
+        {
+            var services = new ServiceCollection();
+            services.AddLogging();
+            services.AddDbContext<ApplicationDbContext>(options => options.UseSqlite(connection));
         services.AddIdentityCore<ApplicationUser>(options =>
             {
                 options.User.RequireUniqueEmail = false;
@@ -117,8 +121,8 @@ public class PublicStorePageTests
         return services.BuildServiceProvider();
     }
 
-    private class FakeProductRepository : IProductRepository
-    {
+        private class FakeProductRepository : IProductRepository
+        {
         private readonly List<ProductModel> _products;
 
         public FakeProductRepository(List<ProductModel> products)
@@ -213,5 +217,25 @@ public class PublicStorePageTests
 
             return Task.FromResult(updated);
         }
+    }
+
+    private class FakeWebHostEnvironment : IWebHostEnvironment
+    {
+        public FakeWebHostEnvironment()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "public-store-tests", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            WebRootPath = root;
+            ContentRootPath = root;
+            WebRootFileProvider = new PhysicalFileProvider(root);
+            ContentRootFileProvider = new PhysicalFileProvider(root);
+        }
+
+        public string ApplicationName { get; set; } = "TestApp";
+        public IFileProvider WebRootFileProvider { get; set; }
+        public string WebRootPath { get; set; }
+        public string EnvironmentName { get; set; } = "Development";
+        public string ContentRootPath { get; set; }
+        public IFileProvider ContentRootFileProvider { get; set; }
     }
 }

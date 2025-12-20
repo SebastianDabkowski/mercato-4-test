@@ -56,10 +56,15 @@
     @if (Model.ProductPreviews.Any())
     {
         <div class="row row-cols-1 row-cols-md-3 g-3" data-testid="public-store-products">
-            @foreach (var product in Model.ProductPreviews)
+            @foreach (var item in Model.ProductPreviews)
             {
+                var product = item.Product;
                 <div class="col">
                     <div class="card h-100">
+                        @if (!string.IsNullOrWhiteSpace(item.ThumbnailUrl))
+                        {
+                            <img src="@item.ThumbnailUrl" alt="@product.Name thumbnail" class="card-img-top" style="max-height: 160px; object-fit: cover;" data-testid="public-store-product-image" />
+                        }
                         <div class="card-body d-flex flex-column">
                             <h5 class="card-title" data-testid="public-store-product-name">@product.Name</h5>
                             <p class="card-text text-muted flex-grow-1">@product.Description</p>

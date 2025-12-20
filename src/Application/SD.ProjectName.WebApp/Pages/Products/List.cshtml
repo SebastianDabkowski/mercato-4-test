@@ -21,6 +21,7 @@
     <table class="table">
         <thead>
             <tr>
+                <th>Image</th>
                 <th>Id</th>
                 <th>Title</th>
                 <th>Category</th>
@@ -30,9 +31,20 @@
             </tr>
         </thead>
         <tbody>
-            @foreach (var product in Model.Products)
+            @foreach (var item in Model.Products)
             {
+                var product = item.Product;
                 <tr data-testid="product-row">
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(item.ThumbnailUrl))
+                        {
+                            <img src="@item.ThumbnailUrl" alt="@product.Name thumbnail" class="img-thumbnail" style="max-width: 80px;" data-testid="product-main-thumbnail" />
+                        }
+                        else
+                        {
+                            <span class="text-muted small">No image</span>
+                        }
+                    </td>
                     <td>@product.Id</td>
                     <td>@product.Name</td>
                     <td>@product.Category</td>

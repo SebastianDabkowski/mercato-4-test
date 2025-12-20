@@ -7,7 +7,7 @@
 <h1 class="h3 mb-3" data-testid="add-product-heading">Add product</h1>
 <p class="text-muted">Provide the required details. New products start in <strong>draft</strong> status.</p>
 
-<form method="post" class="mt-3">
+<form method="post" class="mt-3" enctype="multipart/form-data">
     <div asp-validation-summary="ModelOnly" class="text-danger" data-testid="validation-summary"></div>
 
     <div class="mb-3">
@@ -60,9 +60,39 @@
     </div>
 
     <div class="mb-3">
-        <label asp-for="Input.ImageUrls" class="form-label"></label>
-        <textarea asp-for="Input.ImageUrls" class="form-control" rows="2" placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg" data-testid="product-images"></textarea>
-        <span asp-validation-for="Input.ImageUrls" class="text-danger"></span>
+        <label asp-for="Input.Uploads" class="form-label"></label>
+        <input asp-for="Input.Uploads" type="file" class="form-control" accept=".jpg,.jpeg,.png,.webp" multiple data-testid="product-image-upload" />
+        <div class="form-text">Supported formats: JPG, PNG, WebP. Max 5 MB each. The main image will be the first one unless you choose another below.</div>
+        <span asp-validation-for="Input.Uploads" class="text-danger"></span>
+    </div>
+
+    <input type="hidden" asp-for="Input.ImageUrls" />
+
+    <div class="mb-3">
+        <label class="form-label">Images</label>
+        @if (Model.ExistingImages.Any())
+        {
+            <div class="row row-cols-1 row-cols-md-3 g-2" data-testid="product-image-thumbs">
+                @foreach (var image in Model.ExistingImages)
+                {
+                    <div class="col">
+                        <div class="card h-100">
+                            <img src="@image.ThumbnailUrl" alt="Product image" class="card-img-top" />
+                            <div class="card-body py-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="Input.MainImage" value="@image.LargeUrl" checked="@image.IsMain" data-testid="product-main-image" />
+                                    <label class="form-check-label">Main image</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <p class="text-muted mb-0" data-testid="product-images-empty">Images will appear here after upload.</p>
+        }
     </div>
 
     <div class="row">
