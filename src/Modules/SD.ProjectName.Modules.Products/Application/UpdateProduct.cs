@@ -38,6 +38,7 @@ namespace SD.ProjectName.Modules.Products.Application
             existing.WidthCm = request.WidthCm ?? 0;
             existing.HeightCm = request.HeightCm ?? 0;
             existing.ShippingMethods = NormalizeMultiline(request.ShippingMethods);
+            existing.VariantsJson = request.VariantsJson?.Trim() ?? string.Empty;
 
             var currentStatus = existing.Status;
             var targetStatus = DetermineTargetStatus(currentStatus, request.Publish);
@@ -159,6 +160,9 @@ namespace SD.ProjectName.Modules.Products.Application
             public string? ShippingMethods { get; set; }
 
             public bool Publish { get; set; }
+
+            [StringLength(8000)]
+            public string? VariantsJson { get; set; }
         }
 
         public class ProductActivationException : Exception
