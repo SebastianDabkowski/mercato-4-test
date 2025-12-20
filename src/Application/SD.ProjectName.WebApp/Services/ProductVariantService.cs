@@ -23,7 +23,7 @@ namespace SD.ProjectName.WebApp.Services
             try
             {
                 var parsed = JsonSerializer.Deserialize<List<ProductVariant>>(variantsJson, SerializerOptions);
-                return parsed?.Where(v => v?.Attributes?.Any() == true).ToList() ?? Array.Empty<ProductVariant>();
+                return parsed?.Where(v => v?.Attributes?.Any() == true).ToList() ?? new List<ProductVariant>();
             }
             catch
             {

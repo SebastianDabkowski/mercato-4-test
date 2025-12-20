@@ -1,0 +1,76 @@
+﻿@page "/search"
+@model SD.ProjectName.WebApp.Pages.Search.IndexModel
+@{
+    ViewData["Title"] = "Search results";
+}
+
+<h1>Search results</h1>
+
+<form method="get" class="row g-2 align-items-end mb-3" data-testid="search-form">
+    <div class="col-sm-8 col-md-6">
+        <label asp-for="Q" class="form-label">Search products</label>
+        <input asp-for="Q" class="form-control" placeholder="Search by keyword" data-testid="search-query-input" />
+    </div>
+    <div class="col-sm-3">
+        <button type="submit" class="btn btn-primary" data-testid="submit-search">Search</button>
+    </div>
+</form>
+
+@if (!Model.HasQuery)
+{
+    <p class="text-muted" data-testid="search-hint">Type a keyword to find products by title or description.</p>
+}
+else if (Model.Results.Any())
+{
+    <p class="text-muted">Showing @Model.Results.Count result(s) for "@Model.Q".</p>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Id</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Results)
+            {
+                var product = item.Product;
+                <tr data-testid="product-row">
+                    <td>
+                        @if (!string.IsNullOrWhiteSpace(item.ThumbnailUrl))
+                        {
+                            <img src="@item.ThumbnailUrl" alt="@product.Name thumbnail" class="img-thumbnail" style="max-width: 80px;" data-testid="product-main-thumbnail" />
+                        }
+                        else
+                        {
+                            <span class="text-muted small">No image</span>
+                        }
+                    </td>
+                    <td>@product.Id</td>
+                    <td>@product.Name</td>
+                    <td>@product.Category</td>
+                    <td>@product.Price.ToString("C")</td>
+                    <td>@product.Stock</td>
+                    <td>
+                        <a asp-page="/Products/Details" asp-route-id="@product.Id" class="btn btn-sm btn-outline-primary" data-testid="product-detail-link">View</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <div class="alert alert-info" data-testid="no-results-message">
+        <p class="mb-1">No products found for "@Model.Q".</p>
+        <ul class="mb-0 small">
+            <li>Try a shorter or different keyword.</li>
+            <li>Remove special characters or typos.</li>
+            <li><a asp-page="/Products/List">Browse categories and listings</a>.</li>
+        </ul>
+    </div>
+}

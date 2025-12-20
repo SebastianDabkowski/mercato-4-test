@@ -13,6 +13,8 @@ namespace SD.ProjectName.Modules.Products.Domain
     public class ProductRepository : IProductRepository
     {
         private readonly ProductDbContext _context;
+        private const string LikeEscapeChar = "\\";
+        private const char LikeEscapeCharChar = '\\';
 
         public ProductRepository(ProductDbContext context)
         {
@@ -31,6 +33,24 @@ namespace SD.ProjectName.Modules.Products.Domain
             }
 
             return await query.ToListAsync();
+        }
+
+        public async Task<List<ProductModel>> Search(string keyword)
+        {
+            var normalized = NormalizeSearchKeyword(keyword);
+            if (normalized is null)
+            {
+                return new List<ProductModel>();
+            }
+
+            var searchTerm = normalized.ToLowerInvariant();
+            var pattern = $"%{EscapeLikeSpecialCharacters(searchTerm)}%";
+            return await _context.Set<ProductModel>()
+                .Where(p => p.Status == ProductStatuses.Active)
+                .Where(p =>
+                    EF.Functions.Like(p.Name.ToLower(), pattern, "\\") ||
+                    EF.Functions.Like(p.Description.ToLower(), pattern, "\\"))
+                .ToListAsync();
         }
 
         public async Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts)
@@ -132,6 +152,33 @@ namespace SD.ProjectName.Modules.Products.Domain
             return await _context.Set<ProductModel>()
                 .Where(p => p.Category == normalizedOld)
                 .ExecuteUpdateAsync(setters => setters.SetProperty(p => p.Category, normalizedNew));
+        }
+
+        private static string? NormalizeSearchKeyword(string keyword)
+        {
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return null;
+            }
+
+            var trimmed = keyword.Trim();
+            return trimmed.Length > 200 ? trimmed[..200] : trimmed;
+        }
+
+        private static string EscapeLikeSpecialCharacters(string value)
+        {
+            var builder = new StringBuilder(value.Length);
+            foreach (var ch in value)
+            {
+                if (ch is '%' or '_' or '[' or LikeEscapeCharChar)
+                {
+                    builder.Append(LikeEscapeCharChar);
+                }
+
+                builder.Append(ch);
+            }
+
+            return builder.ToString();
         }
     }
 }
