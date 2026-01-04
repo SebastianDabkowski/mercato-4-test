@@ -90,6 +90,7 @@ namespace SD.ProjectName.WebApp.Pages.Products
                     aggregated.AddRange(items);
                 }
 
+                // A product might appear in multiple descendant categories; de-duplicate before returning.
                 return aggregated
                     .GroupBy(p => p.Id)
                     .Select(g => g.First())

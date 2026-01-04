@@ -23,11 +23,11 @@ namespace SD.ProjectName.Modules.Products.Application
             return await _repository.GetList(category);
         }
 
-        public async Task<List<ProductModel>> Search(string? keyword)
+        public async Task<IReadOnlyList<ProductModel>> Search(string? keyword)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
-                return new List<ProductModel>();
+                return Array.Empty<ProductModel>();
             }
 
             var trimmed = keyword.Trim();
