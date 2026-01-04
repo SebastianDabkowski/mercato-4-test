@@ -9,6 +9,7 @@ namespace SD.ProjectName.Modules.Products.Domain.Interfaces
     public interface IProductRepository
     {
         Task<List<ProductModel>> GetList(string? category = null);
+        Task<List<ProductModel>> Search(string keyword);
         Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts);
         Task<ProductModel?> GetById(int id);
         Task<List<ProductModel>> GetBySellerAndSkus(string sellerId, IEnumerable<string> skus);

@@ -86,5 +86,33 @@ namespace SD.ProjectName.Tests.Products
             // Assert
             Assert.NotNull(getProducts);
         }
+
+        [Fact]
+        public async Task Search_ShouldReturnEmptyList_WhenKeywordMissing()
+        {
+            var mockRepository = new Mock<IProductRepository>(MockBehavior.Strict);
+            var getProducts = new GetProducts(mockRepository.Object);
+
+            var result = await getProducts.Search("   ");
+
+            Assert.NotNull(result);
+            Assert.Empty(result);
+            mockRepository.Verify(r => r.Search(It.IsAny<string>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task Search_ShouldTrimAndLimitKeyword_BeforeCallingRepository()
+        {
+            var longKeyword = new string('a', 205);
+            var expected = longKeyword[..200];
+            var mockRepository = new Mock<IProductRepository>(MockBehavior.Strict);
+            mockRepository.Setup(r => r.Search(expected)).ReturnsAsync(new List<ProductModel>());
+
+            var getProducts = new GetProducts(mockRepository.Object);
+
+            await getProducts.Search($"  {longKeyword}   ");
+
+            mockRepository.Verify(r => r.Search(expected), Times.Once);
+        }
     }
 }

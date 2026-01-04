@@ -23,6 +23,11 @@ namespace SD.ProjectName.Modules.Products.Application
             return await _repository.GetList(category);
         }
 
+        public async Task<List<ProductModel>> Search(string? keyword)
+        {
+            return await _repository.Search(keyword ?? string.Empty);
+        }
+
         public async Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts = true)
         {
             return await _repository.GetBySeller(sellerId, includeDrafts);
