@@ -25,7 +25,18 @@ namespace SD.ProjectName.Modules.Products.Application
 
         public async Task<List<ProductModel>> Search(string? keyword)
         {
-            return await _repository.Search(keyword ?? string.Empty);
+            if (string.IsNullOrWhiteSpace(keyword))
+            {
+                return new List<ProductModel>();
+            }
+
+            var trimmed = keyword.Trim();
+            if (trimmed.Length > 200)
+            {
+                trimmed = trimmed[..200];
+            }
+
+            return await _repository.Search(trimmed);
         }
 
         public async Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts = true)
