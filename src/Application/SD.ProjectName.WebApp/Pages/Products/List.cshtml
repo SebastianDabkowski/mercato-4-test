@@ -10,7 +10,16 @@
         <div class="card" data-testid="category-nav">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Categories</span>
-                <a asp-page="/Products/List" asp-route-sort="@Model.Sort" class="small @(Model.SelectedCategory is null ? "text-decoration-underline" : string.Empty)" data-testid="category-clear">All</a>
+                <a asp-page="/Products/List"
+                   asp-route-sort="@Model.Sort"
+                   asp-route-minPrice="@Model.MinPrice"
+                   asp-route-maxPrice="@Model.MaxPrice"
+                   asp-route-condition="@Model.Condition"
+                   asp-route-sellerId="@Model.SellerId"
+                   class="small @(Model.SelectedCategory is null ? "text-decoration-underline" : string.Empty)"
+                   data-testid="category-clear">
+                    All
+                </a>
             </div>
             <div class="list-group list-group-flush">
                 @foreach (var category in Model.RootCategories)
@@ -20,6 +29,10 @@
                        asp-page="/Products/List"
                        asp-route-category="@category.Name"
                        asp-route-sort="@Model.Sort"
+                       asp-route-minPrice="@Model.MinPrice"
+                       asp-route-maxPrice="@Model.MaxPrice"
+                       asp-route-condition="@Model.Condition"
+                       asp-route-sellerId="@Model.SellerId"
                        data-testid="category-link">
                         @category.Name
                     </a>
@@ -39,6 +52,10 @@
                            asp-page="/Products/List"
                            asp-route-category="@child.Name"
                            asp-route-sort="@Model.Sort"
+                           asp-route-minPrice="@Model.MinPrice"
+                           asp-route-maxPrice="@Model.MaxPrice"
+                           asp-route-condition="@Model.Condition"
+                           asp-route-sellerId="@Model.SellerId"
                            data-testid="subcategory-link">
                             @child.Name
                         </a>
@@ -62,24 +79,83 @@
             }
         </div>
 
-        <form method="get" class="row g-2 align-items-end mb-3">
-            <div class="col-sm-7 col-md-5">
-                <label asp-for="Category" class="form-label">Jump to category</label>
-                <input asp-for="Category" class="form-control" placeholder="e.g. Books" data-testid="category-filter" />
+        <form method="get" class="mb-3" data-testid="filters-form">
+            <div class="row g-2 align-items-end">
+                <div class="col-sm-5 col-md-4">
+                    <label asp-for="Sort" class="form-label">Sort by</label>
+                    <select asp-for="Sort" class="form-select" data-testid="sort-select" onchange="this.form.submit()">
+                        <option value="@ProductSort.Relevance">Relevance</option>
+                        <option value="@ProductSort.PriceAsc">Price: Low to High</option>
+                        <option value="@ProductSort.PriceDesc">Price: High to Low</option>
+                        <option value="@ProductSort.Newest">Newest</option>
+                    </select>
+                </div>
             </div>
-            <div class="col-sm-5 col-md-4">
-                <label asp-for="Sort" class="form-label">Sort by</label>
-                <select asp-for="Sort" class="form-select" data-testid="sort-select" onchange="this.form.submit()">
-                    <option value="@ProductSort.Relevance">Relevance</option>
-                    <option value="@ProductSort.PriceAsc">Price: Low to High</option>
-                    <option value="@ProductSort.PriceDesc">Price: High to Low</option>
-                    <option value="@ProductSort.Newest">Newest</option>
-                </select>
-            </div>
-            <div class="col-sm-3 col-md-2">
-                <button type="submit" class="btn btn-outline-primary w-100" data-testid="apply-category-filter">Go</button>
-            </div>
+            <details class="card mt-3" data-testid="filter-panel" @(Model.HasActiveFilters ? "open" : string.Empty)>
+                <summary class="card-header" data-testid="filter-panel-toggle">Filters</summary>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-sm-6 col-lg-4">
+                            <label asp-for="Category" class="form-label">Category</label>
+                            <input asp-for="Category" class="form-control" placeholder="e.g. Books" data-testid="category-filter" />
+                        </div>
+                        <div class="col-sm-6 col-lg-4">
+                            <label class="form-label">Price range</label>
+                            <div class="input-group">
+                                <input asp-for="MinPrice" class="form-control" type="number" step="0.01" placeholder="Min" data-testid="filter-min-price" />
+                                <input asp-for="MaxPrice" class="form-control" type="number" step="0.01" placeholder="Max" data-testid="filter-max-price" />
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-lg-4">
+                            <label asp-for="Condition" class="form-label">Condition</label>
+                            <select asp-for="Condition" class="form-select" data-testid="filter-condition">
+                                <option value="">All conditions</option>
+                                @foreach (var condition in Model.ConditionOptions)
+                                {
+                                    <option value="@condition">@condition</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-sm-6 col-lg-4">
+                            <label asp-for="SellerId" class="form-label">Seller</label>
+                            <select asp-for="SellerId" class="form-select" data-testid="filter-seller">
+                                <option value="">All sellers</option>
+                                @foreach (var seller in Model.SellerOptions)
+                                {
+                                    <option value="@seller">@seller</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-3 d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-outline-primary" data-testid="apply-filters">Apply filters</button>
+                        @if (Model.HasActiveFilters)
+                        {
+                            <a asp-page="/Products/List"
+                               asp-route-category="@Model.Category"
+                               asp-route-sort="@Model.Sort"
+                               class="btn btn-outline-secondary"
+                               data-testid="clear-filters">
+                                Clear filters
+                            </a>
+                        }
+                    </div>
+                </div>
+            </details>
         </form>
+
+        @if (Model.HasActiveFilters)
+        {
+            <div class="mb-3" data-testid="active-filters">
+                <div class="text-muted small mb-1">Active filters:</div>
+                <div class="d-flex flex-wrap gap-2">
+                    @foreach (var filter in Model.ActiveFilters)
+                    {
+                        <span class="badge bg-secondary">@filter.Label: @filter.Value</span>
+                    }
+                </div>
+            </div>
+        }
 
         @if (Model.Products.Any())
         {
@@ -127,17 +203,56 @@
         {
             <div class="alert alert-info" data-testid="empty-category-state">
                 <p class="mb-1">No products found@(Model.SelectedCategory is null ? string.Empty : $" in {Model.SelectedCategory.Name}").</p>
-                <p class="mb-2">Try another category or search.</p>
-                @if (Model.SuggestedCategories.Any())
+                @if (Model.HasActiveFilters)
                 {
-                    <div class="d-flex flex-wrap gap-2 mb-2" data-testid="category-suggestions">
-                        @foreach (var suggestion in Model.SuggestedCategories)
+                    <p class="mb-2">Try adjusting or clearing the active filters to see more products.</p>
+                    <div class="d-flex flex-wrap gap-2 mb-3" data-testid="empty-active-filters">
+                        @foreach (var filter in Model.ActiveFilters)
                         {
-                            <a asp-page="/Products/List" asp-route-category="@suggestion" asp-route-sort="@Model.Sort" class="btn btn-sm btn-outline-secondary" data-testid="category-suggestion">@suggestion</a>
+                            <span class="badge bg-secondary">@filter.Label: @filter.Value</span>
                         }
                     </div>
+                    <a asp-page="/Products/List"
+                       asp-route-category="@Model.Category"
+                       asp-route-sort="@Model.Sort"
+                       class="btn btn-outline-secondary"
+                       data-testid="reset-filters">
+                        Reset filters
+                    </a>
                 }
-                <a asp-page="/Products/List" asp-route-sort="@Model.Sort" class="btn btn-link p-0" data-testid="clear-category">View all products</a>
+                else
+                {
+                    <p class="mb-2">Try another category or search.</p>
+                    @if (Model.SuggestedCategories.Any())
+                    {
+                        <div class="d-flex flex-wrap gap-2 mb-2" data-testid="category-suggestions">
+                            @foreach (var suggestion in Model.SuggestedCategories)
+                            {
+                                <a asp-page="/Products/List"
+                                   asp-route-category="@suggestion"
+                                   asp-route-sort="@Model.Sort"
+                                   asp-route-minPrice="@Model.MinPrice"
+                                   asp-route-maxPrice="@Model.MaxPrice"
+                                   asp-route-condition="@Model.Condition"
+                                   asp-route-sellerId="@Model.SellerId"
+                                   class="btn btn-sm btn-outline-secondary"
+                                   data-testid="category-suggestion">
+                                    @suggestion
+                                </a>
+                            }
+                        </div>
+                    }
+                    <a asp-page="/Products/List"
+                       asp-route-sort="@Model.Sort"
+                       asp-route-minPrice="@Model.MinPrice"
+                       asp-route-maxPrice="@Model.MaxPrice"
+                       asp-route-condition="@Model.Condition"
+                       asp-route-sellerId="@Model.SellerId"
+                       class="btn btn-link p-0"
+                       data-testid="clear-category">
+                        View all products
+                    </a>
+                }
             </div>
         }
     </main>

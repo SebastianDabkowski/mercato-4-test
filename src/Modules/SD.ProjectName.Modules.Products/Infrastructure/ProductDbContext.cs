@@ -27,6 +27,9 @@ namespace SD.ProjectName.Modules.Products.Infrastructure
             {
                 entity.Property(p => p.Sku)
                     .HasMaxLength(100);
+                entity.Property(p => p.Condition)
+                    .HasMaxLength(50)
+                    .HasDefaultValue(ProductConditions.New);
             });
 
             modelBuilder.Entity<CategoryModel>(entity =>
