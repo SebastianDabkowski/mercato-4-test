@@ -18,10 +18,10 @@ namespace SD.ProjectName.Modules.Products.Application
             _repository = repository;
         }
 
-        public async Task<List<ProductModel>> GetList(string? category = null, ProductSort sort = ProductSort.Newest)
+        public async Task<List<ProductModel>> GetList(string? category = null, ProductSort sort = ProductSort.Newest, bool applySorting = true)
         {
             var products = await _repository.GetList(category);
-            return ProductSorting.Apply(products, sort).ToList();
+            return applySorting ? ProductSorting.Apply(products, sort).ToList() : products;
         }
 
         public async Task<IReadOnlyList<ProductModel>> Search(string? keyword, ProductSort sort = ProductSort.Relevance)

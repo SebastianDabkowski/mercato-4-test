@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using SD.ProjectName.Modules.Products.Domain;
 
@@ -16,30 +17,30 @@ namespace SD.ProjectName.Modules.Products.Application
     {
         public static IEnumerable<ProductModel> Apply(IEnumerable<ProductModel> products, ProductSort sort, string? keyword = null)
         {
-            var list = products.ToList();
             return sort switch
             {
-                ProductSort.PriceAsc => list.OrderBy(p => p.Price).ThenBy(p => p.Id),
-                ProductSort.PriceDesc => list.OrderByDescending(p => p.Price).ThenBy(p => p.Id),
-                ProductSort.Newest => list.OrderByDescending(p => p.Id),
-                ProductSort.Relevance => ApplyRelevance(list, keyword),
-                _ => list
+                ProductSort.PriceAsc => products.OrderBy(p => p.Price).ThenBy(p => p.Id),
+                ProductSort.PriceDesc => products.OrderByDescending(p => p.Price).ThenBy(p => p.Id),
+                ProductSort.Newest => products.OrderByDescending(p => p.Id),
+                ProductSort.Relevance => ApplyRelevance(products, keyword),
+                _ => products
             };
         }
 
-        private static IEnumerable<ProductModel> ApplyRelevance(IReadOnlyList<ProductModel> products, string? keyword)
+        private static IEnumerable<ProductModel> ApplyRelevance(IEnumerable<ProductModel> products, string? keyword)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
-                return products.OrderBy(p => p.Name).ThenBy(p => p.Id);
+                return products.OrderByDescending(p => p.Id);
             }
 
+            var trimmedKeyword = keyword.Trim();
             return products
                 .Select(p => new
                 {
                     Product = p,
-                    NameMatch = ContainsInsensitive(p.Name, keyword),
-                    DescriptionMatch = ContainsInsensitive(p.Description, keyword)
+                    NameMatch = ContainsInsensitive(p.Name, trimmedKeyword),
+                    DescriptionMatch = ContainsInsensitive(p.Description, trimmedKeyword)
                 })
                 .OrderByDescending(p => p.NameMatch)
                 .ThenByDescending(p => p.DescriptionMatch)
@@ -50,6 +51,7 @@ namespace SD.ProjectName.Modules.Products.Application
 
         private static bool ContainsInsensitive(string? source, string keyword) =>
             !string.IsNullOrWhiteSpace(source) &&
-            source.Contains(keyword.Trim(), StringComparison.OrdinalIgnoreCase);
+            !string.IsNullOrWhiteSpace(keyword) &&
+            source.Contains(keyword, StringComparison.OrdinalIgnoreCase);
     }
 }

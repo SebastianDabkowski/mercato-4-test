@@ -90,7 +90,7 @@ namespace SD.ProjectName.WebApp.Pages.Products
                 var aggregated = new List<ProductModel>();
                 foreach (var category in categoriesForQuery)
                 {
-                    var items = await _getProducts.GetList(category, sort);
+                    var items = await _getProducts.GetList(category, sort, applySorting: false);
                     aggregated.AddRange(items);
                 }
 
