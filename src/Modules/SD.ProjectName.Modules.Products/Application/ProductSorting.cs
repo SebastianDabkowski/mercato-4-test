@@ -34,12 +34,22 @@ namespace SD.ProjectName.Modules.Products.Application
                 return products.OrderBy(p => p.Name).ThenBy(p => p.Id);
             }
 
-            var normalized = keyword.Trim().ToLowerInvariant();
             return products
-                .OrderByDescending(p => p.Name.ToLowerInvariant().Contains(normalized))
-                .ThenByDescending(p => p.Description.ToLowerInvariant().Contains(normalized))
-                .ThenBy(p => p.Name)
-                .ThenBy(p => p.Id);
+                .Select(p => new
+                {
+                    Product = p,
+                    NameMatch = ContainsInsensitive(p.Name, keyword),
+                    DescriptionMatch = ContainsInsensitive(p.Description, keyword)
+                })
+                .OrderByDescending(p => p.NameMatch)
+                .ThenByDescending(p => p.DescriptionMatch)
+                .ThenBy(p => p.Product.Name)
+                .ThenBy(p => p.Product.Id)
+                .Select(p => p.Product);
         }
+
+        private static bool ContainsInsensitive(string? source, string keyword) =>
+            !string.IsNullOrWhiteSpace(source) &&
+            source.Contains(keyword.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 }
