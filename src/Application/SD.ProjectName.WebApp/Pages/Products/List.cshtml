@@ -1,64 +1,132 @@
 ﻿@page
 @model SD.ProjectName.WebApp.Pages.Products.ListModel
 @{
-    ViewData["Title"] = "Products";
+    ViewData["Title"] = Model.SelectedCategory?.Name is null ? "Products" : $"{Model.SelectedCategory.Name} products";
 }
 
-<h1>Products</h1>
+<div class="row">
+    <aside class="col-lg-3 mb-3">
+        <div class="card" data-testid="category-nav">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Categories</span>
+                <a asp-page="/Products/List" class="small @(Model.SelectedCategory is null ? "text-decoration-underline" : string.Empty)" data-testid="category-clear">All</a>
+            </div>
+            <div class="list-group list-group-flush">
+                @foreach (var category in Model.RootCategories)
+                {
+                    var isActive = Model.IsSelected(category.Name);
+                    <a class="list-group-item list-group-item-action @(isActive ? "active" : string.Empty)"
+                       asp-page="/Products/List"
+                       asp-route-category="@category.Name"
+                       data-testid="category-link">
+                        @category.Name
+                    </a>
+                }
+            </div>
+        </div>
 
-<form method="get" class="row g-2 align-items-end mb-3">
-    <div class="col-sm-6 col-md-4">
-        <label asp-for="Category" class="form-label">Category filter</label>
-        <input asp-for="Category" class="form-control" placeholder="e.g. Books" data-testid="category-filter" />
-    </div>
-    <div class="col-sm-3">
-        <button type="submit" class="btn btn-outline-primary" data-testid="apply-category-filter">Apply</button>
-    </div>
-</form>
+        @if (Model.ChildCategories.Any())
+        {
+            <div class="card mt-3" data-testid="subcategory-nav">
+                <div class="card-header">Subcategories of @Model.SelectedCategory?.Name</div>
+                <div class="list-group list-group-flush">
+                    @foreach (var child in Model.ChildCategories)
+                    {
+                        var isActive = Model.IsSelected(child.Name);
+                        <a class="list-group-item list-group-item-action @(isActive ? "active" : string.Empty)"
+                           asp-page="/Products/List"
+                           asp-route-category="@child.Name"
+                           data-testid="subcategory-link">
+                            @child.Name
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    </aside>
 
-@if (Model.Products.Any())
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Image</th>
-                <th>Id</th>
-                <th>Title</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in Model.Products)
+    <main class="col-lg-9">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <h1 class="h4 mb-1" data-testid="category-heading">
+                    @(Model.SelectedCategory?.Name ?? "All products")
+                </h1>
+                <p class="text-muted mb-0">Browse products by category. Select a category to filter the list.</p>
+            </div>
+            @if (Model.AggregatedFromSubcategories)
             {
-                var product = item.Product;
-                <tr data-testid="product-row">
-                    <td>
-                        @if (!string.IsNullOrWhiteSpace(item.ThumbnailUrl))
-                        {
-                            <img src="@item.ThumbnailUrl" alt="@product.Name thumbnail" class="img-thumbnail" style="max-width: 80px;" data-testid="product-main-thumbnail" />
-                        }
-                        else
-                        {
-                            <span class="text-muted small">No image</span>
-                        }
-                    </td>
-                    <td>@product.Id</td>
-                    <td>@product.Name</td>
-                    <td>@product.Category</td>
-                    <td>@product.Price.ToString("C")</td>
-                    <td>@product.Stock</td>
-                    <td>
-                        <a asp-page="/Products/Details" asp-route-id="@product.Id" class="btn btn-sm btn-outline-primary" data-testid="product-detail-link">View</a>
-                    </td>
-                </tr>
+                <span class="badge bg-light text-dark" data-testid="aggregate-badge">Including subcategories</span>
             }
-        </tbody>
-    </table>
-}
-else
-{
-    <p>No products found.</p>
-}
+        </div>
+
+        <form method="get" class="row g-2 align-items-end mb-3">
+            <div class="col-sm-7 col-md-6">
+                <label asp-for="Category" class="form-label">Jump to category</label>
+                <input asp-for="Category" class="form-control" placeholder="e.g. Books" data-testid="category-filter" />
+            </div>
+            <div class="col-sm-3 col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100" data-testid="apply-category-filter">Go</button>
+            </div>
+        </form>
+
+        @if (Model.Products.Any())
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Image</th>
+                        <th>Id</th>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Products)
+                    {
+                        var product = item.Product;
+                        <tr data-testid="product-row">
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(item.ThumbnailUrl))
+                                {
+                                    <img src="@item.ThumbnailUrl" alt="@product.Name thumbnail" class="img-thumbnail" style="max-width: 80px;" data-testid="product-main-thumbnail" />
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">No image</span>
+                                }
+                            </td>
+                            <td>@product.Id</td>
+                            <td>@product.Name</td>
+                            <td>@product.Category</td>
+                            <td>@product.Price.ToString("C")</td>
+                            <td>@product.Stock</td>
+                            <td>
+                                <a asp-page="/Products/Details" asp-route-id="@product.Id" class="btn btn-sm btn-outline-primary" data-testid="product-detail-link">View</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <div class="alert alert-info" data-testid="empty-category-state">
+                <p class="mb-1">No products found@(Model.SelectedCategory is null ? string.Empty : $" in {Model.SelectedCategory.Name}").</p>
+                <p class="mb-2">Try another category or search.</p>
+                @if (Model.SuggestedCategories.Any())
+                {
+                    <div class="d-flex flex-wrap gap-2 mb-2" data-testid="category-suggestions">
+                        @foreach (var suggestion in Model.SuggestedCategories)
+                        {
+                            <a asp-page="/Products/List" asp-route-category="@suggestion" class="btn btn-sm btn-outline-secondary" data-testid="category-suggestion">@suggestion</a>
+                        }
+                    </div>
+                }
+                <a asp-page="/Products/List" class="btn btn-link p-0" data-testid="clear-category">View all products</a>
+            </div>
+        }
+    </main>
+</div>
