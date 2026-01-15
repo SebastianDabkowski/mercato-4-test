@@ -1,4 +1,5 @@
 ﻿@page
+@using SD.ProjectName.Modules.Products.Application
 @model SD.ProjectName.WebApp.Pages.Products.ListModel
 @{
     ViewData["Title"] = Model.SelectedCategory?.Name is null ? "Products" : $"{Model.SelectedCategory.Name} products";
@@ -9,7 +10,7 @@
         <div class="card" data-testid="category-nav">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span>Categories</span>
-                <a asp-page="/Products/List" class="small @(Model.SelectedCategory is null ? "text-decoration-underline" : string.Empty)" data-testid="category-clear">All</a>
+                <a asp-page="/Products/List" asp-route-sort="@Model.Sort" class="small @(Model.SelectedCategory is null ? "text-decoration-underline" : string.Empty)" data-testid="category-clear">All</a>
             </div>
             <div class="list-group list-group-flush">
                 @foreach (var category in Model.RootCategories)
@@ -18,6 +19,7 @@
                     <a class="list-group-item list-group-item-action @(isActive ? "active" : string.Empty)"
                        asp-page="/Products/List"
                        asp-route-category="@category.Name"
+                       asp-route-sort="@Model.Sort"
                        data-testid="category-link">
                         @category.Name
                     </a>
@@ -36,6 +38,7 @@
                         <a class="list-group-item list-group-item-action @(isActive ? "active" : string.Empty)"
                            asp-page="/Products/List"
                            asp-route-category="@child.Name"
+                           asp-route-sort="@Model.Sort"
                            data-testid="subcategory-link">
                             @child.Name
                         </a>
@@ -60,9 +63,18 @@
         </div>
 
         <form method="get" class="row g-2 align-items-end mb-3">
-            <div class="col-sm-7 col-md-6">
+            <div class="col-sm-7 col-md-5">
                 <label asp-for="Category" class="form-label">Jump to category</label>
                 <input asp-for="Category" class="form-control" placeholder="e.g. Books" data-testid="category-filter" />
+            </div>
+            <div class="col-sm-5 col-md-4">
+                <label asp-for="Sort" class="form-label">Sort by</label>
+                <select asp-for="Sort" class="form-select" data-testid="sort-select" onchange="this.form.submit()">
+                    <option value="@ProductSort.Relevance">Relevance</option>
+                    <option value="@ProductSort.PriceAsc">Price: Low to High</option>
+                    <option value="@ProductSort.PriceDesc">Price: High to Low</option>
+                    <option value="@ProductSort.Newest">Newest</option>
+                </select>
             </div>
             <div class="col-sm-3 col-md-2">
                 <button type="submit" class="btn btn-outline-primary w-100" data-testid="apply-category-filter">Go</button>
@@ -121,11 +133,11 @@
                     <div class="d-flex flex-wrap gap-2 mb-2" data-testid="category-suggestions">
                         @foreach (var suggestion in Model.SuggestedCategories)
                         {
-                            <a asp-page="/Products/List" asp-route-category="@suggestion" class="btn btn-sm btn-outline-secondary" data-testid="category-suggestion">@suggestion</a>
+                            <a asp-page="/Products/List" asp-route-category="@suggestion" asp-route-sort="@Model.Sort" class="btn btn-sm btn-outline-secondary" data-testid="category-suggestion">@suggestion</a>
                         }
                     </div>
                 }
-                <a asp-page="/Products/List" class="btn btn-link p-0" data-testid="clear-category">View all products</a>
+                <a asp-page="/Products/List" asp-route-sort="@Model.Sort" class="btn btn-link p-0" data-testid="clear-category">View all products</a>
             </div>
         }
     </main>

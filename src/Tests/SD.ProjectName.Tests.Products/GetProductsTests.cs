@@ -29,7 +29,7 @@ namespace SD.ProjectName.Tests.Products
             // Assert
             Assert.NotNull(result);
             Assert.Equal(3, result.Count);
-            Assert.Equal(expectedProducts, result);
+            Assert.Equal(new[] { 3, 2, 1 }, result.Select(p => p.Id));
             mockRepository.Verify(r => r.GetList(null), Times.Once);
         }
 
@@ -113,6 +113,45 @@ namespace SD.ProjectName.Tests.Products
             await getProducts.Search($"  {longKeyword}   ");
 
             mockRepository.Verify(r => r.Search(expected), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetList_ShouldSortByPriceAscending_WhenRequested()
+        {
+            var products = new List<ProductModel>
+            {
+                new() { Id = 1, Name = "High", Price = 20m },
+                new() { Id = 2, Name = "Low", Price = 5m },
+                new() { Id = 3, Name = "Mid", Price = 10m }
+            };
+
+            var mockRepository = new Mock<IProductRepository>(MockBehavior.Strict);
+            mockRepository.Setup(r => r.GetList(null)).ReturnsAsync(products);
+
+            var getProducts = new GetProducts(mockRepository.Object);
+
+            var result = await getProducts.GetList(sort: ProductSort.PriceAsc);
+
+            Assert.Equal(new[] { 2, 3, 1 }, result.Select(p => p.Id));
+        }
+
+        [Fact]
+        public async Task Search_ShouldPrioritizeNameMatches_ForRelevanceSort()
+        {
+            var products = new List<ProductModel>
+            {
+                new() { Id = 1, Name = "Cozy Blanket", Description = "Soft fabric for winter" },
+                new() { Id = 2, Name = "Winter Jacket", Description = "Blanket-like insulation" }
+            };
+
+            var mockRepository = new Mock<IProductRepository>(MockBehavior.Strict);
+            mockRepository.Setup(r => r.Search("blanket")).ReturnsAsync(products);
+
+            var getProducts = new GetProducts(mockRepository.Object);
+
+            var result = await getProducts.Search("blanket", ProductSort.Relevance);
+
+            Assert.Equal(new[] { 1, 2 }, result.Select(p => p.Id));
         }
     }
 }

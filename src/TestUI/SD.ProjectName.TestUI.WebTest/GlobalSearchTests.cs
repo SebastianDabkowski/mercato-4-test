@@ -28,6 +28,7 @@ namespace SD.ProjectName.TestUI.WebTest
             await Page.GetByTestId("global-search-submit").ClickAsync();
 
             await Expect(Page).ToHaveURLAsync(new Regex("/search", RegexOptions.IgnoreCase));
+            await Expect(Page.GetByTestId("sort-select")).ToHaveValueAsync("Relevance");
             await Expect(Page.GetByTestId("product-row")).ToContainTextAsync(productName);
             await Expect(Page.GetByTestId("product-row")).ToContainTextAsync("SearchCat");
         }
