@@ -25,6 +25,7 @@ namespace SD.ProjectName.TestUI.WebTest
             await Page.GotoAsync($"{_fixture.BaseUrl}/products/list?category=Books", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
 
             await Expect(Page.GetByTestId("category-heading")).ToContainTextAsync("Books");
+            await Expect(Page.GetByTestId("sort-select")).ToHaveValueAsync("Newest");
             await Expect(Page.GetByTestId("product-row")).ToHaveCountAsync(1);
             await Expect(Page.GetByTestId("product-row")).ToContainTextAsync("Dune");
             await Expect(Page.GetByTestId("subcategory-link").Filter(new() { HasText = "SciFi" })).ToBeVisibleAsync();

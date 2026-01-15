@@ -18,12 +18,13 @@ namespace SD.ProjectName.Modules.Products.Application
             _repository = repository;
         }
 
-        public async Task<List<ProductModel>> GetList(string? category = null)
+        public async Task<List<ProductModel>> GetList(string? category = null, ProductSort sort = ProductSort.Newest)
         {
-            return await _repository.GetList(category);
+            var products = await _repository.GetList(category);
+            return ProductSorting.Apply(products, sort).ToList();
         }
 
-        public async Task<IReadOnlyList<ProductModel>> Search(string? keyword)
+        public async Task<IReadOnlyList<ProductModel>> Search(string? keyword, ProductSort sort = ProductSort.Relevance)
         {
             if (string.IsNullOrWhiteSpace(keyword))
             {
@@ -36,7 +37,8 @@ namespace SD.ProjectName.Modules.Products.Application
                 trimmed = trimmed[..200];
             }
 
-            return await _repository.Search(trimmed);
+            var results = await _repository.Search(trimmed);
+            return ProductSorting.Apply(results, sort, trimmed).ToList();
         }
 
         public async Task<List<ProductModel>> GetBySeller(string sellerId, bool includeDrafts = true)

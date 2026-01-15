@@ -20,12 +20,16 @@ namespace SD.ProjectName.WebApp.Pages.Search
         [BindProperty(SupportsGet = true)]
         public string? Q { get; set; }
 
+        [BindProperty(SupportsGet = true)]
+        public ProductSort? Sort { get; set; }
+
         public List<ProductListItem> Results { get; private set; } = new();
 
         public bool HasQuery => !string.IsNullOrWhiteSpace(Q);
 
         public async Task OnGetAsync()
         {
+            Sort ??= ProductSort.Relevance;
             if (!HasQuery)
             {
                 Results.Clear();
@@ -40,7 +44,7 @@ namespace SD.ProjectName.WebApp.Pages.Search
 
             Q = normalized;
 
-            var products = await _getProducts.Search(normalized);
+            var products = await _getProducts.Search(normalized, Sort.Value);
             Results = products.Select(p =>
             {
                 var main = _imageService.GetMainImage(p.ImageUrls);

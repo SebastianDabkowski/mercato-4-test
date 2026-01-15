@@ -1,4 +1,5 @@
 ﻿@page "/search"
+@using SD.ProjectName.Modules.Products.Application
 @model SD.ProjectName.WebApp.Pages.Search.IndexModel
 @{
     ViewData["Title"] = "Search results";
@@ -7,11 +8,20 @@
 <h1>Search results</h1>
 
 <form method="get" class="row g-2 align-items-end mb-3" data-testid="search-form">
-    <div class="col-sm-8 col-md-6">
+    <div class="col-sm-6 col-md-5">
         <label asp-for="Q" class="form-label">Search products</label>
         <input asp-for="Q" class="form-control" placeholder="Search by keyword" data-testid="search-query-input" />
     </div>
-    <div class="col-sm-3">
+    <div class="col-sm-4 col-md-3">
+        <label asp-for="Sort" class="form-label">Sort by</label>
+        <select asp-for="Sort" class="form-select" data-testid="sort-select" onchange="this.form.submit()">
+            <option value="@ProductSort.Relevance">Relevance</option>
+            <option value="@ProductSort.PriceAsc">Price: Low to High</option>
+            <option value="@ProductSort.PriceDesc">Price: High to Low</option>
+            <option value="@ProductSort.Newest">Newest</option>
+        </select>
+    </div>
+    <div class="col-sm-2">
         <button type="submit" class="btn btn-primary" data-testid="submit-search">Search</button>
     </div>
 </form>

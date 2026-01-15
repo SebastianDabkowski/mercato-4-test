@@ -27,6 +27,9 @@ namespace SD.ProjectName.WebApp.Pages.Products
         [BindProperty(SupportsGet = true)]
         public string? Category { get; set; }
 
+        [BindProperty(SupportsGet = true)]
+        public ProductSort? Sort { get; set; }
+
         public IReadOnlyList<CategoryTreeItem> RootCategories { get; private set; } = Array.Empty<CategoryTreeItem>();
 
         public IReadOnlyList<CategoryTreeItem> ChildCategories { get; private set; } = Array.Empty<CategoryTreeItem>();
@@ -39,13 +42,14 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
         public async Task OnGetAsync()
         {
+            Sort ??= ProductSort.Newest;
             RootCategories = await _categoryManagement.GetTree(includeInactive: false);
             SelectedCategory = FindCategory(RootCategories, Category);
 
             var categoryNamesForQuery = BuildCategoryQueryList(SelectedCategory);
             AggregatedFromSubcategories = SelectedCategory?.Children?.Any() == true;
 
-            var products = await LoadProductsAsync(categoryNamesForQuery);
+            var products = await LoadProductsAsync(categoryNamesForQuery, Sort.Value);
             Products = products.Select(p =>
             {
                 var main = _imageService.GetMainImage(p.ImageUrls);
@@ -79,25 +83,27 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
         public record ProductListItem(ProductModel Product, string? MainImageUrl, string? ThumbnailUrl);
 
-        private async Task<List<ProductModel>> LoadProductsAsync(IReadOnlyList<string> categoriesForQuery)
+        private async Task<List<ProductModel>> LoadProductsAsync(IReadOnlyList<string> categoriesForQuery, ProductSort sort)
         {
             if (categoriesForQuery.Any())
             {
                 var aggregated = new List<ProductModel>();
                 foreach (var category in categoriesForQuery)
                 {
-                    var items = await _getProducts.GetList(category);
+                    var items = await _getProducts.GetList(category, sort);
                     aggregated.AddRange(items);
                 }
 
                 // A product might appear in multiple descendant categories; de-duplicate before returning.
-                return aggregated
+                var deduplicated = aggregated
                     .GroupBy(p => p.Id)
                     .Select(g => g.First())
                     .ToList();
+
+                return ProductSorting.Apply(deduplicated, sort).ToList();
             }
 
-            return await _getProducts.GetList(Category);
+            return await _getProducts.GetList(Category, sort);
         }
 
         private static IReadOnlyList<string> BuildCategoryQueryList(CategoryTreeItem? selectedCategory)
