@@ -10,8 +10,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = searchInput.closest("form");
     const suggestionList = form?.querySelector("[data-suggestion-list]");
     const endpoint = searchInput.dataset.suggestionUrl;
-    const minLength = Number.parseInt(searchInput.dataset.suggestionMinLength ?? "2", 10);
-    const debounceMs = Number.parseInt(searchInput.dataset.suggestionDebounce ?? "250", 10);
+    const minLength = parseInt(searchInput.dataset.suggestionMinLength ?? "2", 10);
+    const debounceMs = parseInt(searchInput.dataset.suggestionDebounce ?? "250", 10);
 
     if (!form || !suggestionList || !endpoint) {
         return;
@@ -132,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch(url, { signal: activeController.signal, headers: { Accept: "application/json" } })
             .then((response) => {
                 if (!response.ok) {
-                    throw new Error("Suggestion request failed");
+                    throw new Error(`Suggestion request failed (${response.status})`);
                 }
                 return response.json();
             })

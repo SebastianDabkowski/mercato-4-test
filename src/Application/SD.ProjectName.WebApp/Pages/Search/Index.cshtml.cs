@@ -10,6 +10,7 @@ namespace SD.ProjectName.WebApp.Pages.Search
     {
         private const int SuggestionLimit = 5;
         private const int SuggestionMinLength = 2;
+        private const int MaxSearchTermLength = 200;
         private readonly GetProducts _getProducts;
         private readonly ProductImageService _imageService;
         private readonly CategoryManagement _categoryManagement;
@@ -41,9 +42,9 @@ namespace SD.ProjectName.WebApp.Pages.Search
             }
 
             var normalized = Q!.Trim();
-            if (normalized.Length > 200)
+            if (normalized.Length > MaxSearchTermLength)
             {
-                normalized = normalized[..200];
+                normalized = normalized[..MaxSearchTermLength];
             }
 
             Q = normalized;
@@ -131,7 +132,7 @@ namespace SD.ProjectName.WebApp.Pages.Search
                 return null;
             }
 
-            return trimmed.Length > 200 ? trimmed[..200] : trimmed;
+            return trimmed.Length > MaxSearchTermLength ? trimmed[..MaxSearchTermLength] : trimmed;
         }
 
         private static IEnumerable<string> FlattenCategories(IEnumerable<CategoryManagement.CategoryTreeItem> categories)
