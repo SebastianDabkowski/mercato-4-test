@@ -27,8 +27,31 @@
                             <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
                         </li>
                     </ul>
-                    <form class="d-flex me-3" method="get" asp-page="/Search/Index" role="search">
-                        <input class="form-control me-2" type="search" name="Q" placeholder="Search products" aria-label="Search" data-testid="global-search-input" value="@(Context?.Request?.Query["Q"])" />
+                    <form class="d-flex me-3" method="get" asp-page="/Search/Index" role="search" data-testid="global-search-form">
+                        <div class="flex-grow-1 position-relative me-2">
+                            <input class="form-control"
+                                   type="search"
+                                   name="Q"
+                                   placeholder="Search products"
+                                   aria-label="Search"
+                                   aria-autocomplete="list"
+                                   aria-expanded="false"
+                                   aria-controls="global-search-suggestions"
+                                   autocomplete="off"
+                                   data-testid="global-search-input"
+                                   data-suggestion-min-length="2"
+                                   data-suggestion-debounce="250"
+                                   data-suggestion-url="@Url.Page("/Search/Index", null, new { handler = "Suggestions" })"
+                                   value="@(Context?.Request?.Query["Q"])" />
+                            <div id="global-search-suggestions"
+                                 class="list-group position-absolute w-100 shadow-sm mt-1 d-none"
+                                 style="z-index: 1050;"
+                                 data-testid="search-suggestions"
+                                 data-suggestion-list
+                                 role="listbox"
+                                 hidden>
+                            </div>
+                        </div>
                         <button class="btn btn-outline-success" type="submit" data-testid="global-search-submit">Search</button>
                     </form>
                     <partial name="_LoginPartial" />
