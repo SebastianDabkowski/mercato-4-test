@@ -7,11 +7,12 @@
 
 <h1>Search results</h1>
 
-<form method="get" class="row g-2 align-items-end mb-3" data-testid="search-form">
-    <div class="col-sm-6 col-md-5">
-        <label asp-for="Q" class="form-label">Search products</label>
-        <input asp-for="Q" class="form-control" placeholder="Search by keyword" data-testid="search-query-input" />
-    </div>
+    <form method="get" class="row g-2 align-items-end mb-3" data-testid="search-form">
+        <input type="hidden" name="page" value="1" />
+        <div class="col-sm-6 col-md-5">
+            <label asp-for="Q" class="form-label">Search products</label>
+            <input asp-for="Q" class="form-control" placeholder="Search by keyword" data-testid="search-query-input" />
+        </div>
     <div class="col-sm-4 col-md-3">
         <label asp-for="Sort" class="form-label">Sort by</label>
         <select asp-for="Sort" class="form-select" data-testid="sort-select" onchange="this.form.submit()">
@@ -102,7 +103,9 @@
 }
 else if (Model.Results.Any())
 {
-    <p class="text-muted">Showing @Model.Results.Count result(s) for "@Model.Q".</p>
+    <p class="text-muted" data-testid="results-summary">
+        Showing @Model.StartResult-@Model.EndResult of @Model.TotalResults result(s) for "@Model.Q".
+    </p>
     <table class="table">
         <thead>
             <tr>
@@ -142,6 +145,70 @@ else if (Model.Results.Any())
             }
         </tbody>
     </table>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Search results pages" class="mt-3" data-testid="pagination">
+            <ul class="pagination">
+                <li class="page-item @(Model.HasPreviousPage ? string.Empty : "disabled")">
+                    <a class="page-link"
+                       asp-page="/Search/Index"
+                       asp-route-q="@Model.Q"
+                       asp-route-sort="@Model.Sort"
+                       asp-route-category="@Model.Category"
+                       asp-route-minPrice="@Model.MinPrice"
+                       asp-route-maxPrice="@Model.MaxPrice"
+                       asp-route-condition="@Model.Condition"
+                       asp-route-sellerId="@Model.SellerId"
+                       asp-route-page="@(Model.PageNumber - 1)"
+                       data-testid="pagination-prev">
+                        Previous
+                    </a>
+                </li>
+                @foreach (var page in Model.PageNumbers)
+                {
+                    <li class="page-item @(page == Model.PageNumber ? "active" : string.Empty)">
+                        <a class="page-link"
+                           asp-page="/Search/Index"
+                           asp-route-q="@Model.Q"
+                           asp-route-sort="@Model.Sort"
+                           asp-route-category="@Model.Category"
+                           asp-route-minPrice="@Model.MinPrice"
+                           asp-route-maxPrice="@Model.MaxPrice"
+                           asp-route-condition="@Model.Condition"
+                           asp-route-sellerId="@Model.SellerId"
+                           asp-route-page="@(page)"
+                           data-testid="pagination-page-@(page)">
+                            @(page)
+                        </a>
+                    </li>
+                }
+                <li class="page-item @(Model.HasNextPage ? string.Empty : "disabled")">
+                    <a class="page-link"
+                       asp-page="/Search/Index"
+                       asp-route-q="@Model.Q"
+                       asp-route-sort="@Model.Sort"
+                       asp-route-category="@Model.Category"
+                       asp-route-minPrice="@Model.MinPrice"
+                       asp-route-maxPrice="@Model.MaxPrice"
+                       asp-route-condition="@Model.Condition"
+                       asp-route-sellerId="@Model.SellerId"
+                       asp-route-page="@(Model.PageNumber + 1)"
+                       data-testid="pagination-next">
+                        Next
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        @if (!Model.HasNextPage)
+        {
+            <p class="text-muted small" data-testid="pagination-end">All results are displayed.</p>
+        }
+    }
+    else
+    {
+        <p class="text-muted small" data-testid="pagination-end">All results are displayed.</p>
+    }
 }
 else
 {
