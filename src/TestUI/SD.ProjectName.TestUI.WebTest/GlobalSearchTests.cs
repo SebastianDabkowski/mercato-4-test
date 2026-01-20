@@ -64,6 +64,28 @@ namespace SD.ProjectName.TestUI.WebTest
         }
 
         [Fact]
+        public async Task GlobalSearch_ShowsPaginationControls()
+        {
+            var keyword = $"Paged {Guid.NewGuid():N}";
+            await SeedActiveProductAsync($"{keyword} A", "Page check", "PagedCat", 10m);
+            await SeedActiveProductAsync($"{keyword} B", "Page check", "PagedCat", 12m);
+            await SeedActiveProductAsync($"{keyword} C", "Page check", "PagedCat", 14m);
+            await SeedActiveProductAsync($"{keyword} D", "Page check", "PagedCat", 16m);
+            await SeedActiveProductAsync($"{keyword} E", "Page check", "PagedCat", 18m);
+            await SeedActiveProductAsync($"{keyword} F", "Page check", "PagedCat", 20m);
+            await SeedActiveProductAsync($"{keyword} G", "Page check", "PagedCat", 22m);
+            await SeedActiveProductAsync($"{keyword} H", "Page check", "PagedCat", 24m);
+            await SeedActiveProductAsync($"{keyword} I", "Page check", "PagedCat", 26m);
+            await SeedActiveProductAsync($"{keyword} J", "Page check", "PagedCat", 28m);
+            await SeedActiveProductAsync($"{keyword} K", "Page check", "PagedCat", 30m);
+
+            await Page.GotoAsync($"{_fixture.BaseUrl}/search?q={Uri.EscapeDataString(keyword)}");
+
+            await Expect(Page.GetByTestId("pagination")).ToBeVisibleAsync();
+            await Expect(Page.GetByTestId("pagination-page-2")).ToBeVisibleAsync();
+        }
+
+        [Fact]
         public async Task GlobalSearch_CategorySuggestionNavigatesToListing()
         {
             var categoryName = $"Garden-{Guid.NewGuid():N}";

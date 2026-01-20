@@ -9,6 +9,7 @@ namespace SD.ProjectName.WebApp.Pages.Products
 {
     public class ListModel : PageModel
     {
+        private const int PageSize = 12;
         private readonly ILogger<ListModel> _logger;
         private readonly GetProducts _getProducts;
         private readonly ProductImageService _imageService;
@@ -42,6 +43,9 @@ namespace SD.ProjectName.WebApp.Pages.Products
         [BindProperty(SupportsGet = true)]
         public string? SellerId { get; set; }
 
+        [BindProperty(SupportsGet = true, Name = "page")]
+        public int PageNumber { get; set; } = 1;
+
         public IReadOnlyList<CategoryTreeItem> RootCategories { get; private set; } = Array.Empty<CategoryTreeItem>();
 
         public IReadOnlyList<CategoryTreeItem> ChildCategories { get; private set; } = Array.Empty<CategoryTreeItem>();
@@ -58,11 +62,26 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
         public IReadOnlyList<ActiveFilter> ActiveFilters { get; private set; } = Array.Empty<ActiveFilter>();
 
+        public IReadOnlyList<int> PageNumbers { get; private set; } = Array.Empty<int>();
+
+        public int TotalResults { get; private set; }
+
+        public int TotalPages { get; private set; }
+
         public bool HasActiveFilters => ActiveFilters.Any();
+
+        public bool HasNextPage => PageNumber < TotalPages;
+
+        public bool HasPreviousPage => PageNumber > 1;
+
+        public int StartResult => TotalResults == 0 ? 0 : ((PageNumber - 1) * PageSize) + 1;
+
+        public int EndResult => TotalResults == 0 ? 0 : Math.Min(PageNumber * PageSize, TotalResults);
 
         public async Task OnGetAsync()
         {
             Sort ??= ProductSort.Newest;
+            PageNumber = NormalizePage(PageNumber);
             RootCategories = await _categoryManagement.GetTree(includeInactive: false);
             SelectedCategory = FindCategory(RootCategories, Category);
 
@@ -76,7 +95,17 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
             var filtered = ProductFiltering.Apply(baseProducts, BuildFilters());
             var sorted = ProductSorting.Apply(filtered, Sort.Value).ToList();
-            Products = sorted.Select(p =>
+            TotalResults = sorted.Count;
+            TotalPages = (int)Math.Ceiling(TotalResults / (double)PageSize);
+            if (TotalPages > 0)
+            {
+                PageNumber = Math.Clamp(PageNumber, 1, TotalPages);
+            }
+
+            PageNumbers = TotalPages > 0
+                ? Enumerable.Range(1, TotalPages).ToList()
+                : Array.Empty<int>();
+            Products = sorted.Skip((PageNumber - 1) * PageSize).Take(PageSize).Select(p =>
             {
                 var main = _imageService.GetMainImage(p.ImageUrls);
                 return new ProductListItem(
@@ -241,5 +270,7 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
             return filters;
         }
+
+        private static int NormalizePage(int page) => page < 1 ? 1 : page;
     }
 }

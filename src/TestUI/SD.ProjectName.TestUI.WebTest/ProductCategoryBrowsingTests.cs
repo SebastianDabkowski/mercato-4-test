@@ -40,6 +40,17 @@ namespace SD.ProjectName.TestUI.WebTest
             await Expect(Page.GetByTestId("category-suggestion")).ToContainTextAsync("Books");
         }
 
+        [Fact]
+        public async Task BuyerCanUsePaginationInCategoryListing()
+        {
+            await SeedCatalogWithManyProductsAsync();
+
+            await Page.GotoAsync($"{_fixture.BaseUrl}/products/list?category=Books", new PageGotoOptions { WaitUntil = WaitUntilState.NetworkIdle });
+
+            await Expect(Page.GetByTestId("pagination")).ToBeVisibleAsync();
+            await Expect(Page.GetByTestId("pagination-page-2")).ToBeVisibleAsync();
+        }
+
         private async Task SeedCatalogAsync()
         {
             var options = new DbContextOptionsBuilder<ProductDbContext>()
@@ -73,6 +84,42 @@ namespace SD.ProjectName.TestUI.WebTest
             };
 
             db.Products.Add(product);
+            await db.SaveChangesAsync();
+        }
+
+        private async Task SeedCatalogWithManyProductsAsync()
+        {
+            var options = new DbContextOptionsBuilder<ProductDbContext>()
+                .UseSqlite(_fixture.ConnectionString)
+                .Options;
+
+            using var db = new ProductDbContext(options);
+            await db.Database.EnsureCreatedAsync();
+
+            db.Products.RemoveRange(db.Products);
+            db.Categories.RemoveRange(db.Categories);
+            await db.SaveChangesAsync();
+
+            var books = new CategoryModel { Name = "Books", NormalizedName = "BOOKS", DisplayOrder = 0, IsActive = true };
+            db.Categories.Add(books);
+            await db.SaveChangesAsync();
+
+            var products = new List<ProductModel>();
+            for (var i = 0; i < 15; i++)
+            {
+                products.Add(new ProductModel
+                {
+                    Name = $"Book {i}",
+                    Category = "Books",
+                    Price = 10 + i,
+                    Stock = 5,
+                    Description = $"Book {i} description",
+                    SellerId = $"seller-{i}",
+                    Status = ProductStatuses.Active
+                });
+            }
+
+            db.Products.AddRange(products);
             await db.SaveChangesAsync();
         }
     }

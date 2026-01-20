@@ -11,6 +11,7 @@ namespace SD.ProjectName.WebApp.Pages.Search
         private const int SuggestionLimit = 5;
         private const int SuggestionMinLength = 2;
         private const int MaxSearchTermLength = 200;
+        private const int PageSize = 10;
         private readonly GetProducts _getProducts;
         private readonly ProductImageService _imageService;
         private readonly CategoryManagement _categoryManagement;
@@ -43,6 +44,9 @@ namespace SD.ProjectName.WebApp.Pages.Search
         [BindProperty(SupportsGet = true)]
         public string? SellerId { get; set; }
 
+        [BindProperty(SupportsGet = true, Name = "page")]
+        public int PageNumber { get; set; } = 1;
+
         public List<ProductListItem> Results { get; private set; } = new();
 
         public IReadOnlyList<CategoryManagement.CategoryOption> CategoryOptions { get; private set; } = Array.Empty<CategoryManagement.CategoryOption>();
@@ -53,9 +57,23 @@ namespace SD.ProjectName.WebApp.Pages.Search
 
         public IReadOnlyList<ActiveFilter> ActiveFilters { get; private set; } = Array.Empty<ActiveFilter>();
 
+        public IReadOnlyList<int> PageNumbers { get; private set; } = Array.Empty<int>();
+
+        public int TotalResults { get; private set; }
+
+        public int TotalPages { get; private set; }
+
         public bool HasQuery => !string.IsNullOrWhiteSpace(Q);
 
         public bool HasActiveFilters => ActiveFilters.Any();
+
+        public bool HasNextPage => PageNumber < TotalPages;
+
+        public bool HasPreviousPage => PageNumber > 1;
+
+        public int StartResult => TotalResults == 0 ? 0 : ((PageNumber - 1) * PageSize) + 1;
+
+        public int EndResult => TotalResults == 0 ? 0 : Math.Min(PageNumber * PageSize, TotalResults);
 
         public async Task OnGetAsync()
         {
@@ -76,11 +94,23 @@ namespace SD.ProjectName.WebApp.Pages.Search
 
             Q = normalized;
 
+            PageNumber = NormalizePage(PageNumber);
             var products = await _getProducts.Search(normalized, Sort.Value);
-            ConditionOptions = BuildConditionOptions(products);
-            SellerOptions = BuildSellerOptions(products);
-            var filtered = ProductFiltering.Apply(products, BuildFilters());
-            Results = filtered.Select(p =>
+            var baseList = products.ToList();
+            ConditionOptions = BuildConditionOptions(baseList);
+            SellerOptions = BuildSellerOptions(baseList);
+            var filtered = ProductFiltering.Apply(baseList, BuildFilters()).ToList();
+            TotalResults = filtered.Count;
+            TotalPages = (int)Math.Ceiling(TotalResults / (double)PageSize);
+            if (TotalPages > 0)
+            {
+                PageNumber = Math.Clamp(PageNumber, 1, TotalPages);
+            }
+
+            PageNumbers = TotalPages > 0
+                ? Enumerable.Range(1, TotalPages).ToList()
+                : Array.Empty<int>();
+            Results = filtered.Skip((PageNumber - 1) * PageSize).Take(PageSize).Select(p =>
             {
                 var main = _imageService.GetMainImage(p.ImageUrls);
                 return new ProductListItem(
@@ -175,6 +205,8 @@ namespace SD.ProjectName.WebApp.Pages.Search
                     yield return child;
                 }
             }
+        }
+
         public record ActiveFilter(string Label, string Value);
 
         private ProductFilterOptions BuildFilters() =>
@@ -229,5 +261,7 @@ namespace SD.ProjectName.WebApp.Pages.Search
 
             return filters;
         }
+
+        private static int NormalizePage(int page) => page < 1 ? 1 : page;
     }
 }
