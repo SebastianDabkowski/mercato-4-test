@@ -40,7 +40,7 @@ else
             </div>
         </div>
         <div class="col-md-5">
-            <div class="card">
+            <div class="card mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Images</h5>
                     @if (Model.Images.Any())
@@ -58,6 +58,177 @@ else
                     }
                 </div>
             </div>
+
+            <div class="card" data-testid="recently-viewed">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="card-title mb-0">Recently viewed</h5>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-testid="recently-viewed-clear" hidden>Clear</button>
+                    </div>
+                    <p class="text-muted mb-0" data-testid="recently-viewed-empty">View products to see them here.</p>
+                    <div class="list-group d-none" data-testid="recently-viewed-list"></div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <div data-testid="recently-viewed-meta"
+         data-product-id="@Model.Product.Id"
+         data-product-name="@Model.Product.Name"
+         data-product-category="@Model.Product.Category"
+         data-product-price="@Model.Product.Price.ToString("C")"
+         data-product-url="@Url.Page("/Products/Details", new { id = Model.Product.Id })"
+         data-product-image="@Model.ThumbnailUrl"
+         data-recently-viewed-endpoint="@Url.Page("/Products/Details", new { handler = "RecentlyViewed", id = Model.Product.Id })"
+         data-recently-viewed-max="@Model.RecentlyViewedMaxItems">
+    </div>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const meta = document.querySelector("[data-testid='recently-viewed-meta']");
+            if (!meta) {
+                return;
+            }
+
+            const storageKey = "mercato.recentlyViewed";
+            const maxItems = parseInt(meta.dataset.recentlyViewedMax ?? "5", 10);
+            const endpoint = meta.dataset.recentlyViewedEndpoint;
+            const productId = parseInt(meta.dataset.productId ?? "", 10);
+            if (!productId) {
+                return;
+            }
+
+            const currentItem = {
+                id: productId,
+                name: meta.dataset.productName ?? "",
+                category: meta.dataset.productCategory ?? "",
+                price: meta.dataset.productPrice ?? "",
+                url: meta.dataset.productUrl ?? "",
+                image: meta.dataset.productImage ?? "",
+                viewedAt: new Date().toISOString()
+            };
+
+            const list = document.querySelector("[data-testid='recently-viewed-list']");
+            const emptyState = document.querySelector("[data-testid='recently-viewed-empty']");
+            const clearButton = document.querySelector("[data-testid='recently-viewed-clear']");
+
+            const readItems = () => {
+                try {
+                    const raw = window.localStorage.getItem(storageKey);
+                    return raw ? JSON.parse(raw) : [];
+                } catch {
+                    return [];
+                }
+            };
+
+            const writeItems = (items) => {
+                try {
+                    window.localStorage.setItem(storageKey, JSON.stringify(items));
+                } catch {
+                    // ignore storage errors
+                }
+            };
+
+            const updateRecentlyViewed = () => {
+                const items = readItems().filter((item) => item && item.id && item.id !== currentItem.id);
+                items.unshift(currentItem);
+                const trimmed = items.slice(0, maxItems || 5);
+                writeItems(trimmed);
+                return trimmed;
+            };
+
+            const render = (items) => {
+                if (!list || !emptyState || !clearButton) {
+                    return;
+                }
+
+                list.innerHTML = "";
+
+                if (!items.length) {
+                    list.classList.add("d-none");
+                    emptyState.hidden = false;
+                    clearButton.hidden = true;
+                    return;
+                }
+
+                items.forEach((item) => {
+                    const link = document.createElement("a");
+                    link.href = item.url || "#";
+                    link.className = "list-group-item list-group-item-action d-flex align-items-center gap-2";
+                    link.setAttribute("data-testid", "recently-viewed-item");
+
+                    if (item.image) {
+                        const img = document.createElement("img");
+                        img.src = item.image;
+                        img.alt = item.name ? `${item.name} thumbnail` : "Product thumbnail";
+                        img.width = 48;
+                        img.height = 48;
+                        img.className = "rounded border";
+                        link.appendChild(img);
+                    }
+
+                    const content = document.createElement("div");
+                    const title = document.createElement("div");
+                    title.textContent = item.name || "Product";
+                    content.appendChild(title);
+
+                    if (item.category || item.price) {
+                        const metaText = document.createElement("small");
+                        metaText.className = "text-muted";
+                        const parts = [];
+                        if (item.category) {
+                            parts.push(item.category);
+                        }
+                        if (item.price) {
+                            parts.push(item.price);
+                        }
+                        metaText.textContent = parts.join(" • ");
+                        content.appendChild(metaText);
+                    }
+
+                    link.appendChild(content);
+                    list.appendChild(link);
+                });
+
+                list.classList.remove("d-none");
+                emptyState.hidden = true;
+                clearButton.hidden = false;
+            };
+
+            const refreshFromServer = async (items) => {
+                if (!endpoint || !items.length) {
+                    return items;
+                }
+
+                try {
+                    const url = new URL(endpoint, window.location.origin);
+                    url.searchParams.set("ids", items.map((item) => item.id).join(","));
+                    const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+                    if (!response.ok) {
+                        return items;
+                    }
+
+                    const data = await response.json();
+                    if (!Array.isArray(data)) {
+                        return items;
+                    }
+
+                    writeItems(data);
+                    return data;
+                } catch {
+                    return items;
+                }
+            };
+
+            const items = updateRecentlyViewed();
+            refreshFromServer(items).then(render);
+
+            clearButton?.addEventListener("click", () => {
+                writeItems([]);
+                render([]);
+            });
+        });
+    </script>
 }
