@@ -30,6 +30,18 @@ namespace SD.ProjectName.WebApp.Pages.Products
         [BindProperty(SupportsGet = true)]
         public ProductSort? Sort { get; set; }
 
+        [BindProperty(SupportsGet = true)]
+        public decimal? MinPrice { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public decimal? MaxPrice { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public string? Condition { get; set; }
+
+        [BindProperty(SupportsGet = true)]
+        public string? SellerId { get; set; }
+
         public IReadOnlyList<CategoryTreeItem> RootCategories { get; private set; } = Array.Empty<CategoryTreeItem>();
 
         public IReadOnlyList<CategoryTreeItem> ChildCategories { get; private set; } = Array.Empty<CategoryTreeItem>();
@@ -40,6 +52,14 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
         public bool AggregatedFromSubcategories { get; private set; }
 
+        public IReadOnlyList<string> ConditionOptions { get; private set; } = Array.Empty<string>();
+
+        public IReadOnlyList<string> SellerOptions { get; private set; } = Array.Empty<string>();
+
+        public IReadOnlyList<ActiveFilter> ActiveFilters { get; private set; } = Array.Empty<ActiveFilter>();
+
+        public bool HasActiveFilters => ActiveFilters.Any();
+
         public async Task OnGetAsync()
         {
             Sort ??= ProductSort.Newest;
@@ -49,8 +69,14 @@ namespace SD.ProjectName.WebApp.Pages.Products
             var categoryNamesForQuery = BuildCategoryQueryList(SelectedCategory);
             AggregatedFromSubcategories = SelectedCategory?.Children?.Any() == true;
 
-            var products = await LoadProductsAsync(categoryNamesForQuery, Sort.Value);
-            Products = products.Select(p =>
+            var baseProducts = await LoadProductsAsync(categoryNamesForQuery, Sort.Value, applySorting: false);
+            ConditionOptions = BuildConditionOptions(baseProducts);
+            SellerOptions = BuildSellerOptions(baseProducts);
+            ActiveFilters = BuildActiveFilters();
+
+            var filtered = ProductFiltering.Apply(baseProducts, BuildFilters());
+            var sorted = ProductSorting.Apply(filtered, Sort.Value).ToList();
+            Products = sorted.Select(p =>
             {
                 var main = _imageService.GetMainImage(p.ImageUrls);
                 return new ProductListItem(
@@ -83,7 +109,9 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
         public record ProductListItem(ProductModel Product, string? MainImageUrl, string? ThumbnailUrl);
 
-        private async Task<List<ProductModel>> LoadProductsAsync(IReadOnlyList<string> categoriesForQuery, ProductSort sort)
+        public record ActiveFilter(string Label, string Value);
+
+        private async Task<List<ProductModel>> LoadProductsAsync(IReadOnlyList<string> categoriesForQuery, ProductSort sort, bool applySorting)
         {
             if (categoriesForQuery.Any())
             {
@@ -100,10 +128,10 @@ namespace SD.ProjectName.WebApp.Pages.Products
                     .Select(g => g.First())
                     .ToList();
 
-                return ProductSorting.Apply(deduplicated, sort).ToList();
+                return applySorting ? ProductSorting.Apply(deduplicated, sort).ToList() : deduplicated;
             }
 
-            return await _getProducts.GetList(Category, sort);
+            return await _getProducts.GetList(Category, sort, applySorting);
         }
 
         private static IReadOnlyList<string> BuildCategoryQueryList(CategoryTreeItem? selectedCategory)
@@ -164,6 +192,54 @@ namespace SD.ProjectName.WebApp.Pages.Products
                     yield return child;
                 }
             }
+        }
+
+        private ProductFilterOptions BuildFilters() =>
+            new(null, MinPrice, MaxPrice, Condition, SellerId);
+
+        private static IReadOnlyList<string> BuildConditionOptions(IEnumerable<ProductModel> products)
+        {
+            var available = new HashSet<string>(
+                products.Select(p => p.Condition).Where(c => !string.IsNullOrWhiteSpace(c)),
+                StringComparer.OrdinalIgnoreCase);
+
+            return ProductConditions.All.Where(available.Contains).ToList();
+        }
+
+        private static IReadOnlyList<string> BuildSellerOptions(IEnumerable<ProductModel> products) =>
+            products.Select(p => p.SellerId)
+                .Where(id => !string.IsNullOrWhiteSpace(id))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(id => id)
+                .ToList();
+
+        private IReadOnlyList<ActiveFilter> BuildActiveFilters()
+        {
+            var filters = new List<ActiveFilter>();
+
+            if (MinPrice.HasValue || MaxPrice.HasValue)
+            {
+                var min = MinPrice?.ToString("C");
+                var max = MaxPrice?.ToString("C");
+                var value = MinPrice.HasValue && MaxPrice.HasValue
+                    ? $"{min} - {max}"
+                    : MinPrice.HasValue
+                        ? $"From {min}"
+                        : $"Up to {max}";
+                filters.Add(new ActiveFilter("Price", value));
+            }
+
+            if (!string.IsNullOrWhiteSpace(Condition))
+            {
+                filters.Add(new ActiveFilter("Condition", Condition.Trim()));
+            }
+
+            if (!string.IsNullOrWhiteSpace(SellerId))
+            {
+                filters.Add(new ActiveFilter("Seller", SellerId.Trim()));
+            }
+
+            return filters;
         }
     }
 }

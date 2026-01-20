@@ -79,7 +79,32 @@ namespace SD.ProjectName.TestUI.WebTest
             await Expect(Page.GetByTestId("category-heading")).ToContainTextAsync(categoryName);
         }
 
-        private async Task SeedActiveProductAsync(string name, string description, string category, decimal price)
+        
+        public async Task GlobalSearch_AllowsFilteringByConditionSellerAndPrice()
+        {
+            var keyword = $"Filterable {Guid.NewGuid():N}";
+            await SeedActiveProductAsync($"{keyword} New", "Filter target", "Filters", 25m, ProductConditions.New, "seller-alpha");
+            await SeedActiveProductAsync($"{keyword} Used", "Filter target", "Filters", 45m, ProductConditions.Used, "seller-beta");
+
+            await Page.GotoAsync($"{_fixture.BaseUrl}/search?q={Uri.EscapeDataString(keyword)}");
+            await Page.GetByTestId("filter-panel-toggle").ClickAsync();
+            await Expect(Page.GetByTestId("filter-category")).ToBeVisibleAsync();
+            await Page.GetByTestId("filter-condition").SelectOptionAsync(ProductConditions.Used);
+            await Page.GetByTestId("filter-seller").SelectOptionAsync("seller-beta");
+            await Page.GetByTestId("filter-max-price").FillAsync("50");
+            await Page.GetByTestId("apply-filters").ClickAsync();
+
+            await Expect(Page.GetByTestId("product-row")).ToHaveCountAsync(1);
+            await Expect(Page.GetByTestId("product-row")).ToContainTextAsync($"{keyword} Used");
+        }
+
+        private async Task SeedActiveProductAsync(
+            string name,
+            string description,
+            string category,
+            decimal price,
+            string? condition = null,
+            string? sellerId = null)
         {
             var options = new DbContextOptionsBuilder<ProductDbContext>()
                 .UseSqlite(_fixture.ConnectionString)
@@ -94,8 +119,10 @@ namespace SD.ProjectName.TestUI.WebTest
                 Category = category,
                 Price = price,
                 Stock = 10,
+                Condition = condition ?? ProductConditions.New,
                 Status = ProductStatuses.Active,
-                Sku = $"SKU-{Guid.NewGuid():N}"
+                Sku = $"SKU-{Guid.NewGuid():N}",
+                SellerId = sellerId ?? $"seller-{Guid.NewGuid():N}"
             });
             await context.SaveChangesAsync();
         }
