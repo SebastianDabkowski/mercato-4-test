@@ -14,6 +14,7 @@ namespace SD.ProjectName.Modules.Products.Domain
         public decimal Price { get; set; }
         public int Stock { get; set; }
         public string Category { get; set; } = string.Empty;
+        public string Condition { get; set; } = ProductConditions.New;
         public string Status { get; set; } = ProductStatuses.Draft;
         public string SellerId { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
@@ -32,5 +33,13 @@ namespace SD.ProjectName.Modules.Products.Domain
         public const string Active = "active";
         public const string Suspended = "suspended";
         public const string Archived = "archived";
+    }
+
+    public static class ProductConditions
+    {
+        public const string New = "New";
+        public const string Used = "Used";
+        public const string Refurbished = "Refurbished";
+        public static readonly IReadOnlyList<string> All = new[] { New, Used, Refurbished };
     }
 }
