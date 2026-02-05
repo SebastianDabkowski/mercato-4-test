@@ -10,10 +10,35 @@
 }
 else
 {
+    @if (!string.IsNullOrWhiteSpace(Model.BackToResultsUrl))
+    {
+        <div class="mb-3">
+            <a href="@Model.BackToResultsUrl" class="btn btn-sm btn-outline-secondary" data-testid="back-to-results">
+                ← Back to results
+            </a>
+        </div>
+    }
+
     <div class="row g-4">
         <div class="col-md-7">
             <h1 class="h3" data-testid="product-title">@Model.Product.Name</h1>
-            <div class="text-muted mb-2" data-testid="product-category">Category: @Model.Product.Category</div>
+            <div class="text-muted mb-2" data-testid="product-category">
+                Category:
+                @if (!string.IsNullOrWhiteSpace(Model.CategoryUrl))
+                {
+                    <a href="@Model.CategoryUrl" data-testid="category-link">@Model.Product.Category</a>
+                }
+                else
+                {
+                    @Model.Product.Category
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(Model.SellerStoreUrl) && !string.IsNullOrWhiteSpace(Model.SellerStoreName))
+            {
+                <div class="text-muted mb-2" data-testid="product-seller">
+                    Seller: <a href="@Model.SellerStoreUrl" data-testid="seller-link">@Model.SellerStoreName</a>
+                </div>
+            }
             <div class="h4 text-primary" data-testid="product-price">@Model.Product.Price.ToString("C")</div>
             <div class="mb-3" data-testid="product-stock">In stock: @Model.Product.Stock</div>
             <p data-testid="product-description">@Model.Product.Description</p>

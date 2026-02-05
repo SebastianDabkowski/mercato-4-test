@@ -1,10 +1,13 @@
 ﻿using System.Linq;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
+using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Services;
+using SD.ProjectName.WebApp.Stores;
 
 namespace SD.ProjectName.WebApp.Pages.Products
 {
@@ -13,11 +16,13 @@ namespace SD.ProjectName.WebApp.Pages.Products
         private const int RecentlyViewedMaxItemsLimit = 5;
         private readonly GetProducts _getProducts;
         private readonly ProductImageService _imageService;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public DetailsModel(GetProducts getProducts, ProductImageService imageService)
+        public DetailsModel(GetProducts getProducts, ProductImageService imageService, UserManager<ApplicationUser> userManager)
         {
             _getProducts = getProducts;
             _imageService = imageService;
+            _userManager = userManager;
         }
 
         public ProductModel? Product { get; private set; }
@@ -29,6 +34,14 @@ namespace SD.ProjectName.WebApp.Pages.Products
         public string? ThumbnailUrl { get; private set; }
 
         public int RecentlyViewedMaxItems => RecentlyViewedMaxItemsLimit;
+
+        public string? BackToResultsUrl { get; private set; }
+
+        public string? CategoryUrl { get; private set; }
+
+        public string? SellerStoreUrl { get; private set; }
+
+        public string? SellerStoreName { get; private set; }
 
         public async Task<IActionResult> OnGetAsync(int id)
         {
@@ -52,6 +65,39 @@ namespace SD.ProjectName.WebApp.Pages.Products
                     .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(m => m.Trim())
                     .Where(m => !string.IsNullOrWhiteSpace(m)));
+            }
+
+            // Set back to results URL from referrer if it's from search or category pages
+            var referrer = Request.Headers.Referer.ToString();
+            if (!string.IsNullOrWhiteSpace(referrer) && Uri.TryCreate(referrer, UriKind.Absolute, out var referrerUri))
+            {
+                var path = referrerUri.PathAndQuery;
+                if (path.StartsWith("/Search/Index", StringComparison.OrdinalIgnoreCase) ||
+                    path.StartsWith("/Products/List", StringComparison.OrdinalIgnoreCase))
+                {
+                    BackToResultsUrl = path;
+                }
+            }
+
+            // Set category URL
+            if (!string.IsNullOrWhiteSpace(Product.Category))
+            {
+                CategoryUrl = Url.Page("/Products/List", new { category = Product.Category });
+            }
+
+            // Set seller store URL
+            if (!string.IsNullOrWhiteSpace(Product.SellerId))
+            {
+                var seller = await _userManager.FindByIdAsync(Product.SellerId);
+                if (seller is not null && !string.IsNullOrWhiteSpace(seller.StoreName))
+                {
+                    var storeSlug = StoreUrlHelper.ToSlug(seller.StoreName);
+                    if (!string.IsNullOrWhiteSpace(storeSlug))
+                    {
+                        SellerStoreName = seller.StoreName;
+                        SellerStoreUrl = Url.Page("/Stores/Profile", new { storeSlug });
+                    }
+                }
             }
 
             return Page();
