@@ -1,0 +1,66 @@
+@page "/buyer/cart"
+@model SD.ProjectName.WebApp.Pages.Buyer.CartModel
+@{
+    ViewData["Title"] = "Shopping Cart";
+}
+
+<h1 data-testid="cart-heading">Shopping Cart</h1>
+
+@if (!Model.SellerGroups.Any())
+{
+    <div class="alert alert-info" data-testid="cart-empty">
+        <p class="mb-1">Your cart is empty.</p>
+        <a asp-page="/Products/List" class="btn btn-outline-primary mt-2">Browse products</a>
+    </div>
+}
+else
+{
+    @foreach (var group in Model.SellerGroups)
+    {
+        <div class="card mb-3" data-testid="seller-group">
+            <div class="card-header" data-testid="seller-name">
+                Seller: @(string.IsNullOrWhiteSpace(group.SellerName) ? group.SellerId : group.SellerName)
+            </div>
+            <div class="card-body p-0">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Product</th>
+                            <th>Unit Price</th>
+                            <th>Quantity</th>
+                            <th>Subtotal</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in group.Items)
+                        {
+                            <tr data-testid="cart-item">
+                                <td data-testid="cart-item-name">@item.ProductName</td>
+                                <td data-testid="cart-item-price">@item.UnitPrice.ToString("C")</td>
+                                <td>
+                                    <form method="post" asp-page-handler="UpdateQuantity" class="d-inline">
+                                        <input type="hidden" name="itemId" value="@item.Id" />
+                                        <input type="number" name="quantity" value="@item.Quantity" min="1" class="form-control form-control-sm d-inline-block" style="width: 80px;" data-testid="cart-item-quantity" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary" data-testid="cart-item-update">Update</button>
+                                    </form>
+                                </td>
+                                <td data-testid="cart-item-subtotal">@((item.UnitPrice * item.Quantity).ToString("C"))</td>
+                                <td>
+                                    <form method="post" asp-page-handler="Remove" class="d-inline">
+                                        <input type="hidden" name="itemId" value="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" data-testid="cart-item-remove">Remove</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="text-end" data-testid="cart-total">
+        <h4>Total: @Model.CartTotal.ToString("C")</h4>
+    </div>
+}

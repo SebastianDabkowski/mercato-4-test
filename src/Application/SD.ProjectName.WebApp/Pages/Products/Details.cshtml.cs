@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
+using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Services;
 using SD.ProjectName.WebApp.Stores;
@@ -17,12 +18,14 @@ namespace SD.ProjectName.WebApp.Pages.Products
         private readonly GetProducts _getProducts;
         private readonly ProductImageService _imageService;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly AddToCart _addToCart;
 
-        public DetailsModel(GetProducts getProducts, ProductImageService imageService, UserManager<ApplicationUser> userManager)
+        public DetailsModel(GetProducts getProducts, ProductImageService imageService, UserManager<ApplicationUser> userManager, AddToCart addToCart)
         {
             _getProducts = getProducts;
             _imageService = imageService;
             _userManager = userManager;
+            _addToCart = addToCart;
         }
 
         public ProductModel? Product { get; private set; }
@@ -152,6 +155,27 @@ namespace SD.ProjectName.WebApp.Pages.Products
                 .ToList();
 
             return new JsonResult(ordered);
+        }
+
+        public async Task<IActionResult> OnPostAddToCartAsync(int id)
+        {
+            var userId = _userManager.GetUserId(User);
+            if (string.IsNullOrWhiteSpace(userId))
+            {
+                return RedirectToPage("/Identity/Account/Login");
+            }
+
+            var product = await _getProducts.GetById(id, includeDrafts: false);
+            if (product is null)
+            {
+                return NotFound();
+            }
+
+            var seller = await _userManager.FindByIdAsync(product.SellerId);
+            var sellerName = seller?.StoreName ?? string.Empty;
+
+            await _addToCart.ExecuteAsync(userId, product.Id, product.Name, product.Price, product.SellerId, sellerName);
+            return RedirectToPage("/Buyer/Cart");
         }
 
         public record RecentlyViewedItem(
