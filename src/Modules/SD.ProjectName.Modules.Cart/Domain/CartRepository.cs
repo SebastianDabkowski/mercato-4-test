@@ -1,10 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
 using SD.ProjectName.Modules.Cart.Infrastructure;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace SD.ProjectName.Modules.Cart.Domain

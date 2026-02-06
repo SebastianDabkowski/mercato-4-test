@@ -4,9 +4,6 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.WebApp.Data;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace SD.ProjectName.WebApp.Pages.Buyer
 {
