@@ -26,6 +26,12 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-page="/Privacy">Privacy</a>
                         </li>
+                        @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Buyer"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-page="/Buyer/Cart" data-testid="cart-link">Cart</a>
+                            </li>
+                        }
                     </ul>
                     <form class="d-flex me-3" method="get" asp-page="/Search/Index" role="search" data-testid="global-search-form">
                         <div class="flex-grow-1 position-relative me-2">

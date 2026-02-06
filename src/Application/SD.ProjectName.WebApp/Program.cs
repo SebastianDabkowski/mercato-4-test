@@ -16,6 +16,10 @@ using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Products.Domain.Interfaces;
 using SD.ProjectName.Modules.Products.Infrastructure;
+using SD.ProjectName.Modules.Cart.Application;
+using SD.ProjectName.Modules.Cart.Domain;
+using SD.ProjectName.Modules.Cart.Domain.Interfaces;
+using SD.ProjectName.Modules.Cart.Infrastructure;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
 using SD.ProjectName.WebApp.Services;
@@ -71,12 +75,16 @@ if (useSqlite)
         options.UseSqlite(configuredSqliteConnectionString));
     builder.Services.AddDbContext<ProductDbContext>(options =>
         options.UseSqlite(configuredSqliteConnectionString));
+    builder.Services.AddDbContext<CartDbContext>(options =>
+        options.UseSqlite(configuredSqliteConnectionString));
 }
 else
 {
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
         options.UseSqlServer(connectionString));
     builder.Services.AddDbContext<ProductDbContext>(options =>
+        options.UseSqlServer(connectionString));
+    builder.Services.AddDbContext<CartDbContext>(options =>
         options.UseSqlServer(connectionString));
 }
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
@@ -242,6 +250,12 @@ builder.Services.AddScoped<CategoryManagement>();
 builder.Services.AddScoped<ProductImageService>();
 builder.Services.AddScoped<ProductVariantService>();
 
+builder.Services.AddScoped<ICartRepository, CartRepository>();
+builder.Services.AddScoped<AddToCart>();
+builder.Services.AddScoped<GetCartItems>();
+builder.Services.AddScoped<RemoveFromCart>();
+builder.Services.AddScoped<UpdateCartItemQuantity>();
+
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/Buyer", "BuyerOnly");
@@ -268,6 +282,9 @@ using (var scope = app.Services.CreateScope())
         // Migrate ProductDbContext (Module: Products)
         var productDbContext = services.GetRequiredService<ProductDbContext>();
         InitializeDatabase(productDbContext, useSqlite, disableMigrations);
+        // Migrate CartDbContext (Module: Cart)
+        var cartDbContext = services.GetRequiredService<CartDbContext>();
+        InitializeDatabase(cartDbContext, useSqlite, disableMigrations);
         await EnsureRolesAsync(services);
     }
     catch (Exception ex)

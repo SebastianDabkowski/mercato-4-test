@@ -41,6 +41,15 @@ else
             }
             <div class="h4 text-primary" data-testid="product-price">@Model.Product.Price.ToString("C")</div>
             <div class="mb-3" data-testid="product-stock">In stock: @Model.Product.Stock</div>
+
+            @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Buyer"))
+            {
+                <form method="post" asp-page="/Products/Details" asp-page-handler="AddToCart" class="mb-3">
+                    <input type="hidden" name="id" value="@Model.Product.Id" />
+                    <button type="submit" class="btn btn-primary" data-testid="add-to-cart-btn">Add to cart</button>
+                </form>
+            }
+
             <p data-testid="product-description">@Model.Product.Description</p>
 
             <div class="mt-3">
