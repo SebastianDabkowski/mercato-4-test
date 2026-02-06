@@ -1,5 +1,3 @@
-using System;
-
 namespace SD.ProjectName.Modules.Cart.Domain
 {
     public class CartItemModel

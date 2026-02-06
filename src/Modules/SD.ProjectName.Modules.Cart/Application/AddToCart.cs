@@ -1,7 +1,5 @@
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
-using System;
-using System.Threading.Tasks;
 
 namespace SD.ProjectName.Modules.Cart.Application
 {
