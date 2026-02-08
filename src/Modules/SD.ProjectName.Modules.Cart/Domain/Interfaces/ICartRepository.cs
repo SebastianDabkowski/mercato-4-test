@@ -14,6 +14,7 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<CartModel> CreateAsync(string userId);
         
         Task UpdateAsync(CartModel cart);
+        Task UpdateAsync(CartItemModel item);
       
         Task RemoveAsync(int id);
     }

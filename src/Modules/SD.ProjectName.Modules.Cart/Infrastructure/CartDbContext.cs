@@ -26,6 +26,7 @@ public class CartDbContext : DbContext
         {
             entity.ToTable("CartItem");
             entity.HasIndex(ci => ci.CartId);
+            entity.HasIndex(ci => ci.BuyerId);
             entity.HasIndex(ci => ci.ProductId);
             entity.HasIndex(ci => ci.SellerId);
             entity.Property(ci => ci.ProductSku).HasMaxLength(100);

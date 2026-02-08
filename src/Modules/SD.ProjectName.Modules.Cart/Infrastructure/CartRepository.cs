@@ -13,6 +13,25 @@ public class CartRepository : ICartRepository
         _context = context;
     }
 
+    public async Task<List<CartItemModel>> GetByBuyerIdAsync(string buyerId)
+    {
+        return await _context.CartItems
+            .Where(c => c.BuyerId == buyerId)
+            .OrderBy(c => c.AddedAt)
+            .ToListAsync();
+    }
+
+    public async Task<CartItemModel?> GetByBuyerAndProductAsync(string buyerId, int productId)
+    {
+        return await _context.CartItems
+            .FirstOrDefaultAsync(c => c.BuyerId == buyerId && c.ProductId == productId);
+    }
+
+    public async Task<CartItemModel?> GetByIdAsync(int id)
+    {
+        return await _context.CartItems.FindAsync(id);
+    }
+
     public async Task<CartModel?> GetByUserIdAsync(string userId)
     {
         return await _context.Carts
@@ -35,10 +54,33 @@ public class CartRepository : ICartRepository
         return cart;
     }
 
+    public async Task<CartItemModel> AddAsync(CartItemModel item)
+    {
+        _context.CartItems.Add(item);
+        await _context.SaveChangesAsync();
+        return item;
+    }
+
     public async Task UpdateAsync(CartModel cart)
     {
         _context.Carts.Update(cart);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task UpdateAsync(CartItemModel item)
+    {
+        _context.CartItems.Update(item);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task RemoveAsync(int id)
+    {
+        var item = await _context.CartItems.FindAsync(id);
+        if (item is not null)
+        {
+            _context.CartItems.Remove(item);
+            await _context.SaveChangesAsync();
+        }
     }
 
     public async Task<List<ShippingRuleModel>> GetShippingRulesAsync()
