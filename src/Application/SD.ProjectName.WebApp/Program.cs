@@ -107,6 +107,7 @@ builder.Services.AddDataProtection()
     .SetApplicationName("SD.ProjectName");
 
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("Features"));
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -255,7 +256,9 @@ builder.Services.AddScoped<AddToCart>();
 builder.Services.AddScoped<GetCartItems>();
 builder.Services.AddScoped<RemoveFromCart>();
 builder.Services.AddScoped<UpdateCartItemQuantity>();
+builder.Services.AddScoped<CartMergeService>();
 builder.Services.AddScoped<IProductAvailabilityService, ProductAvailabilityService>();
+builder.Services.AddScoped<ICartIdentityService, CartIdentityService>();
 
 builder.Services.AddRazorPages(options =>
 {
@@ -267,6 +270,7 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AllowAnonymousToPage("/Products/List");
     options.Conventions.AllowAnonymousToPage("/Products/Details");
     options.Conventions.AllowAnonymousToPage("/Privacy");
+    options.Conventions.AllowAnonymousToPage("/Buyer/Cart");
 });
 
 var app = builder.Build();

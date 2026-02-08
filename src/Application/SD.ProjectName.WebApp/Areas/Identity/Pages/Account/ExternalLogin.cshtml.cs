@@ -6,8 +6,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account;
 
@@ -17,15 +19,21 @@ public class ExternalLoginModel : PageModel
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ILogger<ExternalLoginModel> _logger;
+    private readonly CartMergeService _cartMergeService;
+    private readonly ICartIdentityService _cartIdentityService;
 
     public ExternalLoginModel(
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager,
-        ILogger<ExternalLoginModel> logger)
+        ILogger<ExternalLoginModel> logger,
+        CartMergeService cartMergeService,
+        ICartIdentityService cartIdentityService)
     {
         _signInManager = signInManager;
         _userManager = userManager;
         _logger = logger;
+        _cartMergeService = cartMergeService;
+        _cartIdentityService = cartIdentityService;
     }
 
     [TempData]
@@ -50,6 +58,7 @@ public class ExternalLoginModel : PageModel
     public async Task<IActionResult> OnGetCallbackAsync(string? returnUrl = null, string? remoteError = null)
     {
         ReturnUrl = returnUrl ?? Url.Content("~/");
+        var guestBuyerId = _cartIdentityService.GetGuestBuyerId();
         if (!string.IsNullOrWhiteSpace(remoteError))
         {
             ErrorMessage = $"Social login was canceled or failed: {HtmlEncoder.Default.Encode(remoteError)}";
@@ -82,6 +91,11 @@ public class ExternalLoginModel : PageModel
             }
 
             var redirect = await ResolveRedirectAsync(existingUser, NormalizeReturnUrl(ReturnUrl));
+            if (!string.IsNullOrWhiteSpace(guestBuyerId))
+            {
+                await _cartMergeService.MergeAsync(guestBuyerId, existingUser.Id);
+                _cartIdentityService.ClearGuestBuyerId();
+            }
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
             return LocalRedirect(redirect);
         }
@@ -129,6 +143,11 @@ public class ExternalLoginModel : PageModel
         }
 
         await _signInManager.SignInAsync(user, isPersistent: false);
+        if (!string.IsNullOrWhiteSpace(guestBuyerId))
+        {
+            await _cartMergeService.MergeAsync(guestBuyerId, user.Id);
+            _cartIdentityService.ClearGuestBuyerId();
+        }
         await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
         var redirectUrl = await ResolveRedirectAsync(user, NormalizeReturnUrl(ReturnUrl));
         return LocalRedirect(redirectUrl);

@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
+using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
 using SD.ProjectName.WebApp.Services;
@@ -26,19 +27,25 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
         private readonly IEmailSender _emailSender;
         private readonly ILogger<LoginModel> _logger;
         private readonly ILoginEventLogger _loginEventLogger;
+        private readonly CartMergeService _cartMergeService;
+        private readonly ICartIdentityService _cartIdentityService;
 
         public LoginModel(
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
             IEmailSender emailSender,
             ILogger<LoginModel> logger,
-            ILoginEventLogger loginEventLogger)
+            ILoginEventLogger loginEventLogger,
+            CartMergeService cartMergeService,
+            ICartIdentityService cartIdentityService)
         {
             _signInManager = signInManager;
             _userManager = userManager;
             _emailSender = emailSender;
             _logger = logger;
             _loginEventLogger = loginEventLogger;
+            _cartMergeService = cartMergeService;
+            _cartIdentityService = cartIdentityService;
         }
 
         [BindProperty]
@@ -107,6 +114,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
 
             var ipAddress = RequestMetadataHelper.GetClientIp(HttpContext);
             var userAgent = RequestMetadataHelper.GetUserAgent(HttpContext);
+            var guestBuyerId = _cartIdentityService.GetGuestBuyerId();
 
             if (user.AccountType == AccountType.Seller && !user.EmailConfirmed)
             {
@@ -121,6 +129,11 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             {
                 _logger.LogInformation("User logged in.");
                 await _loginEventLogger.LogAsync(user, LoginEventType.PasswordSignInSuccess, true, ipAddress, userAgent, cancellationToken: HttpContext.RequestAborted);
+                if (!string.IsNullOrWhiteSpace(guestBuyerId))
+                {
+                    await _cartMergeService.MergeAsync(guestBuyerId, user.Id);
+                    _cartIdentityService.ClearGuestBuyerId();
+                }
                 var redirect = await ResolveRedirectAsync(user, NormalizeReturnUrl(returnUrl));
                 return LocalRedirect(redirect);
             }

@@ -7,8 +7,8 @@ using SD.ProjectName.Modules.Products.Application;
 using SD.ProjectName.Modules.Products.Domain;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.WebApp.Data;
-using SD.ProjectName.WebApp.Services;
 using SD.ProjectName.WebApp.Stores;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Products
 {
@@ -19,13 +19,15 @@ namespace SD.ProjectName.WebApp.Pages.Products
         private readonly ProductImageService _imageService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly AddToCart _addToCart;
+        private readonly ICartIdentityService _cartIdentityService;
 
-        public DetailsModel(GetProducts getProducts, ProductImageService imageService, UserManager<ApplicationUser> userManager, AddToCart addToCart)
+        public DetailsModel(GetProducts getProducts, ProductImageService imageService, UserManager<ApplicationUser> userManager, AddToCart addToCart, ICartIdentityService cartIdentityService)
         {
             _getProducts = getProducts;
             _imageService = imageService;
             _userManager = userManager;
             _addToCart = addToCart;
+            _cartIdentityService = cartIdentityService;
         }
 
         public ProductModel? Product { get; private set; }
@@ -159,12 +161,6 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
         public async Task<IActionResult> OnPostAddToCartAsync(int id)
         {
-            var userId = _userManager.GetUserId(User);
-            if (string.IsNullOrWhiteSpace(userId))
-            {
-                return RedirectToPage("/Identity/Account/Login");
-            }
-
             var product = await _getProducts.GetById(id, includeDrafts: false);
             if (product is null)
             {
@@ -174,7 +170,9 @@ namespace SD.ProjectName.WebApp.Pages.Products
             var seller = await _userManager.FindByIdAsync(product.SellerId);
             var sellerName = seller?.StoreName ?? string.Empty;
 
-            await _addToCart.ExecuteAsync(userId, product.Id, product.Name, product.Price, product.SellerId, sellerName);
+            var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+
+            await _addToCart.ExecuteAsync(buyerId, product.Id, product.Name, product.Price, product.SellerId, sellerName);
             return RedirectToPage("/Buyer/Cart");
         }
 

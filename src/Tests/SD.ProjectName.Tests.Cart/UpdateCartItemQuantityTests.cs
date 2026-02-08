@@ -20,7 +20,7 @@ namespace SD.ProjectName.Tests.Cart
             var handler = new UpdateCartItemQuantity(repo.Object, availability.Object);
 
             // Act
-            var result = await handler.ExecuteAsync(1, 5);
+            var result = await handler.ExecuteAsync(1, 5, "buyer1");
             
             // Assert
             Assert.True(result);
@@ -39,7 +39,7 @@ namespace SD.ProjectName.Tests.Cart
             var handler = new UpdateCartItemQuantity(repo.Object, availability.Object);
             
             // Act
-            var result = await handler.ExecuteAsync(1, 0);
+            var result = await handler.ExecuteAsync(1, 0, "buyer1");
             
             // Assert
             Assert.True(result);
@@ -57,7 +57,7 @@ namespace SD.ProjectName.Tests.Cart
             var handler = new UpdateCartItemQuantity(repo.Object, availability.Object);
 
             // Act
-            var result = await handler.ExecuteAsync(1, 5);
+            var result = await handler.ExecuteAsync(1, 5, "buyer1");
             
             // Assert
             Assert.False(result);
@@ -76,7 +76,7 @@ namespace SD.ProjectName.Tests.Cart
             var handler = new UpdateCartItemQuantity(repo.Object, availability.Object);
 
             // Act
-            var result = await handler.ExecuteAsync(item.Id, 5);
+            var result = await handler.ExecuteAsync(item.Id, 5, "buyer1");
 
             // Assert
             Assert.True(result);
@@ -97,12 +97,28 @@ namespace SD.ProjectName.Tests.Cart
             var handler = new UpdateCartItemQuantity(repo.Object, availability.Object);
 
             // Act
-            var result = await handler.ExecuteAsync(item.Id, 2);
+            var result = await handler.ExecuteAsync(item.Id, 2, "buyer1");
 
             // Assert
             Assert.True(result);
             repo.Verify(r => r.RemoveAsync(item.Id), Times.Once);
             repo.Verify(r => r.UpdateAsync(It.IsAny<CartItemModel>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task ExecuteAsync_ReturnsFalseForDifferentBuyer()
+        {
+            var item = new CartItemModel { Id = 4, BuyerId = "other-buyer", ProductId = 5, Quantity = 1 };
+            var repo = new Mock<ICartRepository>();
+            repo.Setup(r => r.GetByIdAsync(item.Id)).ReturnsAsync(item);
+            var availability = new Mock<IProductAvailabilityService>();
+            var handler = new UpdateCartItemQuantity(repo.Object, availability.Object);
+
+            var result = await handler.ExecuteAsync(item.Id, 2, "buyer1");
+
+            Assert.False(result);
+            repo.Verify(r => r.UpdateAsync(It.IsAny<CartItemModel>()), Times.Never);
+            repo.Verify(r => r.RemoveAsync(It.IsAny<int>()), Times.Never);
         }
     }
 }

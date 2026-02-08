@@ -13,10 +13,10 @@ namespace SD.ProjectName.Modules.Cart.Application
             _productAvailabilityService = productAvailabilityService;
         }
 
-        public async Task<bool> ExecuteAsync(int cartItemId, int newQuantity)
+        public async Task<bool> ExecuteAsync(int cartItemId, int newQuantity, string buyerId)
         {
             var item = await _repository.GetByIdAsync(cartItemId);
-            if (item is null)
+            if (item is null || !string.Equals(item.BuyerId, buyerId, StringComparison.Ordinal))
             {
                 return false;
             }
