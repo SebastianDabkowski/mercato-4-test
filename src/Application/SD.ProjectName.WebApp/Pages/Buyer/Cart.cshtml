@@ -39,13 +39,25 @@ else
                                 <td data-testid="cart-item-name">@item.ProductName</td>
                                 <td data-testid="cart-item-price">@item.UnitPrice.ToString("C")</td>
                                 <td>
+                                    @{
+                                        var availableStock = Model.GetAvailableStock(item.Id);
+                                        var displayQuantity = Model.GetDisplayQuantity(item.Id, item.Quantity);
+                                    }
                                     <form method="post" asp-page-handler="UpdateQuantity" class="d-inline">
                                         <input type="hidden" name="itemId" value="@item.Id" />
-                                        <input type="number" name="quantity" value="@item.Quantity" min="1" class="form-control form-control-sm d-inline-block" style="width: 80px;" data-testid="cart-item-quantity" />
+                                        <input type="number" name="quantity" value="@displayQuantity" min="0" @(availableStock > 0 ? $"max=\"{availableStock}\"" : "") class="form-control form-control-sm d-inline-block" style="width: 80px;" data-testid="cart-item-quantity" />
                                         <button type="submit" class="btn btn-sm btn-outline-secondary" data-testid="cart-item-update">Update</button>
                                     </form>
+                                    @if (availableStock == 0)
+                                    {
+                                        <div class="text-danger small" data-testid="cart-item-stock-warning">Out of stock. Set quantity to 0 or remove this item.</div>
+                                    }
+                                    else if (displayQuantity < item.Quantity)
+                                    {
+                                        <div class="text-warning small" data-testid="cart-item-stock-warning">Only @availableStock available. Quantity adjusted.</div>
+                                    }
                                 </td>
-                                <td data-testid="cart-item-subtotal">@((item.UnitPrice * item.Quantity).ToString("C"))</td>
+                                <td data-testid="cart-item-subtotal">@((item.UnitPrice * displayQuantity).ToString("C"))</td>
                                 <td>
                                     <form method="post" asp-page-handler="Remove" class="d-inline">
                                         <input type="hidden" name="itemId" value="@item.Id" />
