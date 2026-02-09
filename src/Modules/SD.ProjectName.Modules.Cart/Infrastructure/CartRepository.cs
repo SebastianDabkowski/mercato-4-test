@@ -103,6 +103,80 @@ public class CartRepository : ICartRepository
             .ToListAsync();
     }
 
+    public async Task<BuyerOrdersResult> GetOrdersForBuyerAsync(string buyerId, BuyerOrdersQuery query)
+    {
+        var normalizedPage = query.Page < 1 ? 1 : query.Page;
+        var normalizedPageSize = query.PageSize < 1 ? 10 : query.PageSize;
+        var statusFilter = (query.Statuses ?? Array.Empty<string>())
+            .Select(OrderStatusFlow.NormalizeStatus)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        var filteredQuery = _context.Orders
+            .AsNoTracking()
+            .Where(o => o.BuyerId == buyerId);
+
+        if (statusFilter.Count > 0)
+        {
+            filteredQuery = filteredQuery.Where(o => statusFilter.Contains(o.Status));
+        }
+
+        if (query.CreatedFrom.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(o => o.CreatedAt >= query.CreatedFrom.Value);
+        }
+
+        if (query.CreatedTo.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(o => o.CreatedAt <= query.CreatedTo.Value);
+        }
+
+        if (!string.IsNullOrEmpty(query.SellerId))
+        {
+            filteredQuery = filteredQuery.Where(o => o.SubOrders.Any(s => s.SellerId == query.SellerId));
+        }
+
+        var totalCount = await filteredQuery.CountAsync();
+        var totalPages = totalCount == 0
+            ? 1
+            : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
+        var currentPage = normalizedPage > totalPages ? totalPages : normalizedPage;
+        var skip = (currentPage - 1) * normalizedPageSize;
+
+        var orders = await filteredQuery
+            .Include(o => o.Items)
+            .Include(o => o.ShippingSelections)
+            .Include(o => o.SubOrders)
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .ToListAsync();
+
+        var sellers = await _context.SellerOrders
+            .AsNoTracking()
+            .Where(s => s.Order!.BuyerId == buyerId)
+            .Select(s => new { s.SellerId, s.SellerName })
+            .Distinct()
+            .ToListAsync();
+
+        return new BuyerOrdersResult
+        {
+            Orders = orders,
+            TotalCount = totalCount,
+            Page = currentPage,
+            PageSize = normalizedPageSize,
+            Sellers = sellers
+                .Select(s => new SellerSummary
+                {
+                    SellerId = s.SellerId,
+                    SellerName = s.SellerName
+                })
+                .ToList()
+        };
+    }
+
     public async Task<SellerOrderModel?> GetSellerOrderAsync(int sellerOrderId, string sellerId)
     {
         return await _context.SellerOrders
