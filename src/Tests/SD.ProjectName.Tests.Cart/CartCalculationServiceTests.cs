@@ -188,4 +188,64 @@ public class CartCalculationServiceTests
 
         Assert.Equal(15, result.ShippingTotal);
     }
+
+    [Fact]
+    public void EvaluatePromo_PercentagePromo_AppliesToTotals()
+    {
+        var service = new CartCalculationService();
+        var cart = new CartModel
+        {
+            Items = new List<CartItemModel>
+            {
+                new() { ProductId = 1, SellerId = "seller1", UnitPrice = 50, Quantity = 2 }
+            }
+        };
+
+        var totals = service.CalculateTotals(cart, new List<ShippingRuleModel>());
+        var promo = new PromoCodeModel
+        {
+            Code = "WELCOME10",
+            DiscountType = PromoDiscountType.Percentage,
+            DiscountValue = 0.1m,
+            IsActive = true
+        };
+
+        var evaluation = service.EvaluatePromo(totals, promo, DateTimeOffset.UtcNow);
+
+        Assert.True(evaluation.IsEligible);
+        Assert.Equal(10m, evaluation.DiscountAmount);
+
+        service.ApplyPromo(totals, promo, DateTimeOffset.UtcNow, evaluation);
+        Assert.Equal(10m, totals.DiscountTotal);
+        Assert.Equal(90m, totals.TotalAmount);
+        Assert.Equal("WELCOME10", totals.PromoCode);
+    }
+
+    [Fact]
+    public void EvaluatePromo_SellerSpecific_NoEligibleItems_Fails()
+    {
+        var service = new CartCalculationService();
+        var cart = new CartModel
+        {
+            Items = new List<CartItemModel>
+            {
+                new() { ProductId = 1, SellerId = "seller1", UnitPrice = 20, Quantity = 1 }
+            }
+        };
+
+        var totals = service.CalculateTotals(cart, new List<ShippingRuleModel>());
+        var promo = new PromoCodeModel
+        {
+            Code = "SELLERONLY",
+            DiscountType = PromoDiscountType.FixedAmount,
+            DiscountValue = 5m,
+            SellerId = "seller2",
+            IsActive = true
+        };
+
+        var evaluation = service.EvaluatePromo(totals, promo, DateTimeOffset.UtcNow);
+
+        Assert.False(evaluation.IsEligible);
+        Assert.Equal(0m, evaluation.DiscountAmount);
+    }
 }

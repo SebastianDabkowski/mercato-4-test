@@ -21,6 +21,10 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<PaymentSelectionModel?> GetPaymentSelectionAsync(string buyerId);
         Task<PaymentSelectionModel> UpsertPaymentSelectionAsync(PaymentSelectionModel selection);
         Task ClearPaymentSelectionAsync(string buyerId);
+        Task<PromoSelectionModel?> GetPromoSelectionAsync(string buyerId);
+        Task<PromoSelectionModel> UpsertPromoSelectionAsync(PromoSelectionModel selection);
+        Task ClearPromoSelectionAsync(string buyerId);
+        Task<PromoCodeModel?> GetPromoCodeAsync(string code);
       
         Task<CartItemModel> AddAsync(CartItemModel item);
         Task<CartModel> CreateAsync(string userId);

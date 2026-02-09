@@ -20,6 +20,7 @@ public class ConfirmationModel : PageModel
     private readonly GetCartItems _getCartItems;
     private readonly ICartRepository _cartRepository;
     private readonly CartCalculationService _cartCalculationService;
+    private readonly PromoService _promoService;
     private readonly PlaceOrder _placeOrder;
     private readonly OrderConfirmationEmailService _orderConfirmationEmailService;
     private readonly UserManager<ApplicationUser> _userManager;
@@ -29,6 +30,7 @@ public class ConfirmationModel : PageModel
         GetCartItems getCartItems,
         ICartRepository cartRepository,
         CartCalculationService cartCalculationService,
+        PromoService promoService,
         PlaceOrder placeOrder,
         OrderConfirmationEmailService orderConfirmationEmailService,
         UserManager<ApplicationUser> userManager)
@@ -37,6 +39,7 @@ public class ConfirmationModel : PageModel
         _getCartItems = getCartItems;
         _cartRepository = cartRepository;
         _cartCalculationService = cartCalculationService;
+        _promoService = promoService;
         _placeOrder = placeOrder;
         _orderConfirmationEmailService = orderConfirmationEmailService;
         _userManager = userManager;
@@ -48,6 +51,7 @@ public class ConfirmationModel : PageModel
     public List<ShippingSelectionModel> ShippingSelections { get; private set; } = new();
     public List<CheckoutValidationIssue> ValidationIssues { get; private set; } = new();
     public OrderModel? CreatedOrder { get; private set; }
+    public string? PromoError { get; private set; }
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -107,6 +111,13 @@ public class ConfirmationModel : PageModel
 
         var shippingRules = await _cartRepository.GetShippingRulesAsync();
         Totals = BuildTotals(cartItems, shippingRules, ShippingSelections);
+        var promoTotals = await _promoService.ApplyExistingAsync(buyerId, Totals);
+        if (!promoTotals.HasPromo && promoTotals.ErrorMessage is not null)
+        {
+            PromoError ??= promoTotals.ErrorMessage;
+        }
+
+        Totals = promoTotals.Totals;
 
         return Page();
     }

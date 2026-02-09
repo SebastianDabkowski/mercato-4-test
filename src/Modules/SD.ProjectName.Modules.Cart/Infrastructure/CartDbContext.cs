@@ -16,6 +16,8 @@ public class CartDbContext : DbContext
     public DbSet<DeliveryAddressModel> DeliveryAddresses { get; set; }
     public DbSet<ShippingSelectionModel> ShippingSelections { get; set; }
     public DbSet<PaymentSelectionModel> PaymentSelections { get; set; }
+    public DbSet<PromoCodeModel> PromoCodes { get; set; }
+    public DbSet<PromoSelectionModel> PromoSelections { get; set; }
     public DbSet<OrderModel> Orders { get; set; }
     public DbSet<OrderItemModel> OrderItems { get; set; }
     public DbSet<OrderShippingSelectionModel> OrderShippingSelections { get; set; }
@@ -76,6 +78,49 @@ public class CartDbContext : DbContext
             entity.Property(p => p.Status).HasConversion<int>();
         });
 
+        modelBuilder.Entity<PromoCodeModel>(entity =>
+        {
+            entity.ToTable("PromoCode");
+            entity.HasIndex(p => p.Code).IsUnique();
+            entity.Property(p => p.Code).HasMaxLength(50);
+            entity.Property(p => p.Description).HasMaxLength(500);
+            entity.Property(p => p.SellerId).HasMaxLength(200);
+            entity.Property(p => p.DiscountType).HasConversion<int>();
+            entity.HasData(
+                new PromoCodeModel
+                {
+                    Id = 1,
+                    Code = "WELCOME10",
+                    Description = "10% off any order over 50",
+                    DiscountType = PromoDiscountType.Percentage,
+                    DiscountValue = 0.10m,
+                    MinimumSubtotal = 50m,
+                    ValidFrom = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                    ValidUntil = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                    IsActive = true
+                },
+                new PromoCodeModel
+                {
+                    Id = 2,
+                    Code = "SELLER5",
+                    Description = "5 currency units off Seller One items over 20",
+                    DiscountType = PromoDiscountType.FixedAmount,
+                    DiscountValue = 5m,
+                    SellerId = "seller-1",
+                    MinimumSubtotal = 20m,
+                    ValidFrom = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                    ValidUntil = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero),
+                    IsActive = true
+                });
+        });
+
+        modelBuilder.Entity<PromoSelectionModel>(entity =>
+        {
+            entity.ToTable("PromoSelection");
+            entity.HasIndex(p => p.BuyerId).IsUnique();
+            entity.Property(p => p.PromoCode).HasMaxLength(50);
+        });
+
         modelBuilder.Entity<OrderModel>(entity =>
         {
             entity.ToTable("Order");
@@ -90,6 +135,7 @@ public class CartDbContext : DbContext
             entity.Property(o => o.DeliveryPostalCode).HasMaxLength(50);
             entity.Property(o => o.DeliveryCountryCode).HasMaxLength(3);
             entity.Property(o => o.DeliveryPhoneNumber).HasMaxLength(50);
+            entity.Property(o => o.PromoCode).HasMaxLength(50);
         });
 
         modelBuilder.Entity<OrderItemModel>(entity =>

@@ -79,6 +79,13 @@
                 <span>Items subtotal</span>
                 <span>@Model.Totals.ItemsSubtotal.ToString("C")</span>
             </div>
+            @if (Model.Totals.DiscountTotal > 0)
+            {
+                <div class="d-flex justify-content-between text-success">
+                    <span>Promo @(!string.IsNullOrWhiteSpace(Model.Totals.PromoCode) ? $"({Model.Totals.PromoCode})" : string.Empty)</span>
+                    <span data-testid="promo-discount">-@Model.Totals.DiscountTotal.ToString("C")</span>
+                </div>
+            }
             <div class="d-flex justify-content-between">
                 <span>Shipping</span>
                 <span data-testid="shipping-total">@Model.Totals.ShippingTotal.ToString("C")</span>
@@ -87,6 +94,40 @@
                 <span>Total</span>
                 <span data-testid="shipping-order-total">@Model.Totals.TotalAmount.ToString("C")</span>
             </div>
+        </div>
+    </div>
+
+    <div class="card mb-3" data-testid="promo-section">
+        <div class="card-header">Promo code</div>
+        <div class="card-body">
+            @if (!string.IsNullOrWhiteSpace(Model.PromoError))
+            {
+                <div class="alert alert-danger py-2" data-testid="promo-error">@Model.PromoError</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.PromoSuccess))
+            {
+                <div class="alert alert-success py-2" data-testid="promo-success">@Model.PromoSuccess</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(Model.Totals.PromoCode))
+            {
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="fw-semibold" data-testid="applied-promo">Code: @Model.Totals.PromoCode</div>
+                        <div class="text-muted small mb-0">Promo discount is applied to your cart.</div>
+                    </div>
+                    <form method="post" asp-page-handler="ClearPromo" class="ms-3">
+                        <button type="submit" class="btn btn-outline-secondary btn-sm" data-testid="promo-remove">Remove</button>
+                    </form>
+                </div>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="ApplyPromo" class="d-flex gap-2 align-items-start">
+                    <input type="text" name="promoCode" class="form-control" placeholder="Enter promo code" data-testid="promo-code-input" />
+                    <button type="submit" class="btn btn-outline-primary" data-testid="promo-apply">Apply</button>
+                </form>
+            }
         </div>
     </div>
 

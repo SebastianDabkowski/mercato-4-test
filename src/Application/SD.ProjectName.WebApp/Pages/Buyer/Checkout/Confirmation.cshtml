@@ -28,6 +28,10 @@ else if (Model.ValidationIssues.Any())
         </ul>
     </div>
 }
+@if (!string.IsNullOrWhiteSpace(Model.PromoError))
+{
+    <div class="alert alert-danger" data-testid="promo-error">@Model.PromoError</div>
+}
 
 <div class="card mb-3">
     <div class="card-header">Order summary</div>
@@ -36,6 +40,13 @@ else if (Model.ValidationIssues.Any())
             <span>Items subtotal</span>
             <span>@Model.Totals.ItemsSubtotal.ToString("C")</span>
         </div>
+        @if (Model.Totals.DiscountTotal > 0)
+        {
+            <div class="d-flex justify-content-between text-success">
+                <span>Promo @(!string.IsNullOrWhiteSpace(Model.Totals.PromoCode) ? $"({Model.Totals.PromoCode})" : string.Empty)</span>
+                <span data-testid="promo-discount">-@Model.Totals.DiscountTotal.ToString("C")</span>
+            </div>
+        }
         <div class="d-flex justify-content-between">
             <span>Shipping</span>
             <span>@Model.Totals.ShippingTotal.ToString("C")</span>

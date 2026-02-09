@@ -35,6 +35,13 @@ public class OrderConfirmationEmailService
         }
         builder.AppendLine("</ul>");
         builder.AppendLine($"<p>{_localizer["ItemsSubtotal"]}: {order.ItemsSubtotal.ToString("C", culture)}</p>");
+        if (order.DiscountTotal > 0)
+        {
+            var promoLabel = string.IsNullOrWhiteSpace(order.PromoCode)
+                ? _localizer["PromoDiscount"]
+                : _localizer["PromoDiscount"] + $" ({order.PromoCode})";
+            builder.AppendLine($"<p>{promoLabel}: -{order.DiscountTotal.ToString("C", culture)}</p>");
+        }
         builder.AppendLine($"<p>{_localizer["ShippingTotal"]}: {order.ShippingTotal.ToString("C", culture)}</p>");
         builder.AppendLine($"<p><strong>{_localizer["TotalPaid"]}: {order.TotalAmount.ToString("C", culture)}</strong></p>");
 

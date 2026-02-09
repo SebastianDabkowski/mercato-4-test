@@ -88,6 +88,13 @@
                     <span>Items subtotal</span>
                     <span>@order.ItemsSubtotal.ToString("C")</span>
                 </div>
+                @if (order.DiscountTotal > 0)
+                {
+                    <div class="d-flex justify-content-between text-success">
+                        <span>Promo @(!string.IsNullOrWhiteSpace(order.PromoCode) ? $"({order.PromoCode})" : string.Empty)</span>
+                        <span data-testid="promo-discount">-@order.DiscountTotal.ToString("C")</span>
+                    </div>
+                }
                 <div class="d-flex justify-content-between">
                     <span>Shipping</span>
                     <span>@order.ShippingTotal.ToString("C")</span>
