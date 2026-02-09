@@ -213,6 +213,8 @@ public class CartDbContext : DbContext
             entity.Property(o => o.TrackingNumber).HasMaxLength(200);
             entity.Property(o => o.TrackingCarrier).HasMaxLength(200);
             entity.Property(o => o.TrackingUrl).HasMaxLength(500);
+            entity.Property(o => o.ShippingLabelContentType).HasMaxLength(100);
+            entity.Property(o => o.ShippingLabelFileName).HasMaxLength(255);
             entity.Property(o => o.RefundedAmount);
             entity.Property(o => o.DeliveredAt);
             entity.Property(o => o.CommissionRateApplied).HasColumnType("decimal(9,6)");

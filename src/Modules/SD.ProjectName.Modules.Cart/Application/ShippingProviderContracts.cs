@@ -32,7 +32,10 @@ public record ShippingProviderShipmentResult(
     string? TrackingUrl = null,
     string? Carrier = null,
     string? Error = null,
-    bool IsRetryable = false);
+    bool IsRetryable = false,
+    byte[]? LabelContent = null,
+    string? LabelContentType = null,
+    string? LabelFileName = null);
 
 public record ShippingStatusUpdate(
     string ProviderCode,

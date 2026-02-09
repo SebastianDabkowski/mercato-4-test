@@ -24,4 +24,5 @@ public class ShippingProviderServiceDefinition
     public string Name { get; set; } = string.Empty;
     public decimal DefaultPrice { get; set; }
     public string? DefaultDeliveryEstimate { get; set; }
+    public bool SupportsLabelCreation { get; set; }
 }

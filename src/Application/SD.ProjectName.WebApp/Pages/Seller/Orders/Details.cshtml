@@ -257,6 +257,13 @@
                         </div>
                     </div>
                 }
+                @if (subOrder.ShippingLabel is { Length: > 0 })
+                {
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <a class="btn btn-sm btn-outline-primary" asp-page-handler="DownloadLabel" asp-route-sellerOrderId="@subOrder.Id" download>Download label</a>
+                        <a class="btn btn-sm btn-outline-secondary" asp-page-handler="DownloadLabel" asp-route-sellerOrderId="@subOrder.Id" target="_blank">Print label</a>
+                    </div>
+                }
                 @if (!string.Equals(subOrder.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(subOrder.Status, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase))
                 {

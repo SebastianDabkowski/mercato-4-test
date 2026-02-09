@@ -77,6 +77,9 @@ public class SellerOrderModel
     public string? TrackingNumber { get; set; }
     public string? TrackingCarrier { get; set; }
     public string? TrackingUrl { get; set; }
+    public byte[]? ShippingLabel { get; set; }
+    public string? ShippingLabelContentType { get; set; }
+    public string? ShippingLabelFileName { get; set; }
     public DateTimeOffset? DeliveredAt { get; set; }
     public OrderShippingSelectionModel? ShippingSelection { get; set; }
     public List<OrderItemModel> Items { get; set; } = new();

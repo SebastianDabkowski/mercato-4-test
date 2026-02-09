@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -37,7 +38,14 @@ public class ShippingIntegrationServiceTests
         var order = await SeedOrderAsync(repo, "InPost Locker");
         var client = new FakeShippingProviderClient
         {
-            Result = new ShippingProviderShipmentResult(true, "TRACK-XYZ", "https://track.test/TRACK-XYZ", "InPost")
+            Result = new ShippingProviderShipmentResult(
+                true,
+                "TRACK-XYZ",
+                "https://track.test/TRACK-XYZ",
+                "InPost",
+                LabelContent: new byte[] { 1, 2, 3 },
+                LabelContentType: "application/pdf",
+                LabelFileName: "label.pdf")
         };
         var service = CreateService(repo, client, options);
 
@@ -51,6 +59,30 @@ public class ShippingIntegrationServiceTests
         Assert.Equal("TRACK-XYZ", updated.TrackingNumber);
         Assert.Equal("InPost", updated.TrackingCarrier);
         Assert.Equal(OrderStatus.Shipped, updated.Order!.Status);
+        Assert.NotNull(updated.ShippingLabel);
+        Assert.Equal("label.pdf", updated.ShippingLabelFileName);
+    }
+
+    [Fact]
+    public async Task CreateShipmentAsync_FailsWhenLabelMissingForLabelEnabledService()
+    {
+        var repo = CreateRepository(nameof(CreateShipmentAsync_FailsWhenLabelMissingForLabelEnabledService));
+        var options = BuildOptions();
+        var order = await SeedOrderAsync(repo, "InPost Locker");
+        var client = new FakeShippingProviderClient
+        {
+            Result = new ShippingProviderShipmentResult(true, "TRACK-MISS", "https://track.test/TRACK-MISS", "InPost")
+        };
+        var service = CreateService(repo, client, options);
+
+        var itemIds = order.SubOrders[0].Items.Select(i => i.Id).ToArray();
+        var result = await service.CreateShipmentAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId, itemIds);
+
+        Assert.False(result.IsSuccess);
+        Assert.Contains("label", result.Error, StringComparison.OrdinalIgnoreCase);
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        Assert.Null(updated!.TrackingNumber);
+        Assert.Equal(OrderStatus.Preparing, updated.Status);
     }
 
     [Fact]
@@ -178,8 +210,22 @@ public class ShippingIntegrationServiceTests
                     Enabled = true,
                     Services = new List<ShippingProviderServiceDefinition>
                     {
-                        new() { Code = "locker", Name = "InPost Locker", DefaultPrice = 12.99m, DefaultDeliveryEstimate = "1-3 business days" },
-                        new() { Code = "courier", Name = "InPost Courier", DefaultPrice = 19.99m, DefaultDeliveryEstimate = "1-2 business days" }
+                        new()
+                        {
+                            Code = "locker",
+                            Name = "InPost Locker",
+                            DefaultPrice = 12.99m,
+                            DefaultDeliveryEstimate = "1-3 business days",
+                            SupportsLabelCreation = true
+                        },
+                        new()
+                        {
+                            Code = "courier",
+                            Name = "InPost Courier",
+                            DefaultPrice = 19.99m,
+                            DefaultDeliveryEstimate = "1-2 business days",
+                            SupportsLabelCreation = true
+                        }
                     }
                 },
                 new()
@@ -200,7 +246,14 @@ public class ShippingIntegrationServiceTests
 
     private class FakeShippingProviderClient : IShippingProviderClient
     {
-        public ShippingProviderShipmentResult Result { get; set; } = new(true, "TRACK-123", "https://track.test/TRACK-123", "Carrier");
+        public ShippingProviderShipmentResult Result { get; set; } = new(
+            true,
+            "TRACK-123",
+            "https://track.test/TRACK-123",
+            "Carrier",
+            LabelContent: new byte[] { 9, 9, 9 },
+            LabelContentType: "application/pdf",
+            LabelFileName: "default.pdf");
 
         public Task<ShippingProviderShipmentResult> CreateShipmentAsync(
             ShippingProviderShipmentRequest request,

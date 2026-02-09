@@ -25,12 +25,18 @@ public class StubShippingProviderClient : IShippingProviderClient
         var trackingNumber = $"{provider.Code}-{service.Code}-{timestamp}";
         var trackingUrl = BuildTrackingUrl(provider.TrackingUrlTemplate, trackingNumber);
         var carrier = string.IsNullOrWhiteSpace(provider.Carrier) ? provider.DisplayName : provider.Carrier;
+        var labelContent = service.SupportsLabelCreation
+            ? BuildLabelContent(trackingNumber, carrier)
+            : null;
 
         return Task.FromResult(new ShippingProviderShipmentResult(
             true,
             trackingNumber,
             trackingUrl,
-            carrier));
+            carrier,
+            LabelContent: labelContent,
+            LabelContentType: labelContent is null ? null : "application/pdf",
+            LabelFileName: labelContent is null ? null : $"{trackingNumber}.pdf"));
     }
 
     private static string BuildTrackingUrl(string template, string trackingNumber)
@@ -41,5 +47,11 @@ public class StubShippingProviderClient : IShippingProviderClient
         }
 
         return template.Replace("{trackingNumber}", trackingNumber, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static byte[] BuildLabelContent(string trackingNumber, string carrier)
+    {
+        var labelText = $"Shipping Label\nCarrier: {carrier}\nTracking: {trackingNumber}\nGenerated at: {DateTimeOffset.UtcNow:O}";
+        return System.Text.Encoding.UTF8.GetBytes(labelText);
     }
 }

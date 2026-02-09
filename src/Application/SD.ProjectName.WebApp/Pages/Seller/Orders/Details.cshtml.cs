@@ -252,6 +252,41 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { sellerOrderId });
     }
 
+    public async Task<IActionResult> OnGetDownloadLabelAsync(int sellerOrderId)
+    {
+        var seller = await _userManager.GetUserAsync(User);
+        if (seller is null)
+        {
+            return Challenge();
+        }
+
+        var sellerOrder = await _cartRepository.GetSellerOrderAsync(sellerOrderId, seller.Id);
+        if (sellerOrder is null)
+        {
+            var existing = await _cartRepository.GetSellerOrderByIdAsync(sellerOrderId);
+            if (existing is not null)
+            {
+                return Forbid();
+            }
+
+            return NotFound();
+        }
+
+        if (sellerOrder.ShippingLabel is null || sellerOrder.ShippingLabel.Length == 0)
+        {
+            return NotFound();
+        }
+
+        var contentType = string.IsNullOrWhiteSpace(sellerOrder.ShippingLabelContentType)
+            ? "application/pdf"
+            : sellerOrder.ShippingLabelContentType;
+        var fileName = string.IsNullOrWhiteSpace(sellerOrder.ShippingLabelFileName)
+            ? $"shipping-label-{sellerOrder.Id}.pdf"
+            : sellerOrder.ShippingLabelFileName;
+
+        return File(sellerOrder.ShippingLabel, contentType, fileName);
+    }
+
     private async Task PopulateBuyerContactAsync(SellerOrderModel sellerOrder)
     {
         var order = sellerOrder.Order;
