@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using SD.ProjectName.Modules.Cart.Domain;
@@ -34,6 +35,76 @@ public class OrderStatusService
         }
 
         ApplyStatusChange(sellerOrder, targetStatus, trackingNumber, refundAmount);
+        var refundOverride = string.Equals(targetStatus, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase)
+            ? refundAmount
+            : null;
+
+        RecalculateSellerOrderFromItems(sellerOrder, refundOverride);
+        RollupOrderStatus(sellerOrder.Order);
+
+        await _cartRepository.SaveChangesAsync();
+        return OrderStatusResult.SuccessResult(sellerOrder.Status, sellerOrder.Order?.Status);
+    }
+
+    public async Task<OrderStatusResult> UpdateItemStatusesAsync(
+        int sellerOrderId,
+        string sellerId,
+        IReadOnlyCollection<int>? shippedItemIds,
+        IReadOnlyCollection<int>? cancelledItemIds,
+        string? trackingNumber = null)
+    {
+        var sellerOrder = await _cartRepository.GetSellerOrderAsync(sellerOrderId, sellerId);
+        if (sellerOrder is null)
+        {
+            return OrderStatusResult.NotFound("Sub-order not found.");
+        }
+
+        var normalizedStatus = OrderStatusFlow.NormalizeStatus(sellerOrder.Status);
+        if (string.Equals(normalizedStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalizedStatus, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(normalizedStatus, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase))
+        {
+            return OrderStatusResult.Failed("Cannot update items for a cancelled, delivered, or refunded sub-order.");
+        }
+
+        var shipSet = new HashSet<int>(shippedItemIds ?? Array.Empty<int>());
+        var cancelSet = new HashSet<int>(cancelledItemIds ?? Array.Empty<int>());
+        if (shipSet.Count == 0 && cancelSet.Count == 0)
+        {
+            return OrderStatusResult.Failed("Select at least one item.");
+        }
+
+        var validItemIds = new HashSet<int>(sellerOrder.Items.Select(i => i.Id));
+        if (shipSet.Any(id => !validItemIds.Contains(id)) || cancelSet.Any(id => !validItemIds.Contains(id)))
+        {
+            return OrderStatusResult.Failed("Invalid items selected.");
+        }
+
+        foreach (var item in sellerOrder.Items)
+        {
+            if (shipSet.Contains(item.Id))
+            {
+                if (!TryUpdateItemStatus(item, OrderStatus.Shipped))
+                {
+                    return OrderStatusResult.InvalidTransition(item.Status, OrderStatus.Shipped);
+                }
+            }
+
+            if (cancelSet.Contains(item.Id))
+            {
+                if (!TryUpdateItemStatus(item, OrderStatus.Cancelled))
+                {
+                    return OrderStatusResult.InvalidTransition(item.Status, OrderStatus.Cancelled);
+                }
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(trackingNumber))
+        {
+            sellerOrder.TrackingNumber = trackingNumber.Trim();
+        }
+
+        RecalculateSellerOrderFromItems(sellerOrder);
         RollupOrderStatus(sellerOrder.Order);
 
         await _cartRepository.SaveChangesAsync();
@@ -60,13 +131,16 @@ public class OrderStatusService
                 return OrderStatusResult.Failed("Order cannot be cancelled after shipment.");
             }
 
-            sub.Status = OrderStatus.Cancelled;
-            sub.RefundedAmount = 0m;
             sub.TrackingNumber = null;
+            foreach (var item in sub.Items)
+            {
+                TryUpdateItemStatus(item, OrderStatus.Cancelled);
+            }
+
+            RecalculateSellerOrderFromItems(sub);
         }
 
-        order.Status = OrderStatus.Cancelled;
-        order.RefundedAmount = 0m;
+        RollupOrderStatus(order);
 
         await _cartRepository.SaveChangesAsync();
         return OrderStatusResult.SuccessResult(order.Status, order.Status);
@@ -94,6 +168,14 @@ public class OrderStatusService
 
         subOrder.Status = targetStatus;
         subOrder.DeliveredAt ??= DateTimeOffset.UtcNow;
+
+        foreach (var item in subOrder.Items.Where(i =>
+                     string.Equals(OrderStatusFlow.NormalizeStatus(i.Status), OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase)))
+        {
+            TryUpdateItemStatus(item, OrderStatus.Delivered);
+        }
+
+        RecalculateSellerOrderFromItems(subOrder);
         RollupOrderStatus(order);
 
         await _cartRepository.SaveChangesAsync();
@@ -111,21 +193,35 @@ public class OrderStatusService
             sellerOrder.TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber)
                 ? sellerOrder.TrackingNumber
                 : trackingNumber.Trim();
+
+            foreach (var item in sellerOrder.Items)
+            {
+                TryUpdateItemStatus(item, OrderStatus.Shipped);
+            }
         }
 
         if (string.Equals(targetStatus, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase))
         {
-            sellerOrder.RefundedAmount = refundAmount ?? sellerOrder.TotalAmount;
+            sellerOrder.RefundedAmount = refundAmount ?? CalculateRefundedAmountFromItems(sellerOrder);
         }
 
         if (string.Equals(targetStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
             sellerOrder.TrackingNumber = null;
+            foreach (var item in sellerOrder.Items)
+            {
+                TryUpdateItemStatus(item, OrderStatus.Cancelled);
+            }
         }
 
         if (string.Equals(targetStatus, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase))
         {
             sellerOrder.DeliveredAt ??= DateTimeOffset.UtcNow;
+            foreach (var item in sellerOrder.Items.Where(i =>
+                         string.Equals(OrderStatusFlow.NormalizeStatus(i.Status), OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase)))
+            {
+                TryUpdateItemStatus(item, OrderStatus.Delivered);
+            }
         }
 
         sellerOrder.Status = targetStatus;
@@ -140,6 +236,104 @@ public class OrderStatusService
 
         order.Status = OrderStatusFlow.CalculateOverallStatus(order);
         order.RefundedAmount = OrderStatusFlow.CalculateRefundedAmount(order);
+    }
+
+    private static void RecalculateSellerOrderFromItems(SellerOrderModel sellerOrder, decimal? manualRefund = null)
+    {
+        if (sellerOrder.Items.Count == 0)
+        {
+            sellerOrder.RefundedAmount = manualRefund ?? sellerOrder.RefundedAmount;
+            return;
+        }
+
+        var normalizedStatuses = sellerOrder.Items
+            .Select(i => OrderStatusFlow.NormalizeStatus(i.Status))
+            .ToList();
+
+        var allCancelled = normalizedStatuses.All(s =>
+            string.Equals(s, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase));
+        var allDelivered = normalizedStatuses.All(s =>
+            string.Equals(s, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase));
+        var allShippedOrBeyond = normalizedStatuses.All(s =>
+            string.Equals(s, OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(s, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(s, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase));
+        var anyShippedOrDelivered = normalizedStatuses.Any(s =>
+            string.Equals(s, OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(s, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase));
+
+        if (allCancelled)
+        {
+            sellerOrder.Status = OrderStatus.Cancelled;
+            sellerOrder.TrackingNumber = null;
+            sellerOrder.DeliveredAt = null;
+        }
+        else if (allDelivered)
+        {
+            sellerOrder.Status = OrderStatus.Delivered;
+            sellerOrder.DeliveredAt ??= DateTimeOffset.UtcNow;
+        }
+        else if (allShippedOrBeyond && anyShippedOrDelivered)
+        {
+            sellerOrder.Status = OrderStatus.Shipped;
+        }
+        else if (anyShippedOrDelivered)
+        {
+            sellerOrder.Status = OrderStatus.Preparing;
+        }
+        else
+        {
+            sellerOrder.Status = OrderStatusFlow.NormalizeStatus(sellerOrder.Status);
+        }
+
+        sellerOrder.RefundedAmount = manualRefund ?? CalculateRefundedAmountFromItems(sellerOrder);
+    }
+
+    private static decimal CalculateRefundedAmountFromItems(SellerOrderModel sellerOrder)
+    {
+        if (sellerOrder.Items.Count == 0)
+        {
+            return sellerOrder.Status.Equals(OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase)
+                ? sellerOrder.TotalAmount
+                : 0m;
+        }
+
+        var subtotal = sellerOrder.ItemsSubtotal;
+        var cancelledTotal = 0m;
+
+        foreach (var item in sellerOrder.Items)
+        {
+            if (!string.Equals(item.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var lineTotal = item.UnitPrice * item.Quantity;
+            var discountShare = subtotal > 0 && sellerOrder.DiscountTotal > 0
+                ? Math.Round(sellerOrder.DiscountTotal * (lineTotal / subtotal), 2, MidpointRounding.AwayFromZero)
+                : 0m;
+
+            cancelledTotal += Math.Max(0m, lineTotal - discountShare);
+        }
+
+        if (sellerOrder.Items.All(i => string.Equals(i.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase)))
+        {
+            cancelledTotal += sellerOrder.ShippingTotal;
+        }
+
+        var maxRefund = Math.Max(0m, sellerOrder.TotalAmount);
+        return Math.Min(cancelledTotal, maxRefund);
+    }
+
+    private static bool TryUpdateItemStatus(OrderItemModel item, string targetStatus)
+    {
+        if (!OrderStatusFlow.IsValidTransition(item.Status, targetStatus))
+        {
+            return false;
+        }
+
+        item.Status = targetStatus;
+        return true;
     }
 }
 

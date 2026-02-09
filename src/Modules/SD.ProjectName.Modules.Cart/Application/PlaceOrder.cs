@@ -142,6 +142,7 @@ public class PlaceOrder
                     ProductName = item.ProductName,
                     SellerId = item.SellerId,
                     SellerName = item.SellerName,
+                    Status = OrderStatus.Preparing,
                     UnitPrice = item.UnitPrice,
                     Quantity = item.Quantity,
                     SellerOrder = sellerOrder

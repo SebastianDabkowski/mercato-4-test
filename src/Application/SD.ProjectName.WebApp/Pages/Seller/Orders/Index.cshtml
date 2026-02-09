@@ -180,7 +180,10 @@ else
                                     @foreach (var item in order.Items)
                                     {
                                         <li class="d-flex justify-content-between">
-                                            <span>@item.ProductName</span>
+                                            <span class="d-flex align-items-center gap-2">
+                                                <span>@item.ProductName</span>
+                                                <span class="badge bg-secondary text-uppercase">@OrderStatusFlow.NormalizeStatus(item.Status)</span>
+                                            </span>
                                             <span class="text-muted">@item.Quantity x @item.UnitPrice.ToString("C")</span>
                                         </li>
                                     }

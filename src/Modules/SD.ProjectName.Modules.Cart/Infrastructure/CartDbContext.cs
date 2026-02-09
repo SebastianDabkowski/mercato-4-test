@@ -153,6 +153,7 @@ public class CartDbContext : DbContext
             entity.Property(oi => oi.ProductName).HasMaxLength(500);
             entity.Property(oi => oi.SellerId).HasMaxLength(100);
             entity.Property(oi => oi.SellerName).HasMaxLength(200);
+            entity.Property(oi => oi.Status).HasMaxLength(50).HasDefaultValue(OrderStatus.Preparing);
             entity
                 .HasOne<OrderModel>()
                 .WithMany(o => o.Items)
