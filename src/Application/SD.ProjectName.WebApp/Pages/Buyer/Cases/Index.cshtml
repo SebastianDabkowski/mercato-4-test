@@ -1,0 +1,122 @@
+@page "/buyer/cases"
+@model SD.ProjectName.WebApp.Pages.Buyer.Cases.IndexModel
+@using SD.ProjectName.Modules.Cart.Domain
+@{
+    ViewData["Title"] = "Returns & complaints";
+}
+
+<h1 class="mb-3">Returns & complaints</h1>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12">
+                <label class="form-label mb-2">Status</label>
+                <div class="d-flex flex-wrap gap-3">
+                    @foreach (var status in Model.StatusOptions)
+                    {
+                        var isChecked = Model.Statuses.Any(s => s.Equals(status, StringComparison.OrdinalIgnoreCase));
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="Statuses" value="@status" id="status-@status" @(isChecked ? "checked" : string.Empty) />
+                            <label class="form-check-label text-capitalize" for="status-@status">@Model.GetCaseStatusLabel(status)</label>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="CreatedFrom" class="form-label">From</label>
+                <input asp-for="CreatedFrom" class="form-control" type="date" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="CreatedTo" class="form-label">To</label>
+                <input asp-for="CreatedTo" class="form-control" type="date" />
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Apply filters</button>
+                <a class="btn btn-link" asp-page="/Buyer/Cases/Index">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!Model.Cases.Any())
+{
+    <div class="alert alert-info">You have not created any return or complaint cases yet.</div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="text-muted">Showing @Model.TotalCount case(s)</div>
+        <div class="text-muted">Page @Model.Page of @Model.TotalPages</div>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Case</th>
+                    <th>Order</th>
+                    <th>Seller</th>
+                    <th>Type</th>
+                    <th>Created</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var request in Model.Cases)
+                {
+                    var sellerName = request.SellerOrder?.SellerName;
+                    var sellerId = request.SellerOrder?.SellerId;
+                    <tr>
+                        <td>#@request.Id</td>
+                        <td>
+                            <a asp-page="/Buyer/Orders/Details" asp-route-orderId="@request.OrderId">Order #@request.OrderId</a>
+                        </td>
+                        <td>@(string.IsNullOrWhiteSpace(sellerName) ? sellerId : sellerName)</td>
+                        <td>@Model.GetCaseTypeLabel(request.RequestType)</td>
+                        <td>@request.RequestedAt.ToLocalTime().ToString("g")</td>
+                        <td>
+                            <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">
+                                @Model.GetCaseStatusLabel(request.Status)
+                            </span>
+                        </td>
+                        <td>
+                            <a class="btn btn-link btn-sm" asp-page="/Buyer/Cases/Details" asp-route-caseId="@request.Id">View</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Cases pagination">
+            <ul class="pagination">
+                <li class="page-item @(Model.HasPreviousPage ? string.Empty : "disabled")">
+                    @if (Model.HasPreviousPage)
+                    {
+                        <a class="page-link" href="@Model.BuildPageUrl(Model.Page - 1)">Previous</a>
+                    }
+                    else
+                    {
+                        <span class="page-link">Previous</span>
+                    }
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">Page @Model.Page of @Model.TotalPages</span>
+                </li>
+                <li class="page-item @(Model.HasNextPage ? string.Empty : "disabled")">
+                    @if (Model.HasNextPage)
+                    {
+                        <a class="page-link" href="@Model.BuildPageUrl(Model.Page + 1)">Next</a>
+                    }
+                    else
+                    {
+                        <span class="page-link">Next</span>
+                    }
+                </li>
+            </ul>
+        </nav>
+    }
+}
