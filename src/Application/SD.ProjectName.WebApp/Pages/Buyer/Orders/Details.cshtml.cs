@@ -38,6 +38,7 @@ public class DetailsModel : PageModel
     public bool IsPaymentFailed { get; private set; }
     public bool CanCancel { get; private set; }
     public Dictionary<int, ReturnRequestInfo> ReturnInfo { get; } = new();
+    public string PendingStatusLabel => GetCaseStatusLabel(ReturnRequestStatus.Requested);
 
     public async Task<IActionResult> OnGetAsync(int orderId)
     {
@@ -70,7 +71,8 @@ public class DetailsModel : PageModel
             var latest = subOrder.ReturnRequests
                 .OrderByDescending(r => r.RequestedAt)
                 .FirstOrDefault();
-            ReturnInfo[subOrder.Id] = new ReturnRequestInfo(eligibility, latest);
+            var openItemIds = _returnRequestService.GetOpenItemIds(subOrder);
+            ReturnInfo[subOrder.Id] = new ReturnRequestInfo(eligibility, latest, openItemIds);
         }
 
         return Page();
@@ -143,7 +145,13 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { orderId });
     }
 
-    public async Task<IActionResult> OnPostRequestReturnAsync(int orderId, int subOrderId, List<int>? itemIds, string reason)
+    public async Task<IActionResult> OnPostRequestReturnAsync(
+        int orderId,
+        int subOrderId,
+        List<int>? itemIds,
+        string requestType,
+        string reason,
+        string description)
     {
         var buyerId = _cartIdentityService.GetOrCreateBuyerId();
         var result = await _returnRequestService.CreateAsync(
@@ -151,7 +159,9 @@ public class DetailsModel : PageModel
             subOrderId,
             buyerId,
             itemIds ?? new List<int>(),
-            reason ?? string.Empty);
+            requestType ?? string.Empty,
+            reason ?? string.Empty,
+            description ?? string.Empty);
 
         if (!result.IsSuccess)
         {
@@ -159,7 +169,8 @@ public class DetailsModel : PageModel
         }
         else
         {
-            TempData["OrderSuccess"] = "Return request submitted.";
+            var typeLabel = GetCaseTypeLabel(result.Request!.RequestType);
+            TempData["OrderSuccess"] = $"{typeLabel} request submitted. Case ID: #{result.Request!.Id}. Status: {PendingStatusLabel}.";
         }
 
         return RedirectToPage(new { orderId });
@@ -183,5 +194,29 @@ public class DetailsModel : PageModel
         return estimated?.EstimatedDeliveryDate?.ToLocalTime().ToString("D") ?? "Not available";
     }
 
-    public record ReturnRequestInfo(ReturnEligibility Eligibility, ReturnRequestModel? LatestRequest);
+    public string GetCaseStatusLabel(string status) =>
+        status?.ToLowerInvariant() switch
+        {
+            ReturnRequestStatus.Requested => "Pending seller review",
+            ReturnRequestStatus.Approved => "Approved",
+            ReturnRequestStatus.Rejected => "Rejected",
+            ReturnRequestStatus.Completed => "Completed",
+            _ => "Pending seller review"
+        };
+
+    public string GetCaseBadgeClass(string status) =>
+        status?.ToLowerInvariant() switch
+        {
+            ReturnRequestStatus.Approved => "bg-success",
+            ReturnRequestStatus.Rejected => "bg-danger",
+            ReturnRequestStatus.Completed => "bg-secondary",
+            _ => "bg-warning text-dark"
+        };
+
+    public string GetCaseTypeLabel(string requestType) =>
+        string.Equals(requestType, ReturnRequestType.Complaint, StringComparison.OrdinalIgnoreCase)
+            ? "Complaint"
+            : "Return";
+
+    public record ReturnRequestInfo(ReturnEligibility Eligibility, ReturnRequestModel? LatestRequest, HashSet<int> OpenItemIds);
 }
