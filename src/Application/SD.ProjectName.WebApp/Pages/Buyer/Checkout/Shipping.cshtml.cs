@@ -54,7 +54,12 @@ public class ShippingModel : PageModel
     {
         PromoError = TempData["PromoError"] as string;
         PromoSuccess = TempData["PromoSuccess"] as string;
-        var result = await LoadAsync();
+        var selectionOverrides = Selections
+            .Where(s => !string.IsNullOrWhiteSpace(s.SellerId) && !string.IsNullOrWhiteSpace(s.ShippingMethod))
+            .GroupBy(s => s.SellerId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().ShippingMethod, StringComparer.OrdinalIgnoreCase);
+
+        var result = await LoadAsync(selectionOverrides);
         if (result is RedirectToPageResult)
         {
             return result;
@@ -134,7 +139,7 @@ public class ShippingModel : PageModel
         return RedirectToPage();
     }
 
-    private async Task<IActionResult> LoadAsync()
+    private async Task<IActionResult> LoadAsync(Dictionary<string, string>? selectionOverrides = null)
     {
         var buyerId = _cartIdentityService.GetOrCreateBuyerId();
         var cartItems = await _getCartItems.ExecuteAsync(buyerId);
@@ -152,7 +157,7 @@ public class ShippingModel : PageModel
 
         var shippingRules = await _cartRepository.GetShippingRulesAsync();
         var existingSelections = await _cartRepository.GetShippingSelectionsAsync(buyerId);
-        SellerOptions = BuildSellerOptions(cartItems, shippingRules, existingSelections, SelectedAddress);
+        SellerOptions = BuildSellerOptions(cartItems, shippingRules, existingSelections, SelectedAddress, selectionOverrides);
         Selections = SellerOptions
             .Select(o => new SellerShippingSelectionInput
             {
@@ -176,7 +181,8 @@ public class ShippingModel : PageModel
         List<CartItemModel> cartItems,
         List<ShippingRuleModel> shippingRules,
         List<ShippingSelectionModel> existingSelections,
-        DeliveryAddressModel? selectedAddress)
+        DeliveryAddressModel? selectedAddress,
+        Dictionary<string, string>? selectionOverrides)
     {
         var result = new List<SellerShippingOptionsViewModel>();
         var groupedItems = cartItems.GroupBy(i => new { i.SellerId, i.SellerName });
@@ -201,8 +207,12 @@ public class ShippingModel : PageModel
                 .OrderBy(o => o.Cost)
                 .ToList();
 
-            var selectedMethod = existingSelections.FirstOrDefault(s => s.SellerId == group.Key.SellerId)?.ShippingMethod;
-            if (selectedMethod is null || !options.Any(o => string.Equals(o.ShippingMethod, selectedMethod, StringComparison.OrdinalIgnoreCase)))
+            var selectedMethod = ResolveSelectedShippingMethod(
+                group.Key.SellerId,
+                existingSelections,
+                selectionOverrides,
+                options);
+            if (selectedMethod is null)
             {
                 selectedMethod = options.FirstOrDefault()?.ShippingMethod;
             }
@@ -267,6 +277,29 @@ public class ShippingModel : PageModel
         return SellerOptions
             .Where(o => !string.IsNullOrWhiteSpace(o.SelectedShippingMethod))
             .ToDictionary(o => o.SellerId, o => o.SelectedShippingMethod!, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string? ResolveSelectedShippingMethod(
+        string sellerId,
+        IEnumerable<ShippingSelectionModel> existingSelections,
+        IReadOnlyDictionary<string, string>? selectionOverrides,
+        IReadOnlyCollection<ShippingOptionViewModel> options)
+    {
+        if (selectionOverrides != null &&
+            selectionOverrides.TryGetValue(sellerId, out var overrideSelection) &&
+            options.Any(o => string.Equals(o.ShippingMethod, overrideSelection, StringComparison.OrdinalIgnoreCase)))
+        {
+            return overrideSelection;
+        }
+
+        var existing = existingSelections.FirstOrDefault(s => s.SellerId == sellerId)?.ShippingMethod;
+        if (!string.IsNullOrWhiteSpace(existing) &&
+            options.Any(o => string.Equals(o.ShippingMethod, existing, StringComparison.OrdinalIgnoreCase)))
+        {
+            return existing;
+        }
+
+        return null;
     }
 }
 
