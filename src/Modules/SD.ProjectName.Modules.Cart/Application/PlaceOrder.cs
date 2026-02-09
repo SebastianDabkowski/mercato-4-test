@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Transactions;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
@@ -45,15 +46,35 @@ public class PlaceOrder
             shippingRules,
             selectedShippingMethods: shippingSelectionMap);
 
+        var itemsBySeller = validation.CartItems
+            .GroupBy(i => i.SellerId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().SellerName, StringComparer.OrdinalIgnoreCase);
+
+        var orderShippingSelections = validation.ShippingSelections.Select(selection => new OrderShippingSelectionModel
+        {
+            SellerId = selection.SellerId,
+            SellerName = itemsBySeller.GetValueOrDefault(selection.SellerId, string.Empty),
+            ShippingMethod = selection.ShippingMethod,
+            Cost = selection.Cost
+        }).ToList();
+
         var order = new OrderModel
         {
             BuyerId = buyerId,
             PaymentMethod = validation.PaymentSelection?.PaymentMethod ?? string.Empty,
+            DeliveryRecipientName = validation.DeliveryAddress?.RecipientName ?? string.Empty,
+            DeliveryLine1 = validation.DeliveryAddress?.Line1 ?? string.Empty,
+            DeliveryLine2 = validation.DeliveryAddress?.Line2,
+            DeliveryCity = validation.DeliveryAddress?.City ?? string.Empty,
+            DeliveryRegion = validation.DeliveryAddress?.Region ?? string.Empty,
+            DeliveryPostalCode = validation.DeliveryAddress?.PostalCode ?? string.Empty,
+            DeliveryCountryCode = validation.DeliveryAddress?.CountryCode ?? string.Empty,
+            DeliveryPhoneNumber = validation.DeliveryAddress?.PhoneNumber,
             ItemsSubtotal = totals.ItemsSubtotal,
             ShippingTotal = totals.ShippingTotal,
             TotalAmount = totals.TotalAmount,
             CreatedAt = _timeProvider.GetUtcNow(),
-            Status = OrderStatus.Pending,
+            Status = OrderStatus.Confirmed,
             Items = validation.CartItems.Select(item => new OrderItemModel
             {
                 ProductId = item.ProductId,
@@ -63,13 +84,17 @@ public class PlaceOrder
                 SellerName = item.SellerName,
                 UnitPrice = item.UnitPrice,
                 Quantity = item.Quantity
-            }).ToList()
+            }).ToList(),
+            ShippingSelections = orderShippingSelections
         };
 
         await _cartRepository.AddOrderAsync(order);
+        await _cartRepository.ClearCartItemsAsync(buyerId);
+        await _cartRepository.ClearShippingSelectionsAsync(buyerId);
+        await _cartRepository.ClearPaymentSelectionAsync(buyerId);
 
         scope.Complete();
-        return PlaceOrderResult.Completed(order, validation.PaymentSelection, validation.ShippingSelections, validation.DeliveryAddress);
+        return PlaceOrderResult.Completed(order, validation.PaymentSelection, orderShippingSelections, validation.DeliveryAddress);
     }
 }
 
@@ -77,17 +102,17 @@ public record PlaceOrderResult(
     bool Success,
     OrderModel? Order,
     PaymentSelectionModel? PaymentSelection,
-    List<ShippingSelectionModel> ShippingSelections,
+    List<OrderShippingSelectionModel> ShippingSelections,
     DeliveryAddressModel? DeliveryAddress,
     List<CheckoutValidationIssue> Issues)
 {
     public static PlaceOrderResult Failed(List<CheckoutValidationIssue> issues) =>
-        new(false, null, null, new List<ShippingSelectionModel>(), null, issues);
+        new(false, null, null, new List<OrderShippingSelectionModel>(), null, issues);
 
     public static PlaceOrderResult Completed(
         OrderModel order,
         PaymentSelectionModel? paymentSelection,
-        List<ShippingSelectionModel> shippingSelections,
+        List<OrderShippingSelectionModel> shippingSelections,
         DeliveryAddressModel? deliveryAddress) =>
         new(true, order, paymentSelection, shippingSelections, deliveryAddress, new List<CheckoutValidationIssue>());
 }

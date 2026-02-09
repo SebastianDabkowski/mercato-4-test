@@ -72,7 +72,18 @@ public class CartRepository : ICartRepository
     {
         return await _context.Orders
             .Include(o => o.Items)
+            .Include(o => o.ShippingSelections)
             .FirstOrDefaultAsync(o => o.Id == orderId && o.BuyerId == buyerId);
+    }
+
+    public async Task<List<OrderModel>> GetOrdersForBuyerAsync(string buyerId)
+    {
+        return await _context.Orders
+            .Include(o => o.Items)
+            .Include(o => o.ShippingSelections)
+            .Where(o => o.BuyerId == buyerId)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
     }
 
     public async Task UpdateAsync(CartModel cart)
@@ -257,6 +268,21 @@ public class CartRepository : ICartRepository
         }
 
         _context.PaymentSelections.Remove(existing);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task ClearCartItemsAsync(string buyerId)
+    {
+        var items = await _context.CartItems
+            .Where(c => c.BuyerId == buyerId)
+            .ToListAsync();
+
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        _context.CartItems.RemoveRange(items);
         await _context.SaveChangesAsync();
     }
 }
