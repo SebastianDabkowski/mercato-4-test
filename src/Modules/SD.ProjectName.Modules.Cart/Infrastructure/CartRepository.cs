@@ -61,6 +61,20 @@ public class CartRepository : ICartRepository
         return item;
     }
 
+    public async Task<OrderModel> AddOrderAsync(OrderModel order)
+    {
+        _context.Orders.Add(order);
+        await _context.SaveChangesAsync();
+        return order;
+    }
+
+    public async Task<OrderModel?> GetOrderAsync(int orderId, string buyerId)
+    {
+        return await _context.Orders
+            .Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == orderId && o.BuyerId == buyerId);
+    }
+
     public async Task UpdateAsync(CartModel cart)
     {
         _context.Carts.Update(cart);

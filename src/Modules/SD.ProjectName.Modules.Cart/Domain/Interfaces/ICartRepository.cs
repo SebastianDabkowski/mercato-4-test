@@ -24,6 +24,8 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
       
         Task<CartItemModel> AddAsync(CartItemModel item);
         Task<CartModel> CreateAsync(string userId);
+        Task<OrderModel> AddOrderAsync(OrderModel order);
+        Task<OrderModel?> GetOrderAsync(int orderId, string buyerId);
         
         Task UpdateAsync(CartModel cart);
         Task UpdateAsync(CartItemModel item);

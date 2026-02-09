@@ -261,6 +261,9 @@ builder.Services.AddScoped<CartMergeService>();
 builder.Services.AddScoped<GetDeliveryAddresses>();
 builder.Services.AddScoped<SetDeliveryAddressForCheckout>();
 builder.Services.AddScoped<IProductAvailabilityService, ProductAvailabilityService>();
+builder.Services.AddScoped<IProductSnapshotService, ProductSnapshotService>();
+builder.Services.AddScoped<ICheckoutValidationService, CheckoutValidationService>();
+builder.Services.AddScoped<PlaceOrder>();
 builder.Services.AddScoped<ICartIdentityService, CartIdentityService>();
 
 builder.Services.AddRazorPages(options =>
