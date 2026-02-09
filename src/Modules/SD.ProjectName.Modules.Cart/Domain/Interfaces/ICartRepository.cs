@@ -31,6 +31,7 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<OrderModel> AddOrderAsync(OrderModel order);
         Task<OrderModel?> GetOrderAsync(int orderId, string buyerId);
         Task<List<OrderModel>> GetOrdersForBuyerAsync(string buyerId);
+        Task<List<SellerOrderModel>> GetSellerOrdersAsync(string sellerId);
         
         Task UpdateAsync(CartModel cart);
         Task UpdateAsync(CartItemModel item);

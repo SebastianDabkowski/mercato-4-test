@@ -21,6 +21,7 @@ public class CartDbContext : DbContext
     public DbSet<OrderModel> Orders { get; set; }
     public DbSet<OrderItemModel> OrderItems { get; set; }
     public DbSet<OrderShippingSelectionModel> OrderShippingSelections { get; set; }
+    public DbSet<SellerOrderModel> SellerOrders { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -142,6 +143,7 @@ public class CartDbContext : DbContext
         {
             entity.ToTable("OrderItem");
             entity.HasIndex(oi => oi.OrderId);
+            entity.HasIndex(oi => oi.SellerOrderId);
             entity.Property(oi => oi.ProductSku).HasMaxLength(100);
             entity.Property(oi => oi.ProductName).HasMaxLength(500);
             entity.Property(oi => oi.SellerId).HasMaxLength(100);
@@ -151,12 +153,18 @@ public class CartDbContext : DbContext
                 .WithMany(o => o.Items)
                 .HasForeignKey(oi => oi.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity
+                .HasOne(oi => oi.SellerOrder)
+                .WithMany(o => o.Items)
+                .HasForeignKey(oi => oi.SellerOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<OrderShippingSelectionModel>(entity =>
         {
             entity.ToTable("OrderShippingSelection");
             entity.HasIndex(os => os.OrderId);
+            entity.HasIndex(os => os.SellerOrderId).IsUnique();
             entity.Property(os => os.SellerId).HasMaxLength(100);
             entity.Property(os => os.SellerName).HasMaxLength(200);
             entity.Property(os => os.ShippingMethod).HasMaxLength(100);
@@ -164,6 +172,26 @@ public class CartDbContext : DbContext
                 .HasOne<OrderModel>()
                 .WithMany(o => o.ShippingSelections)
                 .HasForeignKey(os => os.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity
+                .HasOne(os => os.SellerOrder)
+                .WithOne(o => o.ShippingSelection)
+                .HasForeignKey<OrderShippingSelectionModel>(os => os.SellerOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SellerOrderModel>(entity =>
+        {
+            entity.ToTable("SellerOrder");
+            entity.HasIndex(o => o.OrderId);
+            entity.HasIndex(o => o.SellerId);
+            entity.Property(o => o.SellerId).HasMaxLength(100);
+            entity.Property(o => o.SellerName).HasMaxLength(200);
+            entity.Property(o => o.Status).HasMaxLength(50);
+            entity
+                .HasOne(o => o.Order)
+                .WithMany(o => o.SubOrders)
+                .HasForeignKey(o => o.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
