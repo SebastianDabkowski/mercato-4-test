@@ -12,6 +12,11 @@ public class ReturnRequestService
     private readonly ICartRepository _cartRepository;
     private readonly TimeProvider _timeProvider;
     private static readonly TimeSpan ReturnWindow = TimeSpan.FromDays(14);
+    private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ReturnRequestType.Return,
+        ReturnRequestType.Complaint
+    };
 
     public ReturnRequestService(ICartRepository cartRepository, TimeProvider timeProvider)
     {
@@ -24,7 +29,7 @@ public class ReturnRequestService
         var normalizedStatus = OrderStatusFlow.NormalizeStatus(subOrder.Status);
         if (!string.Equals(normalizedStatus, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase))
         {
-            return ReturnEligibility.NotAllowed("Return requests are available after delivery.");
+            return ReturnEligibility.NotAllowed("Return or complaint requests are available after delivery.");
         }
 
         var deliveredAt = subOrder.DeliveredAt ?? order.CreatedAt;
@@ -32,15 +37,17 @@ public class ReturnRequestService
         var now = _timeProvider.GetUtcNow();
         if (now > deadline)
         {
-            return ReturnEligibility.NotAllowed("Return window has expired.");
+            return ReturnEligibility.NotAllowed("Request window has expired.");
         }
 
-        var hasPending = subOrder.ReturnRequests.Any(r =>
-            string.Equals(r.Status, ReturnRequestStatus.Requested, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(r.Status, ReturnRequestStatus.Approved, StringComparison.OrdinalIgnoreCase));
-        if (hasPending)
+        var availableItems = subOrder.Items
+            .Where(i => !string.Equals(OrderStatusFlow.NormalizeStatus(i.Status), OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var openItemIds = GetOpenItemIds(subOrder);
+        var hasAvailableItems = availableItems.Any(i => !openItemIds.Contains(i.Id));
+        if (!hasAvailableItems)
         {
-            return ReturnEligibility.NotAllowed("A return request already exists for this sub-order.");
+            return ReturnEligibility.NotAllowed("An open case already exists for these items.");
         }
 
         return ReturnEligibility.Allowed(deadline);
@@ -51,12 +58,26 @@ public class ReturnRequestService
         int sellerOrderId,
         string buyerId,
         IReadOnlyCollection<int> itemIds,
-        string reason)
+        string requestType,
+        string reason,
+        string description)
     {
+        var normalizedType = NormalizeRequestType(requestType);
+        if (string.IsNullOrWhiteSpace(normalizedType))
+        {
+            return ReturnRequestResult.Failed("Please choose request type.");
+        }
+
         var trimmedReason = reason?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(trimmedReason))
         {
-            return ReturnRequestResult.Failed("Please provide a return reason.");
+            return ReturnRequestResult.Failed("Please provide a reason.");
+        }
+
+        var trimmedDescription = description?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(trimmedDescription))
+        {
+            return ReturnRequestResult.Failed("Please provide a description.");
         }
 
         var order = await _cartRepository.GetOrderAsync(orderId, buyerId);
@@ -77,7 +98,22 @@ public class ReturnRequestService
             return ReturnRequestResult.Failed(eligibility.Message ?? "Return request is not allowed.");
         }
 
-        var resolvedItems = ResolveItems(subOrder, itemIds);
+        var availableItems = subOrder.Items
+            .Where(i => !string.Equals(OrderStatusFlow.NormalizeStatus(i.Status), OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        var openItemIds = GetOpenItemIds(subOrder);
+        if (!availableItems.Any(i => !openItemIds.Contains(i.Id)))
+        {
+            return ReturnRequestResult.Failed("An open case already exists for the selected items.");
+        }
+
+        var requestedIds = itemIds?.Where(id => id > 0).ToList() ?? new List<int>();
+        if (requestedIds.Any(id => openItemIds.Contains(id)))
+        {
+            return ReturnRequestResult.Failed("An open case already exists for the selected items.");
+        }
+
+        var resolvedItems = ResolveItems(availableItems, requestedIds, openItemIds);
         if (resolvedItems is null || resolvedItems.Count == 0)
         {
             return ReturnRequestResult.Failed("Selected items are not valid for this sub-order.");
@@ -88,8 +124,10 @@ public class ReturnRequestService
             OrderId = order.Id,
             SellerOrderId = subOrder.Id,
             BuyerId = order.BuyerId,
+            RequestType = normalizedType,
             Status = ReturnRequestStatus.Requested,
             Reason = trimmedReason,
+            Description = trimmedDescription,
             RequestedAt = _timeProvider.GetUtcNow(),
             Items = resolvedItems
         };
@@ -98,14 +136,35 @@ public class ReturnRequestService
         return ReturnRequestResult.Success(saved);
     }
 
-    private static List<ReturnRequestItemModel>? ResolveItems(SellerOrderModel subOrder, IReadOnlyCollection<int> itemIds)
+    public HashSet<int> GetOpenItemIds(SellerOrderModel subOrder)
     {
-        var ids = itemIds?.Where(id => id > 0).ToList() ?? new List<int>();
-        var availableIds = new HashSet<int>(subOrder.Items.Select(i => i.Id));
+        var requests = subOrder.ReturnRequests ?? new List<ReturnRequestModel>();
+        return requests
+            .Where(r =>
+                string.Equals(r.Status, ReturnRequestStatus.Requested, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(r.Status, ReturnRequestStatus.Approved, StringComparison.OrdinalIgnoreCase))
+            .SelectMany(r => r.Items ?? new List<ReturnRequestItemModel>())
+            .Select(i => i.OrderItemId)
+            .ToHashSet();
+    }
+
+    private static List<ReturnRequestItemModel>? ResolveItems(
+        List<OrderItemModel> availableItems,
+        List<int> itemIds,
+        HashSet<int> openItemIds)
+    {
+        var ids = itemIds ?? new List<int>();
+        var selectableItems = availableItems.Where(i => !openItemIds.Contains(i.Id)).ToList();
+        if (!selectableItems.Any())
+        {
+            return null;
+        }
+
+        var availableIds = new HashSet<int>(selectableItems.Select(i => i.Id));
 
         if (ids.Count == 0)
         {
-            return subOrder.Items
+            return selectableItems
                 .Select(i => new ReturnRequestItemModel
                 {
                     OrderItemId = i.Id,
@@ -119,7 +178,7 @@ public class ReturnRequestService
             return null;
         }
 
-        return subOrder.Items
+        return selectableItems
             .Where(i => ids.Contains(i.Id))
             .Select(i => new ReturnRequestItemModel
             {
@@ -127,6 +186,17 @@ public class ReturnRequestService
                 Quantity = i.Quantity
             })
             .ToList();
+    }
+
+    private static string NormalizeRequestType(string requestType)
+    {
+        if (string.IsNullOrWhiteSpace(requestType))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = requestType.Trim();
+        return AllowedTypes.FirstOrDefault(t => string.Equals(t, trimmed, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
     }
 
     public TimeSpan ReturnWindowPeriod => ReturnWindow;

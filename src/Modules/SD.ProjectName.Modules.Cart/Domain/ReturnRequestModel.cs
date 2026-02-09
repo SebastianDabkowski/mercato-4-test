@@ -6,8 +6,10 @@ public class ReturnRequestModel
     public int OrderId { get; set; }
     public int SellerOrderId { get; set; }
     public string BuyerId { get; set; } = string.Empty;
+    public string RequestType { get; set; } = ReturnRequestType.Return;
     public string Status { get; set; } = ReturnRequestStatus.Requested;
     public string Reason { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
     public DateTimeOffset RequestedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public OrderModel? Order { get; set; }
@@ -31,4 +33,10 @@ public static class ReturnRequestStatus
     public const string Approved = "approved";
     public const string Rejected = "rejected";
     public const string Completed = "completed";
+}
+
+public static class ReturnRequestType
+{
+    public const string Return = "return";
+    public const string Complaint = "complaint";
 }

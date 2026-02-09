@@ -259,8 +259,10 @@ public class CartDbContext : DbContext
             entity.HasIndex(r => r.SellerOrderId);
             entity.HasIndex(r => r.Status);
             entity.Property(r => r.BuyerId).HasMaxLength(200);
+            entity.Property(r => r.RequestType).HasMaxLength(50).HasDefaultValue(ReturnRequestType.Return);
             entity.Property(r => r.Status).HasMaxLength(50);
             entity.Property(r => r.Reason).HasMaxLength(2000);
+            entity.Property(r => r.Description).HasMaxLength(4000).HasDefaultValue(string.Empty);
             entity.Property(r => r.RequestedAt);
             entity.Property(r => r.UpdatedAt);
             entity
