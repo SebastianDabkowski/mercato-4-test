@@ -19,6 +19,7 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task SetShippingSelectionAsync(string buyerId, string sellerId, string shippingMethod, decimal cost);
         Task ClearShippingSelectionsAsync(string buyerId);
         Task<PaymentSelectionModel?> GetPaymentSelectionAsync(string buyerId);
+        Task<PaymentSelectionModel?> GetPaymentSelectionByOrderIdAsync(int orderId);
         Task<PaymentSelectionModel?> GetPaymentSelectionByReferenceAsync(string providerReference);
         Task<PaymentSelectionModel> UpsertPaymentSelectionAsync(PaymentSelectionModel selection);
         Task ClearPaymentSelectionAsync(string buyerId);

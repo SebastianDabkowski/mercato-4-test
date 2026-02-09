@@ -149,6 +149,11 @@ public class DetailsModel : PageModel
             return "Payment cancelled";
         }
 
+        if (status.Equals(OrderStatus.Failed, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Payment failed";
+        }
+
         if (status.Equals(OrderStatus.New, StringComparison.OrdinalIgnoreCase))
         {
             return "Payment pending";
