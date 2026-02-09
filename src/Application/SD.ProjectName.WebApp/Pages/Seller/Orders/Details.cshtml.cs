@@ -10,6 +10,7 @@ using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Seller.Orders;
 
@@ -19,17 +20,20 @@ public class DetailsModel : PageModel
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ICartRepository _cartRepository;
     private readonly OrderStatusService _orderStatusService;
+    private readonly ShippingNotificationEmailService _shippingNotificationEmailService;
     private readonly TimeProvider _timeProvider;
 
     public DetailsModel(
         UserManager<ApplicationUser> userManager,
         ICartRepository cartRepository,
         OrderStatusService orderStatusService,
+        ShippingNotificationEmailService shippingNotificationEmailService,
         TimeProvider timeProvider)
     {
         _userManager = userManager;
         _cartRepository = cartRepository;
         _orderStatusService = orderStatusService;
+        _shippingNotificationEmailService = shippingNotificationEmailService;
         _timeProvider = timeProvider;
     }
 
@@ -96,6 +100,19 @@ public class DetailsModel : PageModel
             return RedirectToPage(new { sellerOrderId });
         }
 
+        var sellerOrder = await _cartRepository.GetSellerOrderAsync(sellerOrderId, seller.Id);
+        if (sellerOrder is null)
+        {
+            var existing = await _cartRepository.GetSellerOrderByIdAsync(sellerOrderId);
+            if (existing is not null)
+            {
+                return Forbid();
+            }
+
+            return NotFound();
+        }
+
+        var previousStatus = OrderStatusFlow.NormalizeStatus(sellerOrder.Status);
         var isCancel = string.Equals(actionType, "cancel", StringComparison.OrdinalIgnoreCase);
         IReadOnlyCollection<int> shippedIds = isCancel ? Array.Empty<int>() : ids;
         IReadOnlyCollection<int> cancelledIds = isCancel ? ids : Array.Empty<int>();
@@ -116,6 +133,10 @@ public class DetailsModel : PageModel
         else
         {
             StatusMessage = isCancel ? "Selected items were cancelled." : "Selected items marked as shipped.";
+            if (IsNewlyShipped(previousStatus, result))
+            {
+                await SendShippingNotificationAsync(sellerOrder);
+            }
         }
 
         return RedirectToPage(new { sellerOrderId });
@@ -236,6 +257,30 @@ public class DetailsModel : PageModel
 
         RefundableUntil = sellerOrder.DeliveredAt.Value.AddDays(14);
         CanRefund = RefundableAmount > 0 && RefundableUntil >= _timeProvider.GetUtcNow();
+    }
+
+    private async Task SendShippingNotificationAsync(SellerOrderModel sellerOrder)
+    {
+        var buyerId = sellerOrder.Order?.BuyerId;
+        if (string.IsNullOrWhiteSpace(buyerId))
+        {
+            return;
+        }
+
+        var buyer = await _userManager.FindByIdAsync(buyerId);
+        if (buyer?.Email is null)
+        {
+            return;
+        }
+
+        await _shippingNotificationEmailService.SendShippedAsync(buyer.Email, sellerOrder);
+    }
+
+    private static bool IsNewlyShipped(string previousStatus, OrderStatusResult result)
+    {
+        var newStatus = OrderStatusFlow.NormalizeStatus(result.SubOrderStatus ?? string.Empty);
+        return !OrderStatusFlow.IsShippedOrBeyond(previousStatus) &&
+               string.Equals(newStatus, OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ResolvePaymentStatus(SellerOrderModel order)

@@ -13,6 +13,7 @@ using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Seller.Orders;
 
@@ -22,16 +23,19 @@ public class IndexModel : PageModel
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ICartRepository _cartRepository;
     private readonly OrderStatusService _orderStatusService;
+    private readonly ShippingNotificationEmailService _shippingNotificationEmailService;
     private const int PageSize = 10;
 
     public IndexModel(
         UserManager<ApplicationUser> userManager,
         ICartRepository cartRepository,
-        OrderStatusService orderStatusService)
+        OrderStatusService orderStatusService,
+        ShippingNotificationEmailService shippingNotificationEmailService)
     {
         _userManager = userManager;
         _cartRepository = cartRepository;
         _orderStatusService = orderStatusService;
+        _shippingNotificationEmailService = shippingNotificationEmailService;
     }
 
     [BindProperty(SupportsGet = true)]
@@ -116,6 +120,19 @@ public class IndexModel : PageModel
 
         NormalizeFilters();
 
+        var sellerOrder = await _cartRepository.GetSellerOrderAsync(sellerOrderId, user.Id);
+        if (sellerOrder is null)
+        {
+            var existing = await _cartRepository.GetSellerOrderByIdAsync(sellerOrderId);
+            if (existing is not null)
+            {
+                return Forbid();
+            }
+
+            return NotFound();
+        }
+
+        var previousStatus = OrderStatusFlow.NormalizeStatus(sellerOrder.Status);
         var result = await _orderStatusService.UpdateSellerOrderStatusAsync(
             sellerOrderId,
             user.Id,
@@ -130,6 +147,10 @@ public class IndexModel : PageModel
         else
         {
             StatusMessage = "Status updated.";
+            if (IsNewlyShipped(previousStatus, result))
+            {
+                await SendShippingNotificationAsync(sellerOrder);
+            }
         }
 
         await LoadOrders(user.Id);
@@ -214,4 +235,28 @@ public class IndexModel : PageModel
 
     private static string Quote(string value) =>
         $"\"{value.Replace("\"", "\"\"")}\"";
+
+    private async Task SendShippingNotificationAsync(SellerOrderModel sellerOrder)
+    {
+        var buyerId = sellerOrder.Order?.BuyerId;
+        if (string.IsNullOrWhiteSpace(buyerId))
+        {
+            return;
+        }
+
+        var buyer = await _userManager.FindByIdAsync(buyerId);
+        if (buyer?.Email is null)
+        {
+            return;
+        }
+
+        await _shippingNotificationEmailService.SendShippedAsync(buyer.Email, sellerOrder);
+    }
+
+    private static bool IsNewlyShipped(string previousStatus, OrderStatusResult result)
+    {
+        var newStatus = OrderStatusFlow.NormalizeStatus(result.SubOrderStatus ?? string.Empty);
+        return !OrderStatusFlow.IsShippedOrBeyond(previousStatus) &&
+               string.Equals(newStatus, OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase);
+    }
 }

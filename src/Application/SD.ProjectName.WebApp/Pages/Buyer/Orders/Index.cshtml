@@ -87,7 +87,9 @@ else
                                     @foreach (var seller in order.SubOrders)
                                     {
                                         var isSelectedSeller = Model.HasSellerFilter && seller.SellerId.Equals(Model.SellerId, StringComparison.OrdinalIgnoreCase);
-                                        <span class="badge @(isSelectedSeller ? "bg-primary" : "bg-secondary")">@seller.SellerName</span>
+                                        <span class="badge @(isSelectedSeller ? "bg-primary" : "bg-secondary")">
+                                            @seller.SellerName - @OrderStatusFlow.NormalizeStatus(seller.Status)
+                                        </span>
                                     }
                                 </div>
                             }

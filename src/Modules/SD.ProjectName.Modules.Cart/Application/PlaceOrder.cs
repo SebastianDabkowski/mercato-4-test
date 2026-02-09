@@ -186,6 +186,13 @@ public class PlaceOrder
             }
 
             sellerOrder.Items = sellerOrderItems;
+            sellerOrder.ShippingHistory.Add(new ShippingStatusHistory
+            {
+                Status = sellerOrder.Status,
+                ChangedBy = buyerId,
+                ChangedByRole = "buyer",
+                ChangedAt = _timeProvider.GetUtcNow()
+            });
             subOrders.Add(sellerOrder);
         }
 

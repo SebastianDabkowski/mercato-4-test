@@ -41,6 +41,10 @@ public class OrderStatusService
             return OrderStatusResult.NotFound("Sub-order not found.");
         }
 
+        var previousStatus = OrderStatusFlow.NormalizeStatus(sellerOrder.Status);
+        var previousTrackingNumber = sellerOrder.TrackingNumber;
+        var previousTrackingCarrier = sellerOrder.TrackingCarrier;
+        var previousTrackingUrl = sellerOrder.TrackingUrl;
         if (!OrderStatusFlow.IsValidTransition(sellerOrder.Status, targetStatus))
         {
             return OrderStatusResult.InvalidTransition(sellerOrder.Status, targetStatus);
@@ -64,6 +68,19 @@ public class OrderStatusService
         RecalculateSellerOrderFromItems(sellerOrder, refundOverride);
         RollupOrderStatus(sellerOrder.Order);
         _commissionService.RecalculateAfterRefund(sellerOrder);
+        var statusChanged = !string.Equals(previousStatus, OrderStatusFlow.NormalizeStatus(sellerOrder.Status), StringComparison.OrdinalIgnoreCase);
+        var trackingChanged = HasTrackingChanged(previousTrackingNumber, previousTrackingCarrier, previousTrackingUrl, sellerOrder);
+        if (statusChanged || trackingChanged)
+        {
+            RecordShippingHistory(
+                sellerOrder,
+                sellerOrder.Status,
+                sellerId,
+                "seller",
+                trackingNumber: sellerOrder.TrackingNumber,
+                trackingCarrier: sellerOrder.TrackingCarrier,
+                trackingUrl: sellerOrder.TrackingUrl);
+        }
 
         if (string.Equals(targetStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
@@ -95,6 +112,10 @@ public class OrderStatusService
             return OrderStatusResult.NotFound("Sub-order not found.");
         }
 
+        var previousStatus = OrderStatusFlow.NormalizeStatus(sellerOrder.Status);
+        var previousTrackingNumber = sellerOrder.TrackingNumber;
+        var previousTrackingCarrier = sellerOrder.TrackingCarrier;
+        var previousTrackingUrl = sellerOrder.TrackingUrl;
         var normalizedStatus = OrderStatusFlow.NormalizeStatus(sellerOrder.Status);
         if (string.Equals(normalizedStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(normalizedStatus, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase) ||
@@ -151,6 +172,19 @@ public class OrderStatusService
         RecalculateSellerOrderFromItems(sellerOrder);
         RollupOrderStatus(sellerOrder.Order);
         _commissionService.RecalculateAfterRefund(sellerOrder);
+        var statusChanged = !string.Equals(previousStatus, OrderStatusFlow.NormalizeStatus(sellerOrder.Status), StringComparison.OrdinalIgnoreCase);
+        var trackingChanged = HasTrackingChanged(previousTrackingNumber, previousTrackingCarrier, previousTrackingUrl, sellerOrder);
+        if (statusChanged || trackingChanged)
+        {
+            RecordShippingHistory(
+                sellerOrder,
+                sellerOrder.Status,
+                sellerId,
+                "seller",
+                trackingNumber: sellerOrder.TrackingNumber,
+                trackingCarrier: sellerOrder.TrackingCarrier,
+                trackingUrl: sellerOrder.TrackingUrl);
+        }
 
         if (string.Equals(sellerOrder.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
@@ -197,6 +231,15 @@ public class OrderStatusService
 
             RecalculateSellerOrderFromItems(sub);
             _commissionService.RecalculateAfterRefund(sub);
+            RecordShippingHistory(
+                sub,
+                sub.Status,
+                buyerId,
+                "buyer",
+                trackingNumber: sub.TrackingNumber,
+                trackingCarrier: sub.TrackingCarrier,
+                trackingUrl: sub.TrackingUrl,
+                notes: "Order cancelled by buyer");
         }
 
         RollupOrderStatus(order);
@@ -237,6 +280,14 @@ public class OrderStatusService
 
         RecalculateSellerOrderFromItems(subOrder);
         RollupOrderStatus(order);
+        RecordShippingHistory(
+            subOrder,
+            subOrder.Status,
+            buyerId,
+            "buyer",
+            trackingNumber: subOrder.TrackingNumber,
+            trackingCarrier: subOrder.TrackingCarrier,
+            trackingUrl: subOrder.TrackingUrl);
 
         await _cartRepository.SaveChangesAsync();
         return OrderStatusResult.SuccessResult(subOrder.Status, order.Status);
@@ -487,6 +538,55 @@ public class OrderStatusService
         return true;
     }
 
+    private static bool HasTrackingChanged(
+        string? previousNumber,
+        string? previousCarrier,
+        string? previousUrl,
+        SellerOrderModel sellerOrder)
+    {
+        return !string.Equals(previousNumber ?? string.Empty, sellerOrder.TrackingNumber ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
+               !string.Equals(previousCarrier ?? string.Empty, sellerOrder.TrackingCarrier ?? string.Empty, StringComparison.OrdinalIgnoreCase) ||
+               !string.Equals(previousUrl ?? string.Empty, sellerOrder.TrackingUrl ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RecordShippingHistory(
+        SellerOrderModel sellerOrder,
+        string status,
+        string? changedBy,
+        string actorRole,
+        string? notes = null,
+        string? trackingNumber = null,
+        string? trackingCarrier = null,
+        string? trackingUrl = null)
+    {
+        var normalizedStatus = OrderStatusFlow.NormalizeStatus(status);
+        var last = sellerOrder.ShippingHistory
+            .OrderByDescending(h => h.ChangedAt)
+            .FirstOrDefault();
+
+        if (last is not null &&
+            string.Equals(last.Status, normalizedStatus, StringComparison.OrdinalIgnoreCase) &&
+            string.IsNullOrWhiteSpace(trackingNumber) &&
+            string.IsNullOrWhiteSpace(trackingCarrier) &&
+            string.IsNullOrWhiteSpace(trackingUrl))
+        {
+            return;
+        }
+
+        sellerOrder.ShippingHistory.Add(new ShippingStatusHistory
+        {
+            SellerOrderId = sellerOrder.Id,
+            Status = normalizedStatus,
+            ChangedBy = changedBy,
+            ChangedByRole = actorRole,
+            Notes = notes,
+            TrackingNumber = trackingNumber,
+            TrackingCarrier = trackingCarrier,
+            TrackingUrl = trackingUrl,
+            ChangedAt = _timeProvider.GetUtcNow()
+        });
+    }
+
     private async Task<OrderStatusResult> RefundSellerOrderInternalAsync(
         SellerOrderModel sellerOrder,
         decimal refundAmount,
@@ -528,6 +628,12 @@ public class OrderStatusService
             sellerOrder.TrackingNumber = null;
             sellerOrder.TrackingCarrier = null;
             sellerOrder.TrackingUrl = null;
+            RecordShippingHistory(
+                sellerOrder,
+                sellerOrder.Status,
+                sellerOrder.SellerId,
+                "seller",
+                notes: string.IsNullOrWhiteSpace(reason) ? "Refund processed" : reason);
         }
 
         _commissionService.RecalculateAfterRefund(sellerOrder);
