@@ -1,0 +1,62 @@
+@page "/buyer/checkout/payment"
+@model SD.ProjectName.WebApp.Pages.Buyer.Checkout.PaymentModel
+@{
+    ViewData["Title"] = "Payment";
+}
+
+<h1 data-testid="payment-heading">Payment</h1>
+
+@if (TempData["CheckoutError"] is string checkoutError)
+{
+    <div class="alert alert-warning">@checkoutError</div>
+}
+@if (TempData["ShippingSaved"] is string shippingSaved)
+{
+    <div class="alert alert-success">@shippingSaved</div>
+}
+@if (TempData["PaymentStatus"] is string paymentStatus)
+{
+    <div class="alert alert-success">@paymentStatus</div>
+}
+
+<div class="card mb-3">
+    <div class="card-header">Order summary</div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between">
+            <span>Items subtotal</span>
+            <span>@Model.Totals.ItemsSubtotal.ToString("C")</span>
+        </div>
+        <div class="d-flex justify-content-between">
+            <span>Shipping</span>
+            <span>@Model.Totals.ShippingTotal.ToString("C")</span>
+        </div>
+        <div class="d-flex justify-content-between fw-bold mt-2">
+            <span>Total</span>
+            <span data-testid="payment-order-total">@Model.Totals.TotalAmount.ToString("C")</span>
+        </div>
+    </div>
+ </div>
+
+<form method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    <div class="card mb-3">
+        <div class="card-header">Payment method</div>
+        <div class="card-body">
+            @foreach (var method in Model.AvailablePaymentMethods)
+            {
+                var methodId = $"payment-{method}";
+                var isChecked = string.Equals(method, Model.SelectedPaymentMethod, StringComparison.OrdinalIgnoreCase);
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="SelectedPaymentMethod" value="@method" id="@methodId" @(isChecked ? "checked" : "") data-testid="payment-option" />
+                    <label class="form-check-label" for="@methodId">@method</label>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a class="btn btn-outline-secondary" asp-page="/Buyer/Checkout/Shipping">Back to shipping</a>
+        <button type="submit" class="btn btn-primary" data-testid="payment-confirm">Confirm and pay</button>
+    </div>
+</form>

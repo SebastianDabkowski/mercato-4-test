@@ -1,0 +1,97 @@
+@page "/buyer/checkout/shipping"
+@model SD.ProjectName.WebApp.Pages.Buyer.Checkout.ShippingModel
+@{
+    ViewData["Title"] = "Shipping";
+}
+
+<h1 data-testid="shipping-heading">Choose Shipping</h1>
+
+@if (TempData["CheckoutError"] is string checkoutError)
+{
+    <div class="alert alert-warning">@checkoutError</div>
+}
+@if (TempData["AddressSaved"] is string addressSaved)
+{
+    <div class="alert alert-success">@addressSaved</div>
+}
+
+@if (Model.SelectedAddress is not null)
+{
+    <div class="card mb-3">
+        <div class="card-header">Delivery address</div>
+        <div class="card-body">
+            <div>@Model.SelectedAddress.RecipientName</div>
+            <div>@Model.SelectedAddress.Line1</div>
+            @if (!string.IsNullOrWhiteSpace(Model.SelectedAddress.Line2))
+            {
+                <div>@Model.SelectedAddress.Line2</div>
+            }
+            <div>@Model.SelectedAddress.PostalCode @Model.SelectedAddress.City</div>
+            <div>@Model.SelectedAddress.Region, @Model.SelectedAddress.CountryCode</div>
+            @if (!string.IsNullOrWhiteSpace(Model.SelectedAddress.PhoneNumber))
+            {
+                <div>@Model.SelectedAddress.PhoneNumber</div>
+            }
+        </div>
+    </div>
+}
+
+<form method="post">
+    <div asp-validation-summary="All" class="text-danger"></div>
+
+    @for (var i = 0; i < Model.SellerOptions.Count; i++)
+    {
+        var seller = Model.SellerOptions[i];
+        <input type="hidden" name="Selections[@i].SellerId" value="@seller.SellerId" />
+        <div class="card mb-3" data-testid="seller-shipping-group">
+            <div class="card-header">
+                Seller: @seller.SellerLabel
+            </div>
+            <div class="card-body">
+                @if (!seller.Options.Any())
+                {
+                    <div class="alert alert-warning mb-0" data-testid="shipping-option-unavailable">
+                        No shipping methods are available for this seller with your current address and cart contents.
+                    </div>
+                }
+                else
+                {
+                    foreach (var option in seller.Options)
+                    {
+                        var fieldName = $"Selections[{i}].ShippingMethod";
+                        var isChecked = string.Equals(option.ShippingMethod, seller.SelectedShippingMethod, StringComparison.OrdinalIgnoreCase);
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="@fieldName" value="@option.ShippingMethod" id="@($"{seller.SellerId}-{option.ShippingMethod}")" @(isChecked ? "checked" : "") data-testid="shipping-option" />
+                            <label class="form-check-label" for="@($"{seller.SellerId}-{option.ShippingMethod}")">
+                                @option.ShippingMethod - @option.Cost.ToString("C")
+                            </label>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
+    }
+
+    <div class="card mb-3">
+        <div class="card-header">Order summary</div>
+        <div class="card-body">
+            <div class="d-flex justify-content-between">
+                <span>Items subtotal</span>
+                <span>@Model.Totals.ItemsSubtotal.ToString("C")</span>
+            </div>
+            <div class="d-flex justify-content-between">
+                <span>Shipping</span>
+                <span data-testid="shipping-total">@Model.Totals.ShippingTotal.ToString("C")</span>
+            </div>
+            <div class="d-flex justify-content-between fw-bold mt-2">
+                <span>Total</span>
+                <span data-testid="shipping-order-total">@Model.Totals.TotalAmount.ToString("C")</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-between">
+        <a class="btn btn-outline-secondary" asp-page="/Buyer/Checkout/Address">Back to address</a>
+        <button type="submit" class="btn btn-primary" data-testid="shipping-continue">Continue to payment</button>
+    </div>
+</form>

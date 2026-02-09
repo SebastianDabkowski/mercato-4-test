@@ -162,4 +162,30 @@ public class CartCalculationServiceTests
         Assert.Equal(0, result.TotalAmount);
         Assert.Empty(result.SellerBreakdown);
     }
+
+    [Fact]
+    public void CalculateTotals_UsesSelectedShippingMethod()
+    {
+        var service = new CartCalculationService();
+        var cart = new CartModel
+        {
+            Items = new List<CartItemModel>
+            {
+                new CartItemModel { ProductId = 1, SellerId = "seller1", UnitPrice = 50, Quantity = 1, WeightKg = 1 }
+            }
+        };
+
+        var shippingRules = new List<ShippingRuleModel>
+        {
+            new ShippingRuleModel { SellerId = "seller1", ShippingMethod = ShippingMethods.InPost, BasePrice = 5, IsActive = true },
+            new ShippingRuleModel { SellerId = "seller1", ShippingMethod = ShippingMethods.Courier, BasePrice = 15, IsActive = true }
+        };
+
+        var result = service.CalculateTotals(
+            cart,
+            shippingRules,
+            selectedShippingMethods: new Dictionary<string, string> { { "seller1", ShippingMethods.Courier } });
+
+        Assert.Equal(15, result.ShippingTotal);
+    }
 }
