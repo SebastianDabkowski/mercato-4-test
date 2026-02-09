@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Options;
 using Moq;
+using SD.ProjectName.Modules.Cart.Application;
+using SD.ProjectName.Modules.Cart.Domain.Interfaces;
 using SD.ProjectName.WebApp;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Pages.Seller;
@@ -46,7 +48,11 @@ namespace SD.ProjectName.Tests.Products
 
             var userManager = MockUserManager(user);
             var featureOptions = Options.Create(new FeatureFlags { EnableSellerInternalUsers = true });
-            var model = new DashboardModel(userManager.Object, featureOptions)
+            var cartRepo = new Mock<ICartRepository>();
+            cartRepo.Setup(r => r.GetPayoutSchedulesForSellerAsync(It.IsAny<string>(), It.IsAny<int>()))
+                .ReturnsAsync(new List<SD.ProjectName.Modules.Cart.Domain.PayoutSchedule>());
+            var payoutService = new PayoutScheduleService(cartRepo.Object, Options.Create(new PayoutScheduleOptions()), TimeProvider.System);
+            var model = new DashboardModel(userManager.Object, featureOptions, payoutService)
             {
                 PageContext = new PageContext(new ActionContext(
                     new DefaultHttpContext

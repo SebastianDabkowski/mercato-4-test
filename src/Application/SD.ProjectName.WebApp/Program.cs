@@ -153,11 +153,13 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 
 builder.Services.Configure<EscrowOptions>(builder.Configuration.GetSection("Escrow"));
 builder.Services.Configure<CommissionOptions>(builder.Configuration.GetSection("Commission"));
+builder.Services.Configure<PayoutScheduleOptions>(builder.Configuration.GetSection("PayoutSchedule"));
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, LoggingAuthorizationMiddlewareResultHandler>();
 builder.Services.AddScoped<ILoginEventLogger, LoginEventLogger>();
 builder.Services.AddScoped<CommissionService>();
 builder.Services.AddScoped<EscrowService>();
+builder.Services.AddScoped<PayoutScheduleService>();
 builder.Services.AddScoped<PaymentProcessingService>();
 
 var authenticationBuilder = builder.Services.AddAuthentication();
