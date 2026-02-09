@@ -12,6 +12,8 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<List<DeliveryAddressModel>> GetAddressesAsync(string buyerId);
         Task<DeliveryAddressModel?> GetAddressAsync(int addressId);
         Task<DeliveryAddressModel> AddOrUpdateAddressAsync(DeliveryAddressModel address);
+        Task DeleteAddressAsync(int addressId);
+        Task<bool> IsAddressUsedInActiveOrderAsync(string buyerId, DeliveryAddressModel address);
         Task SetSelectedAddressAsync(string buyerId, int addressId);
         Task ClearSelectedAddressAsync(string buyerId);
         Task<DeliveryAddressModel?> GetSelectedAddressAsync(string buyerId);

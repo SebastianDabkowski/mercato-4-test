@@ -24,15 +24,6 @@ public record DeliveryAddressResult(bool Success, List<string> Errors, DeliveryA
 
 public class SetDeliveryAddressForCheckout
 {
-    private static readonly HashSet<string> AllowedCountries = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "PL",
-        "DE",
-        "US",
-        "GB",
-        "FR"
-    };
-
     private readonly ICartRepository _repository;
     private readonly TimeProvider _timeProvider;
 
@@ -44,32 +35,33 @@ public class SetDeliveryAddressForCheckout
 
     public async Task<DeliveryAddressResult> SaveNewAsync(string buyerId, DeliveryAddressInput input, bool saveToProfile)
     {
-        var errors = Validate(input);
+        var errors = DeliveryAddressRules.Validate(input);
         if (errors.Count > 0)
         {
             return DeliveryAddressResult.Failure(errors);
         }
 
-        if (!IsSupportedRegion(input.CountryCode))
+        if (!DeliveryAddressRules.IsSupportedRegion(input.CountryCode))
         {
-            errors.Add($"Items cannot be shipped to {input.CountryCode}. Supported regions: {string.Join(", ", AllowedCountries)}.");
+            errors.Add($"Items cannot be shipped to {input.CountryCode}. Supported regions: {DeliveryAddressRules.AllowedRegionsLabel}.");
             return DeliveryAddressResult.Failure(errors);
         }
 
         await _repository.ClearSelectedAddressAsync(buyerId);
 
+        var normalized = DeliveryAddressRules.Normalize(input);
         var now = _timeProvider.GetUtcNow();
         var address = new DeliveryAddressModel
         {
             BuyerId = buyerId,
-            RecipientName = input.RecipientName.Trim(),
-            Line1 = input.Line1.Trim(),
-            Line2 = string.IsNullOrWhiteSpace(input.Line2) ? null : input.Line2.Trim(),
-            City = input.City.Trim(),
-            Region = input.Region.Trim(),
-            PostalCode = input.PostalCode.Trim(),
-            CountryCode = input.CountryCode.Trim().ToUpperInvariant(),
-            PhoneNumber = string.IsNullOrWhiteSpace(input.PhoneNumber) ? null : input.PhoneNumber.Trim(),
+            RecipientName = normalized.RecipientName,
+            Line1 = normalized.Line1,
+            Line2 = normalized.Line2,
+            City = normalized.City,
+            Region = normalized.Region,
+            PostalCode = normalized.PostalCode,
+            CountryCode = normalized.CountryCode,
+            PhoneNumber = normalized.PhoneNumber,
             SavedToProfile = saveToProfile,
             IsSelectedForCheckout = true,
             CreatedAt = now,
@@ -88,9 +80,9 @@ public class SetDeliveryAddressForCheckout
             return DeliveryAddressResult.Failure(new[] { "Selected address could not be found for your account." });
         }
 
-        if (!IsSupportedRegion(existing.CountryCode))
+        if (!DeliveryAddressRules.IsSupportedRegion(existing.CountryCode))
         {
-            return DeliveryAddressResult.Failure(new[] { $"Items cannot be shipped to {existing.CountryCode}. Supported regions: {string.Join(", ", AllowedCountries)}." });
+            return DeliveryAddressResult.Failure(new[] { $"Items cannot be shipped to {existing.CountryCode}. Supported regions: {DeliveryAddressRules.AllowedRegionsLabel}." });
         }
 
         await _repository.ClearSelectedAddressAsync(buyerId);
@@ -102,55 +94,5 @@ public class SetDeliveryAddressForCheckout
         return DeliveryAddressResult.SuccessResult(saved);
     }
 
-    private static List<string> Validate(DeliveryAddressInput input)
-    {
-        var errors = new List<string>();
-        if (string.IsNullOrWhiteSpace(input.RecipientName))
-        {
-            errors.Add("Recipient name is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(input.Line1))
-        {
-            errors.Add("Address line 1 is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(input.City))
-        {
-            errors.Add("City is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(input.Region))
-        {
-            errors.Add("State/region is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(input.PostalCode))
-        {
-            errors.Add("Postal code is required.");
-        }
-
-        if (string.IsNullOrWhiteSpace(input.CountryCode))
-        {
-            errors.Add("Country is required.");
-        }
-        else if (input.CountryCode.Trim().Length is < 2 or > 3)
-        {
-            errors.Add("Country code must be 2–3 characters (ISO code).");
-        }
-
-        return errors;
-    }
-
-    private static bool IsSupportedRegion(string? countryCode)
-    {
-        if (string.IsNullOrWhiteSpace(countryCode))
-        {
-            return false;
-        }
-
-        return AllowedCountries.Contains(countryCode.Trim());
-    }
-
-    public static string AllowedRegionsLabel => string.Join(", ", AllowedCountries);
+    public static string AllowedRegionsLabel => DeliveryAddressRules.AllowedRegionsLabel;
 }
