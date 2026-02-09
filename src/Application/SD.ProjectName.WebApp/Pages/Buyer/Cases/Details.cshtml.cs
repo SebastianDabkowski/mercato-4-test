@@ -50,6 +50,8 @@ public class DetailsModel : PageModel
         {
             ReturnRequestStatus.Requested => "Pending seller review",
             ReturnRequestStatus.Approved => "Approved",
+            ReturnRequestStatus.PartialProposed => "Partial solution proposed",
+            ReturnRequestStatus.InfoRequested => "More information requested",
             ReturnRequestStatus.Rejected => "Rejected",
             ReturnRequestStatus.Completed => "Completed",
             _ => "Pending seller review"
@@ -61,6 +63,7 @@ public class DetailsModel : PageModel
             ReturnRequestStatus.Approved => "bg-success",
             ReturnRequestStatus.Rejected => "bg-danger",
             ReturnRequestStatus.Completed => "bg-secondary",
+            ReturnRequestStatus.PartialProposed => "bg-info text-dark",
             _ => "bg-warning text-dark"
         };
 
@@ -74,6 +77,8 @@ public class DetailsModel : PageModel
         {
             ReturnRequestStatus.Approved => "Seller approved this request.",
             ReturnRequestStatus.Rejected => "Seller rejected this request.",
+            ReturnRequestStatus.PartialProposed => "Seller proposed a partial solution.",
+            ReturnRequestStatus.InfoRequested => "Seller requested more information.",
             ReturnRequestStatus.Completed => "Case marked as completed.",
             _ => "Awaiting seller decision."
         };

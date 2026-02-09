@@ -284,9 +284,11 @@ builder.Services.AddScoped<OrderStatusService>();
 builder.Services.AddScoped<IShippingProviderClient, StubShippingProviderClient>();
 builder.Services.AddScoped<ShippingIntegrationService>();
 builder.Services.AddScoped<ReturnRequestService>();
+builder.Services.AddScoped<ReturnRequestReviewService>();
 builder.Services.AddScoped<ICartIdentityService, CartIdentityService>();
 builder.Services.AddScoped<OrderConfirmationEmailService>();
 builder.Services.AddScoped<ShippingNotificationEmailService>();
+builder.Services.AddScoped<ReturnRequestNotificationEmailService>();
 
 builder.Services.AddRazorPages(options =>
 {
