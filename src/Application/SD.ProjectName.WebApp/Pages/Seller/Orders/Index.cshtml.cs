@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Globalization;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -20,6 +22,7 @@ public class IndexModel : PageModel
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ICartRepository _cartRepository;
     private readonly OrderStatusService _orderStatusService;
+    private const int PageSize = 10;
 
     public IndexModel(
         UserManager<ApplicationUser> userManager,
@@ -31,7 +34,37 @@ public class IndexModel : PageModel
         _orderStatusService = orderStatusService;
     }
 
+    [BindProperty(SupportsGet = true)]
+    public List<string> Statuses { get; set; } = new();
+
+    [BindProperty(SupportsGet = true)]
+    public DateTime? CreatedFrom { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public DateTime? CreatedTo { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public string? BuyerId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public int Page { get; set; } = 1;
+
     public List<SellerOrderModel> Orders { get; private set; } = new();
+    public int TotalCount { get; private set; }
+    public int TotalPages { get; private set; }
+    public IReadOnlyCollection<string> StatusOptions { get; } = new[]
+    {
+        OrderStatus.New,
+        OrderStatus.Paid,
+        OrderStatus.Preparing,
+        OrderStatus.Shipped,
+        OrderStatus.Delivered,
+        OrderStatus.Cancelled,
+        OrderStatus.Refunded
+    };
+
+    public bool HasPreviousPage => Page > 1;
+    public bool HasNextPage => Page < TotalPages;
     [TempData]
     public string? StatusMessage { get; set; }
     [TempData]
@@ -45,9 +78,26 @@ public class IndexModel : PageModel
             return Challenge();
         }
 
+        NormalizeFilters();
         await LoadOrders(user.Id);
 
         return Page();
+    }
+
+    public async Task<IActionResult> OnGetExportAsync()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user is null)
+        {
+            return Challenge();
+        }
+
+        NormalizeFilters();
+        var result = await _cartRepository.GetSellerOrdersAsync(user.Id, BuildQuery(fetchAll: true));
+        var csv = BuildCsv(result.Orders);
+        var fileName = $"seller-orders-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
+
+        return File(Encoding.UTF8.GetBytes(csv), "text/csv", fileName);
     }
 
     public async Task<IActionResult> OnPostUpdateStatusAsync(int sellerOrderId, string status, string? trackingNumber)
@@ -57,6 +107,8 @@ public class IndexModel : PageModel
         {
             return Challenge();
         }
+
+        NormalizeFilters();
 
         var result = await _orderStatusService.UpdateSellerOrderStatusAsync(sellerOrderId, user.Id, status, trackingNumber);
         if (!result.IsSuccess)
@@ -72,9 +124,83 @@ public class IndexModel : PageModel
         return Page();
     }
 
+    private void NormalizeFilters()
+    {
+        Statuses ??= new List<string>();
+        Page = Page < 1 ? 1 : Page;
+        BuyerId = string.IsNullOrWhiteSpace(BuyerId) ? null : BuyerId.Trim();
+    }
+
     private async Task LoadOrders(string sellerId)
     {
-        Orders = await _cartRepository.GetSellerOrdersAsync(sellerId);
-        Orders = Orders.OrderByDescending(o => o.Order?.CreatedAt ?? DateTimeOffset.MinValue).ToList();
+        var result = await _cartRepository.GetSellerOrdersAsync(sellerId, BuildQuery());
+        Orders = result.Orders;
+        TotalCount = result.TotalCount;
+        TotalPages = result.TotalCount == 0 ? 1 : (int)Math.Ceiling(result.TotalCount / (double)result.PageSize);
+        Page = result.Page;
+    }
+
+    private SellerOrdersQuery BuildQuery(bool fetchAll = false)
+    {
+        var fromDate = CreatedFrom.HasValue
+            ? DateTime.SpecifyKind(CreatedFrom.Value, DateTimeKind.Utc)
+            : (DateTime?)null;
+        var toDate = CreatedTo.HasValue
+            ? DateTime.SpecifyKind(CreatedTo.Value, DateTimeKind.Utc).Date.AddDays(1).AddTicks(-1)
+            : (DateTime?)null;
+
+        return new SellerOrdersQuery
+        {
+            Statuses = Statuses,
+            CreatedFrom = fromDate.HasValue ? new DateTimeOffset(fromDate.Value) : null,
+            CreatedTo = toDate.HasValue ? new DateTimeOffset(toDate.Value) : null,
+            BuyerId = BuyerId,
+            Page = fetchAll ? 1 : Page,
+            PageSize = fetchAll ? int.MaxValue : PageSize
+        };
+    }
+
+    public string BuildPageUrl(int pageNumber)
+    {
+        var routeValues = new
+        {
+            Page = pageNumber,
+            BuyerId,
+            CreatedFrom = CreatedFrom?.ToString("yyyy-MM-dd"),
+            CreatedTo = CreatedTo?.ToString("yyyy-MM-dd"),
+            Statuses = Statuses.ToArray()
+        };
+
+        return Url.Page("/Seller/Orders/Index", routeValues) ?? string.Empty;
+    }
+
+    private static string BuildCsv(IEnumerable<SellerOrderModel> orders)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("OrderId,SubOrderId,CreatedAt,Status,BuyerId,TotalAmount,ShippingMethod");
+
+        foreach (var order in orders)
+        {
+            var createdAt = order.Order?.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? string.Empty;
+            var buyer = order.Order?.BuyerId ?? string.Empty;
+            var shipping = order.ShippingSelection?.ShippingMethod ?? string.Empty;
+            var status = OrderStatusFlow.NormalizeStatus(order.Status);
+            var total = order.TotalAmount.ToString("0.00", CultureInfo.InvariantCulture);
+
+            builder.AppendLine(string.Join(",",
+                order.OrderId,
+                order.Id,
+                Quote(createdAt),
+                Quote(status),
+                Quote(buyer),
+                total,
+                Quote(shipping)));
+        }
+
+        return builder.ToString();
+    }
+
+    private static string Quote(string value) =>
+        $"\"{value.Replace("\"", "\"\"")}\"";
     }
 }
