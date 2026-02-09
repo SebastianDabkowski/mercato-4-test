@@ -18,7 +18,7 @@ namespace SD.ProjectName.Tests.Cart
             var handler = new AddToCart(repo.Object);
 
             // Act
-            var result = await handler.ExecuteAsync("buyer1", 1, "Product1", 10m, "seller1", "Store1");
+            var result = await handler.ExecuteAsync("buyer1", 1, "Product1", "Category", 10m, "seller1", "Store1");
             
             // Assert
             Assert.Equal("buyer1", result.BuyerId);
@@ -39,7 +39,7 @@ namespace SD.ProjectName.Tests.Cart
             var handler = new AddToCart(repo.Object);
 
             // Act
-            var result = await handler.ExecuteAsync("buyer1", 1, "Product1", 10m, "seller1", "Store1");
+            var result = await handler.ExecuteAsync("buyer1", 1, "Product1", "Category", 10m, "seller1", "Store1");
             
             // Assert
             Assert.Equal(3, result.Quantity);
@@ -58,8 +58,8 @@ namespace SD.ProjectName.Tests.Cart
             var handler = new AddToCart(repo.Object);
             
             // Act
-            var result1 = await handler.ExecuteAsync("buyer1", 1, "Product1", 10m, "seller1", "Store1");
-            var result2 = await handler.ExecuteAsync("buyer1", 2, "Product2", 20m, "seller2", "Store2");
+            var result1 = await handler.ExecuteAsync("buyer1", 1, "Product1", "Category", 10m, "seller1", "Store1");
+            var result2 = await handler.ExecuteAsync("buyer1", 2, "Product2", "Category", 20m, "seller2", "Store2");
             
             // Assert
             Assert.Equal("seller1", result1.SellerId);
@@ -76,7 +76,7 @@ namespace SD.ProjectName.Tests.Cart
             
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(() =>
-                handler.ExecuteAsync("buyer1", 1, "Product1", 10m, "seller1", "Store1", quantity: 0));
+                handler.ExecuteAsync("buyer1", 1, "Product1", "Category", 10m, "seller1", "Store1", quantity: 0));
         }
     }
 }

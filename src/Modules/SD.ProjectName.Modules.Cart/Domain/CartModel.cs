@@ -17,6 +17,7 @@ public class CartItemModel
     public int ProductId { get; set; }
     public string ProductSku { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
     public string SellerId { get; set; } = string.Empty;
     public string SellerName { get; set; } = string.Empty;
     public decimal UnitPrice { get; set; }

@@ -12,7 +12,15 @@ namespace SD.ProjectName.Modules.Cart.Application
             _repository = repository;
         }
 
-        public async Task<CartItemModel> ExecuteAsync(string buyerId, int productId, string productName, decimal unitPrice, string sellerId, string sellerName, int quantity = 1)
+        public async Task<CartItemModel> ExecuteAsync(
+            string buyerId,
+            int productId,
+            string productName,
+            string category,
+            decimal unitPrice,
+            string sellerId,
+            string sellerName,
+            int quantity = 1)
         {
             if (quantity < 1)
             {
@@ -32,6 +40,7 @@ namespace SD.ProjectName.Modules.Cart.Application
                 BuyerId = buyerId,
                 ProductId = productId,
                 ProductName = productName,
+                Category = category,
                 UnitPrice = unitPrice,
                 Quantity = quantity,
                 SellerId = sellerId,

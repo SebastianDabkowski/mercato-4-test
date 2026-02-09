@@ -156,6 +156,7 @@ public class PlaceOrder
                     ProductId = item.ProductId,
                     ProductSku = item.ProductSku,
                     ProductName = item.ProductName,
+                    Category = item.Category,
                     SellerId = item.SellerId,
                     SellerName = item.SellerName,
                     Status = targetOrderStatus == OrderStatus.Failed

@@ -11,12 +11,18 @@ public class EscrowService
 {
     private readonly ICartRepository _cartRepository;
     private readonly TimeProvider _timeProvider;
+    private readonly CommissionService _commissionService;
     private readonly EscrowOptions _options;
 
-    public EscrowService(ICartRepository cartRepository, TimeProvider timeProvider, IOptions<EscrowOptions> options)
+    public EscrowService(
+        ICartRepository cartRepository,
+        TimeProvider timeProvider,
+        CommissionService commissionService,
+        IOptions<EscrowOptions> options)
     {
         _cartRepository = cartRepository;
         _timeProvider = timeProvider;
+        _commissionService = commissionService;
         _options = options.Value;
     }
 
@@ -32,14 +38,16 @@ public class EscrowService
             return;
         }
 
+        _commissionService.EnsureCommissionCalculated(order);
         var createdAt = order.CreatedAt == default ? _timeProvider.GetUtcNow() : order.CreatedAt;
         var payoutEligibleAt = createdAt.AddDays(_options.PayoutEligibilityDelayDays);
         var entries = new List<EscrowLedgerEntry>();
 
         foreach (var subOrder in order.SubOrders)
         {
-            var commission = Math.Round(subOrder.TotalAmount * _options.CommissionRate, 2, MidpointRounding.AwayFromZero);
-            var sellerPayout = Math.Max(0m, subOrder.TotalAmount - commission);
+            var heldAmount = Math.Max(0m, subOrder.TotalAmount - subOrder.RefundedAmount);
+            var commission = Math.Round(subOrder.CommissionAmount, 6, MidpointRounding.AwayFromZero);
+            var sellerPayout = Math.Max(0m, heldAmount - commission);
 
             entries.Add(new EscrowLedgerEntry
             {
@@ -47,7 +55,7 @@ public class EscrowService
                 SellerOrderId = subOrder.Id,
                 BuyerId = order.BuyerId,
                 SellerId = subOrder.SellerId,
-                HeldAmount = subOrder.TotalAmount,
+                HeldAmount = heldAmount,
                 CommissionAmount = commission,
                 SellerPayoutAmount = sellerPayout,
                 Status = EscrowLedgerStatus.Held,
@@ -107,6 +115,23 @@ public class EscrowService
         entry.Status = EscrowLedgerStatus.ReleasedToBuyer;
         entry.ReleasedAt = _timeProvider.GetUtcNow();
         entry.ReleaseReason = reason;
+        await _cartRepository.SaveChangesAsync();
+    }
+
+    public async Task UpdateEscrowForSellerOrderAsync(SellerOrderModel sellerOrder)
+    {
+        var entry = await _cartRepository.GetEscrowEntryForSellerOrderAsync(sellerOrder.Id);
+        if (entry is null)
+        {
+            return;
+        }
+
+        var heldAmount = Math.Max(0m, sellerOrder.TotalAmount - sellerOrder.RefundedAmount);
+        var commission = Math.Round(sellerOrder.CommissionAmount, 6, MidpointRounding.AwayFromZero);
+
+        entry.HeldAmount = heldAmount;
+        entry.CommissionAmount = commission;
+        entry.SellerPayoutAmount = Math.Max(0m, heldAmount - commission);
         await _cartRepository.SaveChangesAsync();
     }
 }

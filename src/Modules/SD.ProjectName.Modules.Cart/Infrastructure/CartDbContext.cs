@@ -43,6 +43,7 @@ public class CartDbContext : DbContext
             entity.HasIndex(ci => ci.SellerId);
             entity.Property(ci => ci.ProductSku).HasMaxLength(100);
             entity.Property(ci => ci.ProductName).HasMaxLength(500);
+            entity.Property(ci => ci.Category).HasMaxLength(200);
         });
 
         modelBuilder.Entity<ShippingRuleModel>(entity =>
@@ -145,6 +146,7 @@ public class CartDbContext : DbContext
             entity.Property(o => o.DeliveryCountryCode).HasMaxLength(3);
             entity.Property(o => o.DeliveryPhoneNumber).HasMaxLength(50);
             entity.Property(o => o.PromoCode).HasMaxLength(50);
+            entity.Property(o => o.CommissionTotal).HasColumnType("decimal(18,6)");
         });
 
         modelBuilder.Entity<OrderItemModel>(entity =>
@@ -154,6 +156,7 @@ public class CartDbContext : DbContext
             entity.HasIndex(oi => oi.SellerOrderId);
             entity.Property(oi => oi.ProductSku).HasMaxLength(100);
             entity.Property(oi => oi.ProductName).HasMaxLength(500);
+            entity.Property(oi => oi.Category).HasMaxLength(200);
             entity.Property(oi => oi.SellerId).HasMaxLength(100);
             entity.Property(oi => oi.SellerName).HasMaxLength(200);
             entity.Property(oi => oi.Status).HasMaxLength(50).HasDefaultValue(OrderStatus.Preparing);
@@ -200,6 +203,9 @@ public class CartDbContext : DbContext
             entity.Property(o => o.TrackingNumber).HasMaxLength(200);
             entity.Property(o => o.RefundedAmount);
             entity.Property(o => o.DeliveredAt);
+            entity.Property(o => o.CommissionRateApplied).HasColumnType("decimal(9,6)");
+            entity.Property(o => o.CommissionAmount).HasColumnType("decimal(18,6)");
+            entity.Property(o => o.CommissionCalculatedAt);
             entity
                 .HasMany(o => o.ReturnRequests)
                 .WithOne(r => r.SellerOrder)
@@ -256,6 +262,9 @@ public class CartDbContext : DbContext
             entity.Property(e => e.SellerId).HasMaxLength(200);
             entity.Property(e => e.Status).HasMaxLength(50);
             entity.Property(e => e.ReleaseReason).HasMaxLength(500);
+            entity.Property(e => e.HeldAmount).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.CommissionAmount).HasColumnType("decimal(18,6)");
+            entity.Property(e => e.SellerPayoutAmount).HasColumnType("decimal(18,6)");
         });
     }
 }

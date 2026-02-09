@@ -178,8 +178,9 @@ public class OrderStatusServiceTests
 
     private static OrderStatusService CreateService(CartRepository repo)
     {
-        var escrowService = new EscrowService(repo, TimeProvider.System, Options.Create(new EscrowOptions()));
-        return new OrderStatusService(repo, escrowService);
+        var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
+        var escrowService = new EscrowService(repo, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        return new OrderStatusService(repo, escrowService, commissionService);
     }
 
     private static CartRepository CreateRepository(string dbName)
