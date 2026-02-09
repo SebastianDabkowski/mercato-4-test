@@ -18,25 +18,60 @@ public class ConfirmationModel : PageModel
     private readonly GetCartItems _getCartItems;
     private readonly ICartRepository _cartRepository;
     private readonly CartCalculationService _cartCalculationService;
+    private readonly PlaceOrder _placeOrder;
 
     public ConfirmationModel(
         ICartIdentityService cartIdentityService,
         GetCartItems getCartItems,
         ICartRepository cartRepository,
-        CartCalculationService cartCalculationService)
+        CartCalculationService cartCalculationService,
+        PlaceOrder placeOrder)
     {
         _cartIdentityService = cartIdentityService;
         _getCartItems = getCartItems;
         _cartRepository = cartRepository;
         _cartCalculationService = cartCalculationService;
+        _placeOrder = placeOrder;
     }
 
     public CartTotals Totals { get; private set; } = new();
     public DeliveryAddressModel? SelectedAddress { get; private set; }
     public PaymentSelectionModel? PaymentSelection { get; private set; }
     public List<ShippingSelectionModel> ShippingSelections { get; private set; } = new();
+    public List<CheckoutValidationIssue> ValidationIssues { get; private set; } = new();
+    public OrderModel? CreatedOrder { get; private set; }
 
     public async Task<IActionResult> OnGetAsync()
+    {
+        return await LoadCheckoutStateAsync();
+    }
+
+    public async Task<IActionResult> OnPostAsync()
+    {
+        var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+        var result = await _placeOrder.ExecuteAsync(buyerId);
+        if (!result.Success)
+        {
+            ValidationIssues = result.Issues;
+            return await LoadCheckoutStateAsync();
+        }
+
+        CreatedOrder = result.Order;
+        PaymentSelection = result.PaymentSelection;
+        SelectedAddress = result.DeliveryAddress;
+        ShippingSelections = result.ShippingSelections;
+        Totals = new CartTotals
+        {
+            ItemsSubtotal = result.Order!.ItemsSubtotal,
+            ShippingTotal = result.Order.ShippingTotal,
+            TotalAmount = result.Order.TotalAmount
+        };
+
+        TempData["OrderSuccess"] = $"Order {result.Order.Id} placed successfully.";
+        return Page();
+    }
+
+    private async Task<IActionResult> LoadCheckoutStateAsync()
     {
         var buyerId = _cartIdentityService.GetOrCreateBuyerId();
         var cartItems = await _getCartItems.ExecuteAsync(buyerId);

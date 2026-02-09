@@ -16,6 +16,8 @@ public class CartDbContext : DbContext
     public DbSet<DeliveryAddressModel> DeliveryAddresses { get; set; }
     public DbSet<ShippingSelectionModel> ShippingSelections { get; set; }
     public DbSet<PaymentSelectionModel> PaymentSelections { get; set; }
+    public DbSet<OrderModel> Orders { get; set; }
+    public DbSet<OrderItemModel> OrderItems { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,6 +73,29 @@ public class CartDbContext : DbContext
             entity.HasIndex(p => p.BuyerId).IsUnique();
             entity.Property(p => p.PaymentMethod).HasMaxLength(100);
             entity.Property(p => p.Status).HasConversion<int>();
+        });
+
+        modelBuilder.Entity<OrderModel>(entity =>
+        {
+            entity.ToTable("Order");
+            entity.HasIndex(o => o.BuyerId);
+            entity.Property(o => o.PaymentMethod).HasMaxLength(100);
+            entity.Property(o => o.Status).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<OrderItemModel>(entity =>
+        {
+            entity.ToTable("OrderItem");
+            entity.HasIndex(oi => oi.OrderId);
+            entity.Property(oi => oi.ProductSku).HasMaxLength(100);
+            entity.Property(oi => oi.ProductName).HasMaxLength(500);
+            entity.Property(oi => oi.SellerId).HasMaxLength(100);
+            entity.Property(oi => oi.SellerName).HasMaxLength(200);
+            entity
+                .HasOne<OrderModel>()
+                .WithMany(o => o.Items)
+                .HasForeignKey(oi => oi.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
