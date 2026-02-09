@@ -451,6 +451,34 @@ public class CartRepository : ICartRepository
             .ToListAsync();
     }
 
+    public async Task<List<EscrowLedgerEntry>> GetCommissionableEscrowEntriesAsync(string sellerId, DateTimeOffset periodStart, DateTimeOffset periodEnd)
+    {
+        var invoicedEntries = _context.CommissionInvoiceLines
+            .Where(l => !l.IsCorrection)
+            .Select(l => l.EscrowLedgerEntryId);
+
+        return await _context.EscrowLedgerEntries
+            .AsNoTracking()
+            .Where(e => e.SellerId == sellerId)
+            .Where(e => e.CreatedAt >= periodStart && e.CreatedAt <= periodEnd)
+            .Where(e => !invoicedEntries.Contains(e.Id))
+            .OrderBy(e => e.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<EscrowLedgerEntry>> GetCommissionCorrectionsAsync(string sellerId, DateTimeOffset periodStart, DateTimeOffset periodEnd)
+    {
+        return await _context.EscrowLedgerEntries
+            .AsNoTracking()
+            .Where(e => e.SellerId == sellerId)
+            .Where(e => e.Status == EscrowLedgerStatus.ReleasedToBuyer)
+            .Where(e => e.ReleasedAt.HasValue && e.ReleasedAt.Value >= periodStart && e.ReleasedAt.Value <= periodEnd)
+            .Where(e => _context.CommissionInvoiceLines.Any(l => l.EscrowLedgerEntryId == e.Id && !l.IsCorrection))
+            .Where(e => !_context.CommissionInvoiceLines.Any(l => l.EscrowLedgerEntryId == e.Id && l.IsCorrection))
+            .OrderBy(e => e.ReleasedAt)
+            .ToListAsync();
+    }
+
     public async Task<PaymentSelectionModel?> GetPaymentSelectionByReferenceAsync(string providerReference)
     {
         return await _context.PaymentSelections.FirstOrDefaultAsync(p =>
@@ -637,6 +665,85 @@ public class CartRepository : ICartRepository
             Page = currentPage,
             PageSize = normalizedPageSize
         };
+    }
+
+    public async Task<CommissionInvoice?> GetCommissionInvoiceAsync(int invoiceId, string sellerId)
+    {
+        return await _context.CommissionInvoices
+            .AsNoTracking()
+            .Include(i => i.Lines)
+                .ThenInclude(l => l.EscrowLedgerEntry)
+            .FirstOrDefaultAsync(i => i.Id == invoiceId && i.SellerId == sellerId);
+    }
+
+    public async Task<CommissionInvoice?> GetCommissionInvoiceForPeriodAsync(string sellerId, DateTimeOffset periodStart, DateTimeOffset periodEnd)
+    {
+        return await _context.CommissionInvoices
+            .AsNoTracking()
+            .FirstOrDefaultAsync(i => i.SellerId == sellerId && i.PeriodStart == periodStart && i.PeriodEnd == periodEnd);
+    }
+
+    public async Task<CommissionInvoiceResult> GetCommissionInvoicesAsync(string sellerId, CommissionInvoiceQuery query)
+    {
+        var normalizedPage = query.Page < 1 ? 1 : query.Page;
+        var normalizedPageSize = query.PageSize < 1 ? 10 : query.PageSize > 50 ? 50 : query.PageSize;
+        var statusFilters = (query.Statuses ?? new List<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.Trim().ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        var filtered = _context.CommissionInvoices
+            .AsNoTracking()
+            .Where(i => i.SellerId == sellerId);
+
+        if (query.PeriodFrom.HasValue)
+        {
+            filtered = filtered.Where(i => i.PeriodStart >= query.PeriodFrom.Value);
+        }
+
+        if (query.PeriodTo.HasValue)
+        {
+            filtered = filtered.Where(i => i.PeriodEnd <= query.PeriodTo.Value);
+        }
+
+        if (!query.IncludeCreditNotes)
+        {
+            filtered = filtered.Where(i => !i.IsCreditNote);
+        }
+
+        if (statusFilters.Count > 0)
+        {
+            filtered = filtered.Where(i => statusFilters.Contains(i.Status));
+        }
+
+        var totalCount = await filtered.CountAsync();
+        var totalPages = totalCount == 0
+            ? 1
+            : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
+        var currentPage = normalizedPage > totalPages ? totalPages : normalizedPage;
+        var skip = (currentPage - 1) * normalizedPageSize;
+
+        var invoices = await filtered
+            .OrderByDescending(i => i.PeriodStart)
+            .ThenByDescending(i => i.IssuedAt)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .ToListAsync();
+
+        return new CommissionInvoiceResult
+        {
+            Invoices = invoices,
+            TotalCount = totalCount,
+            Page = currentPage,
+            PageSize = normalizedPageSize
+        };
+    }
+
+    public async Task AddCommissionInvoiceAsync(CommissionInvoice invoice)
+    {
+        _context.CommissionInvoices.Add(invoice);
+        await _context.SaveChangesAsync();
     }
 
     public async Task ClearCartItemsAsync(string buyerId)

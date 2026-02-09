@@ -27,6 +27,8 @@ public class CartDbContext : DbContext
     public DbSet<EscrowLedgerEntry> EscrowLedgerEntries { get; set; }
     public DbSet<PayoutSchedule> PayoutSchedules { get; set; }
     public DbSet<PayoutScheduleItem> PayoutScheduleItems { get; set; }
+    public DbSet<CommissionInvoice> CommissionInvoices { get; set; }
+    public DbSet<CommissionInvoiceLine> CommissionInvoiceLines { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -293,6 +295,39 @@ public class CartDbContext : DbContext
                 .HasOne(i => i.EscrowEntry)
                 .WithOne()
                 .HasForeignKey<PayoutScheduleItem>(i => i.EscrowLedgerEntryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<CommissionInvoice>(entity =>
+        {
+            entity.ToTable("CommissionInvoice");
+            entity.HasIndex(i => new { i.SellerId, i.PeriodStart, i.PeriodEnd }).IsUnique();
+            entity.Property(i => i.SellerId).HasMaxLength(200);
+            entity.Property(i => i.SellerName).HasMaxLength(200);
+            entity.Property(i => i.Status).HasMaxLength(50);
+            entity.Property(i => i.Number).HasMaxLength(100);
+            entity.Property(i => i.Currency).HasMaxLength(10);
+            entity.Property(i => i.TaxRate).HasColumnType("decimal(9,6)");
+            entity.Property(i => i.Subtotal).HasColumnType("decimal(18,6)");
+            entity.Property(i => i.TaxAmount).HasColumnType("decimal(18,6)");
+            entity.Property(i => i.TotalAmount).HasColumnType("decimal(18,6)");
+        });
+
+        modelBuilder.Entity<CommissionInvoiceLine>(entity =>
+        {
+            entity.ToTable("CommissionInvoiceLine");
+            entity.HasIndex(l => l.EscrowLedgerEntryId);
+            entity.Property(l => l.Description).HasMaxLength(500);
+            entity.Property(l => l.Amount).HasColumnType("decimal(18,6)");
+            entity
+                .HasOne(l => l.CommissionInvoice)
+                .WithMany(i => i.Lines)
+                .HasForeignKey(l => l.CommissionInvoiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity
+                .HasOne(l => l.EscrowLedgerEntry)
+                .WithMany()
+                .HasForeignKey(l => l.EscrowLedgerEntryId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }
