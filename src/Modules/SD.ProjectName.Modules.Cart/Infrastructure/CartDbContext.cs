@@ -77,7 +77,9 @@ public class CartDbContext : DbContext
         {
             entity.ToTable("PaymentSelection");
             entity.HasIndex(p => p.BuyerId).IsUnique();
+            entity.HasIndex(p => p.ProviderReference).IsUnique();
             entity.Property(p => p.PaymentMethod).HasMaxLength(100);
+            entity.Property(p => p.ProviderReference).HasMaxLength(200);
             entity.Property(p => p.Status).HasConversion<int>();
         });
 

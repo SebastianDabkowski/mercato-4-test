@@ -27,15 +27,29 @@ public class PlaceOrder
         _timeProvider = timeProvider;
     }
 
-    public async Task<PlaceOrderResult> ExecuteAsync(string buyerId)
+    public async Task<PlaceOrderResult> ExecuteAsync(
+        string buyerId,
+        PaymentStatus? paymentStatusOverride = null,
+        bool clearPaymentSelection = true,
+        bool clearCheckoutStateWhenFailed = false)
     {
         using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
-        var validation = await _checkoutValidationService.ValidateAsync(buyerId);
+        var requirePaymentAuthorized = paymentStatusOverride is null ||
+                                       paymentStatusOverride == PaymentStatus.Authorized;
+        var validation = await _checkoutValidationService.ValidateAsync(buyerId, requirePaymentAuthorized);
         if (!validation.IsValid)
         {
             return PlaceOrderResult.Failed(validation.Issues);
         }
+
+        var paymentStatus = paymentStatusOverride ?? validation.PaymentSelection?.Status ?? PaymentStatus.Pending;
+        var targetOrderStatus = paymentStatus switch
+        {
+            PaymentStatus.Authorized => OrderStatus.Paid,
+            PaymentStatus.Failed => OrderStatus.Failed,
+            _ => OrderStatus.Pending
+        };
 
         var shippingRules = await _cartRepository.GetShippingRulesAsync();
         var shippingSelectionMap = validation.ShippingSelections.ToDictionary(
@@ -115,7 +129,7 @@ public class PlaceOrder
                 ShippingTotal = shippingCost,
                 DiscountTotal = discountShare,
                 TotalAmount = Math.Max(0m, itemsSubtotal + shippingCost - discountShare),
-                Status = OrderStatus.Paid
+                Status = targetOrderStatus
             };
 
             var selectionModel = orderShippingSelections.FirstOrDefault(s =>
@@ -142,7 +156,9 @@ public class PlaceOrder
                     ProductName = item.ProductName,
                     SellerId = item.SellerId,
                     SellerName = item.SellerName,
-                    Status = OrderStatus.Preparing,
+                    Status = targetOrderStatus == OrderStatus.Failed
+                        ? OrderStatus.Failed
+                        : OrderStatus.Preparing,
                     UnitPrice = item.UnitPrice,
                     Quantity = item.Quantity,
                     SellerOrder = sellerOrder
@@ -180,17 +196,24 @@ public class PlaceOrder
             TotalAmount = totals.TotalAmount,
             PromoCode = promoTotals.AppliedPromoCode,
             CreatedAt = _timeProvider.GetUtcNow(),
-            Status = OrderStatus.Paid,
+            Status = targetOrderStatus,
             Items = orderItems,
             ShippingSelections = orderShippingSelections,
             SubOrders = subOrders
         };
 
         await _cartRepository.AddOrderAsync(order);
-        await _cartRepository.ClearCartItemsAsync(buyerId);
-        await _cartRepository.ClearShippingSelectionsAsync(buyerId);
-        await _cartRepository.ClearPaymentSelectionAsync(buyerId);
-        await _cartRepository.ClearPromoSelectionAsync(buyerId);
+        var shouldClearCheckoutState = targetOrderStatus != OrderStatus.Failed || clearCheckoutStateWhenFailed;
+        if (shouldClearCheckoutState)
+        {
+            await _cartRepository.ClearCartItemsAsync(buyerId);
+            await _cartRepository.ClearShippingSelectionsAsync(buyerId);
+            await _cartRepository.ClearPromoSelectionAsync(buyerId);
+            if (clearPaymentSelection)
+            {
+                await _cartRepository.ClearPaymentSelectionAsync(buyerId);
+            }
+        }
 
         scope.Complete();
         return PlaceOrderResult.Completed(order, validation.PaymentSelection, orderShippingSelections, validation.DeliveryAddress);

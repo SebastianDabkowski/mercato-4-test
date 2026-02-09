@@ -7,6 +7,7 @@ using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
 using SD.ProjectName.WebApp.Services;
+using Microsoft.Extensions.Options;
 using CartDomainModel = SD.ProjectName.Modules.Cart.Domain.CartModel;
 
 namespace SD.ProjectName.WebApp.Pages.Buyer.Checkout;
@@ -19,23 +20,31 @@ public class PaymentModel : PageModel
     private readonly ICartRepository _cartRepository;
     private readonly CartCalculationService _cartCalculationService;
     private readonly PromoService _promoService;
+    private readonly PaymentOptions _paymentOptions;
+    private readonly TimeProvider _timeProvider;
 
     public PaymentModel(
         ICartIdentityService cartIdentityService,
         GetCartItems getCartItems,
         ICartRepository cartRepository,
         CartCalculationService cartCalculationService,
-        PromoService promoService)
+        PromoService promoService,
+        IOptions<PaymentOptions> paymentOptions,
+        TimeProvider timeProvider)
     {
         _cartIdentityService = cartIdentityService;
         _getCartItems = getCartItems;
         _cartRepository = cartRepository;
         _cartCalculationService = cartCalculationService;
         _promoService = promoService;
+        _paymentOptions = paymentOptions.Value;
+        _timeProvider = timeProvider;
     }
 
     [BindProperty]
     public string SelectedPaymentMethod { get; set; } = string.Empty;
+    [BindProperty]
+    public string? BlikCode { get; set; }
 
     public CartTotals Totals { get; private set; } = new();
     public DeliveryAddressModel? SelectedAddress { get; private set; }
@@ -43,7 +52,7 @@ public class PaymentModel : PageModel
     public List<ShippingSelectionModel> ShippingSelections { get; private set; } = new();
     public string? PromoError { get; private set; }
     public string? PromoSuccess { get; private set; }
-    public IEnumerable<string> AvailablePaymentMethods => PaymentMethods.Supported;
+    public IEnumerable<string> AvailablePaymentMethods { get; private set; } = Array.Empty<string>();
 
     public async Task<IActionResult> OnGetAsync()
     {
@@ -63,9 +72,17 @@ public class PaymentModel : PageModel
         }
 
         if (string.IsNullOrWhiteSpace(SelectedPaymentMethod) ||
-            !PaymentMethods.Supported.Contains(SelectedPaymentMethod, StringComparer.OrdinalIgnoreCase))
+            !AvailablePaymentMethods.Contains(SelectedPaymentMethod, StringComparer.OrdinalIgnoreCase))
         {
             ModelState.AddModelError(string.Empty, "Select a valid payment method.");
+        }
+
+        if (string.Equals(SelectedPaymentMethod, "BLIK", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(BlikCode) || BlikCode.Trim().Length != 6 || !BlikCode.All(char.IsDigit))
+            {
+                ModelState.AddModelError(nameof(BlikCode), "Enter a valid 6-digit BLIK code.");
+            }
         }
 
         if (!ModelState.IsValid)
@@ -74,17 +91,33 @@ public class PaymentModel : PageModel
         }
 
         var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+        var providerReference = $"p24_{Guid.NewGuid():N}";
         var selection = new PaymentSelectionModel
         {
             BuyerId = buyerId,
             PaymentMethod = SelectedPaymentMethod,
-            Status = PaymentStatus.Authorized,
-            UpdatedAt = DateTimeOffset.UtcNow
+            Status = PaymentStatus.Pending,
+            ProviderReference = providerReference,
+            UpdatedAt = _timeProvider.GetUtcNow(),
+            OrderId = null
         };
 
-        await _cartRepository.UpsertPaymentSelectionAsync(selection);
-        TempData["PaymentStatus"] = "Payment authorized successfully.";
-        return RedirectToPage("/Buyer/Checkout/Confirmation");
+        selection = await _cartRepository.UpsertPaymentSelectionAsync(selection);
+
+        var redirectUrl = Url.Page("/Payments/ProviderRedirect", new
+        {
+            paymentReference = selection.ProviderReference,
+            method = selection.PaymentMethod,
+            blikCode = BlikCode
+        });
+
+        if (redirectUrl is null)
+        {
+            TempData["PaymentError"] = "Unable to start payment with the provider.";
+            return RedirectToPage("/Buyer/Checkout/Payment");
+        }
+
+        return Redirect(redirectUrl);
     }
 
     public async Task<IActionResult> OnPostApplyPromoAsync(string promoCode)
@@ -152,17 +185,24 @@ public class PaymentModel : PageModel
 
         Totals = promoTotals.Totals;
 
+        AvailablePaymentMethods = ResolveEnabledMethods();
         CurrentPaymentSelection = await _cartRepository.GetPaymentSelectionAsync(buyerId);
         if (setSelectedPaymentMethodFromExisting)
         {
-            if (!string.IsNullOrWhiteSpace(CurrentPaymentSelection?.PaymentMethod))
+            if (!string.IsNullOrWhiteSpace(CurrentPaymentSelection?.PaymentMethod) &&
+                AvailablePaymentMethods.Contains(CurrentPaymentSelection.PaymentMethod, StringComparer.OrdinalIgnoreCase))
             {
                 SelectedPaymentMethod = CurrentPaymentSelection.PaymentMethod;
             }
             else if (string.IsNullOrWhiteSpace(SelectedPaymentMethod))
             {
-                SelectedPaymentMethod = PaymentMethods.Supported.First();
+                SelectedPaymentMethod = AvailablePaymentMethods.FirstOrDefault() ?? string.Empty;
             }
+        }
+        else if (!string.IsNullOrWhiteSpace(SelectedPaymentMethod) &&
+                 !AvailablePaymentMethods.Contains(SelectedPaymentMethod, StringComparer.OrdinalIgnoreCase))
+        {
+            SelectedPaymentMethod = AvailablePaymentMethods.FirstOrDefault() ?? string.Empty;
         }
 
         return Page();
@@ -185,6 +225,18 @@ public class PaymentModel : PageModel
             selectedShippingMethods: selectionMap);
     }
 
+    private string[] ResolveEnabledMethods()
+    {
+        var configured = _paymentOptions.EnabledMethods ?? Array.Empty<string>();
+        var normalizedConfigured = configured
+            .Where(m => !string.IsNullOrWhiteSpace(m))
+            .ToArray();
+
+        return normalizedConfigured.Length > 0
+            ? normalizedConfigured
+            : PaymentMethods.Supported;
+    }
+
     private static bool HasSelectionsForAllSellers(IEnumerable<CartItemModel> cartItems, IEnumerable<ShippingSelectionModel> selections)
     {
         var sellerIds = cartItems.Select(i => i.SellerId).Distinct().ToList();
@@ -194,5 +246,5 @@ public class PaymentModel : PageModel
 
 public static class PaymentMethods
 {
-    public static readonly string[] Supported = new[] { "Przelewy24", "Card", "BankTransfer" };
+    public static readonly string[] Supported = new[] { "Przelewy24", "Card", "BankTransfer", "BLIK" };
 }

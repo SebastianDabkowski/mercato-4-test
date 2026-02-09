@@ -430,6 +430,12 @@ public class CartRepository : ICartRepository
         return await _context.PaymentSelections.FirstOrDefaultAsync(p => p.BuyerId == buyerId);
     }
 
+    public async Task<PaymentSelectionModel?> GetPaymentSelectionByReferenceAsync(string providerReference)
+    {
+        return await _context.PaymentSelections.FirstOrDefaultAsync(p =>
+            p.ProviderReference == providerReference);
+    }
+
     public async Task<PaymentSelectionModel> UpsertPaymentSelectionAsync(PaymentSelectionModel selection)
     {
         var existing = await _context.PaymentSelections.FirstOrDefaultAsync(p => p.BuyerId == selection.BuyerId);
@@ -443,6 +449,8 @@ public class CartRepository : ICartRepository
             existing.PaymentMethod = selection.PaymentMethod;
             existing.Status = selection.Status;
             existing.UpdatedAt = selection.UpdatedAt;
+            existing.ProviderReference = selection.ProviderReference;
+            existing.OrderId = selection.OrderId;
         }
 
         await _context.SaveChangesAsync();

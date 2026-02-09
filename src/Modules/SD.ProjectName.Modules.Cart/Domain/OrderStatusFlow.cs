@@ -8,14 +8,14 @@ public static class OrderStatusFlow
 {
     private static readonly Dictionary<string, string[]> AllowedTransitions = new(StringComparer.OrdinalIgnoreCase)
     {
-        { OrderStatus.New, new[] { OrderStatus.Paid, OrderStatus.Cancelled } },
+        { OrderStatus.New, new[] { OrderStatus.Paid, OrderStatus.Cancelled, OrderStatus.Failed } },
         { OrderStatus.Paid, new[] { OrderStatus.Preparing, OrderStatus.Cancelled, OrderStatus.Refunded } },
         { OrderStatus.Preparing, new[] { OrderStatus.Shipped, OrderStatus.Cancelled, OrderStatus.Refunded } },
         { OrderStatus.Shipped, new[] { OrderStatus.Delivered, OrderStatus.Refunded } },
         { OrderStatus.Delivered, new[] { OrderStatus.Refunded } },
         { OrderStatus.Cancelled, new[] { OrderStatus.Refunded } },
         { OrderStatus.Refunded, Array.Empty<string>() },
-        { OrderStatus.Pending, new[] { OrderStatus.Paid, OrderStatus.Cancelled } },
+        { OrderStatus.Pending, new[] { OrderStatus.Paid, OrderStatus.Cancelled, OrderStatus.Failed } },
         { OrderStatus.Confirmed, new[] { OrderStatus.Preparing, OrderStatus.Cancelled, OrderStatus.Refunded } }
     };
 
@@ -63,6 +63,11 @@ public static class OrderStatusFlow
         }
 
         var statuses = order.SubOrders.Select(s => NormalizeStatus(s.Status)).ToList();
+
+        if (statuses.Any(s => s.Equals(OrderStatus.Failed, StringComparison.OrdinalIgnoreCase)))
+        {
+            return OrderStatus.Failed;
+        }
 
         if (statuses.All(s => s.Equals(OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase)))
         {

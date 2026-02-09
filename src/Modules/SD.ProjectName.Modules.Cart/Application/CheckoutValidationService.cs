@@ -5,7 +5,7 @@ namespace SD.ProjectName.Modules.Cart.Application;
 
 public interface ICheckoutValidationService
 {
-    Task<CheckoutValidationResult> ValidateAsync(string buyerId);
+    Task<CheckoutValidationResult> ValidateAsync(string buyerId, bool requirePaymentAuthorized = true);
 }
 
 public class CheckoutValidationService : ICheckoutValidationService
@@ -24,7 +24,7 @@ public class CheckoutValidationService : ICheckoutValidationService
         _productSnapshotService = productSnapshotService;
     }
 
-    public async Task<CheckoutValidationResult> ValidateAsync(string buyerId)
+    public async Task<CheckoutValidationResult> ValidateAsync(string buyerId, bool requirePaymentAuthorized = true)
     {
         var issues = new List<CheckoutValidationIssue>();
         var cartItems = await _getCartItems.ExecuteAsync(buyerId);
@@ -35,7 +35,11 @@ public class CheckoutValidationService : ICheckoutValidationService
         }
 
         var paymentSelection = await _cartRepository.GetPaymentSelectionAsync(buyerId);
-        if (paymentSelection is null || paymentSelection.Status != PaymentStatus.Authorized)
+        if (paymentSelection is null)
+        {
+            issues.Add(CheckoutValidationIssue.ForCart("payment-required", "Payment authorization is required before placing the order."));
+        }
+        else if (requirePaymentAuthorized && paymentSelection.Status != PaymentStatus.Authorized)
         {
             issues.Add(CheckoutValidationIssue.ForCart("payment-required", "Payment authorization is required before placing the order."));
         }

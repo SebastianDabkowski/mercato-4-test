@@ -108,6 +108,7 @@ builder.Services.AddDataProtection()
 
 builder.Services.AddLocalization();
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("Features"));
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payments"));
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -153,6 +154,7 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, LoggingAuthorizationMiddlewareResultHandler>();
 builder.Services.AddScoped<ILoginEventLogger, LoginEventLogger>();
+builder.Services.AddScoped<PaymentProcessingService>();
 
 var authenticationBuilder = builder.Services.AddAuthentication();
 

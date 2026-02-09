@@ -18,6 +18,10 @@
 {
     <div class="alert alert-success">@paymentStatus</div>
 }
+@if (TempData["PaymentError"] is string paymentError)
+{
+    <div class="alert alert-danger">@paymentError</div>
+}
 
 <div class="card mb-3">
     <div class="card-header">Order summary</div>
@@ -91,6 +95,14 @@
                 <div class="form-check mb-2">
                     <input class="form-check-input" type="radio" name="SelectedPaymentMethod" value="@method" id="@methodId" @(isChecked ? "checked" : "") data-testid="payment-option" />
                     <label class="form-check-label" for="@methodId">@method</label>
+                </div>
+            }
+            @if (string.Equals(Model.SelectedPaymentMethod, "BLIK", StringComparison.OrdinalIgnoreCase))
+            {
+                <div class="mt-3">
+                    <label class="form-label" for="blik-code">BLIK code</label>
+                    <input class="form-control" id="blik-code" name="BlikCode" value="@Model.BlikCode" maxlength="6" data-testid="blik-code-input" />
+                    <span asp-validation-for="BlikCode" class="text-danger"></span>
                 </div>
             }
         </div>
