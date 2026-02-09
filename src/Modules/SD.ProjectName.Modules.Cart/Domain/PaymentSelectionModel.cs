@@ -7,6 +7,8 @@ public class PaymentSelectionModel
     public string PaymentMethod { get; set; } = string.Empty;
     public PaymentStatus Status { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
+    public string ProviderReference { get; set; } = string.Empty;
+    public int? OrderId { get; set; }
 }
 
 public enum PaymentStatus

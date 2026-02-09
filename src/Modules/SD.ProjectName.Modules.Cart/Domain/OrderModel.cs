@@ -86,4 +86,5 @@ public static class OrderStatus
     public const string Delivered = "delivered";
     public const string Cancelled = "cancelled";
     public const string Refunded = "refunded";
+    public const string Failed = "failed";
 }

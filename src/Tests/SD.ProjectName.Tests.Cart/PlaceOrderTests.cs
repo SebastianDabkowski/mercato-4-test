@@ -108,6 +108,57 @@ public class PlaceOrderTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_CreatesFailedOrder_WhenPaymentFails()
+    {
+        var buyerId = "buyer-failed";
+        var cartItems = new List<CartItemModel>
+        {
+            new()
+            {
+                ProductId = 5,
+                ProductName = "Item",
+                ProductSku = "SKU-5",
+                UnitPrice = 10m,
+                Quantity = 1,
+                SellerId = "seller-5",
+                SellerName = "Seller Five"
+            }
+        };
+
+        var repo = new Mock<ICartRepository>();
+        repo.Setup(r => r.GetByBuyerIdAsync(buyerId)).ReturnsAsync(cartItems);
+        repo.Setup(r => r.GetPaymentSelectionAsync(buyerId))
+            .ReturnsAsync(new PaymentSelectionModel { BuyerId = buyerId, PaymentMethod = "Card", Status = PaymentStatus.Failed });
+        repo.Setup(r => r.GetSelectedAddressAsync(buyerId))
+            .ReturnsAsync(new DeliveryAddressModel { BuyerId = buyerId, RecipientName = "Buyer Five" });
+        repo.Setup(r => r.GetShippingSelectionsAsync(buyerId))
+            .ReturnsAsync(new List<ShippingSelectionModel> { new() { BuyerId = buyerId, SellerId = "seller-5", ShippingMethod = "Standard", Cost = 3m } });
+        repo.Setup(r => r.GetShippingRulesAsync()).ReturnsAsync(new List<ShippingRuleModel>
+        {
+            new() { SellerId = "seller-5", ShippingMethod = "Standard", BasePrice = 3m, IsActive = true }
+        });
+        repo.Setup(r => r.AddOrderAsync(It.IsAny<OrderModel>())).ReturnsAsync((OrderModel order) => order);
+        repo.Setup(r => r.GetPromoSelectionAsync(It.IsAny<string>())).ReturnsAsync((PromoSelectionModel?)null);
+
+        var snapshotService = new Mock<IProductSnapshotService>();
+        snapshotService.Setup(s => s.GetSnapshotAsync(5)).ReturnsAsync(new ProductSnapshot(5, 10m, 2));
+
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
+        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
+
+        var result = await handler.ExecuteAsync(buyerId, PaymentStatus.Failed);
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Order);
+        Assert.Equal(OrderStatus.Failed, result.Order!.Status);
+        Assert.All(result.Order.SubOrders, s => Assert.Equal(OrderStatus.Failed, s.Status));
+        Assert.All(result.Order.Items, i => Assert.Equal(OrderStatus.Failed, i.Status));
+        repo.Verify(r => r.ClearCartItemsAsync(It.IsAny<string>()), Times.Never);
+        repo.Verify(r => r.ClearPaymentSelectionAsync(It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_SplitsIntoSubOrdersPerSeller()
     {
         var buyerId = "buyer-4";

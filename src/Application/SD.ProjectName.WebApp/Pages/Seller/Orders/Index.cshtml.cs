@@ -60,6 +60,7 @@ public class IndexModel : PageModel
         OrderStatus.Shipped,
         OrderStatus.Delivered,
         OrderStatus.Cancelled,
+        OrderStatus.Failed,
         OrderStatus.Refunded
     };
 
