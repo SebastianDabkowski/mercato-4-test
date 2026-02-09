@@ -9,6 +9,7 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<CartItemModel?> GetByIdAsync(int id);
         Task<CartModel?> GetByUserIdAsync(string userId);
         Task<List<ShippingRuleModel>> GetShippingRulesAsync();
+        Task<ShippingRuleModel> UpsertShippingRuleAsync(ShippingRuleModel rule);
         Task<List<DeliveryAddressModel>> GetAddressesAsync(string buyerId);
         Task<DeliveryAddressModel?> GetAddressAsync(int addressId);
         Task<DeliveryAddressModel> AddOrUpdateAddressAsync(DeliveryAddressModel address);
@@ -57,6 +58,7 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<BuyerOrdersResult> GetOrdersForBuyerAsync(string buyerId, BuyerOrdersQuery query);
         Task<SellerOrderModel?> GetSellerOrderAsync(int sellerOrderId, string sellerId);
         Task<SellerOrderModel?> GetSellerOrderByIdAsync(int sellerOrderId);
+        Task<SellerOrderModel?> GetSellerOrderByTrackingAsync(string trackingNumber);
         Task<SellerOrdersResult> GetSellerOrdersAsync(string sellerId, SellerOrdersQuery query);
         Task SaveChangesAsync();
         

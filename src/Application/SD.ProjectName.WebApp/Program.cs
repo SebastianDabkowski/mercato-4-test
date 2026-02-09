@@ -20,6 +20,7 @@ using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
 using SD.ProjectName.Modules.Cart.Infrastructure;
+using SD.ProjectName.Modules.Cart.Infrastructure.Shipping;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
 using SD.ProjectName.WebApp.Services;
@@ -99,7 +100,7 @@ if (!string.IsNullOrWhiteSpace(sessionCacheConnection))
 }
 else
 {
-    builder.Services.AddDistributedMemoryCache();
+builder.Services.AddDistributedMemoryCache();
 }
 
 builder.Services.AddDataProtection()
@@ -109,6 +110,7 @@ builder.Services.AddDataProtection()
 builder.Services.AddLocalization();
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("Features"));
 builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payments"));
+builder.Services.Configure<ShippingProvidersOptions>(builder.Configuration.GetSection("ShippingProviders"));
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -279,6 +281,8 @@ builder.Services.AddScoped<IProductSnapshotService, ProductSnapshotService>();
 builder.Services.AddScoped<ICheckoutValidationService, CheckoutValidationService>();
 builder.Services.AddScoped<PlaceOrder>();
 builder.Services.AddScoped<OrderStatusService>();
+builder.Services.AddScoped<IShippingProviderClient, StubShippingProviderClient>();
+builder.Services.AddScoped<ShippingIntegrationService>();
 builder.Services.AddScoped<ReturnRequestService>();
 builder.Services.AddScoped<ICartIdentityService, CartIdentityService>();
 builder.Services.AddScoped<OrderConfirmationEmailService>();
@@ -351,6 +355,35 @@ app.UseAuthorization();
 app.MapStaticAssets();
 app.MapRazorPages()
    .WithStaticAssets();
+
+app.MapPost("/api/integrations/shipping/status", async (
+    [FromBody] ShippingStatusUpdate update,
+    [FromHeader(Name = "X-Shipping-Signature")] string? signature,
+    [FromHeader(Name = "X-Shipping-Provider")] string? providerHeader,
+    ShippingIntegrationService shippingIntegrationService,
+    IOptions<ShippingProvidersOptions> providerOptions) =>
+{
+    var providerCode = string.IsNullOrWhiteSpace(providerHeader) ? update.ProviderCode : providerHeader!;
+    var provider = providerOptions.Value?.Providers
+        .FirstOrDefault(p => p.Enabled && p.Code.Equals(providerCode, StringComparison.OrdinalIgnoreCase));
+
+    if (provider is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (!string.IsNullOrWhiteSpace(provider.WebhookSecret) &&
+        !string.Equals(provider.WebhookSecret, signature, StringComparison.Ordinal))
+    {
+        return Results.Unauthorized();
+    }
+
+    var normalizedUpdate = update with { ProviderCode = provider.Code };
+    var result = await shippingIntegrationService.ApplyStatusUpdateAsync(normalizedUpdate);
+    return result.IsSuccess
+        ? Results.Ok(new { status = result.SubOrderStatus })
+        : Results.BadRequest(new { error = result.Error });
+});
 
 if (app.Environment.IsDevelopment())
 {
