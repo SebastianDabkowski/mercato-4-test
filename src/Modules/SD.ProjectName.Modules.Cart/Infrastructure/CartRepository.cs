@@ -187,6 +187,16 @@ public class CartRepository : ICartRepository
             .FirstOrDefaultAsync(o => o.Id == sellerOrderId && o.SellerId == sellerId);
     }
 
+    public async Task<SellerOrderModel?> GetSellerOrderByIdAsync(int sellerOrderId)
+    {
+        return await _context.SellerOrders
+            .AsNoTracking()
+            .Include(o => o.Items)
+            .Include(o => o.ShippingSelection)
+            .Include(o => o.Order)
+            .FirstOrDefaultAsync(o => o.Id == sellerOrderId);
+    }
+
     public async Task<SellerOrdersResult> GetSellerOrdersAsync(string sellerId, SellerOrdersQuery query)
     {
         var normalizedPage = query.Page < 1 ? 1 : query.Page;

@@ -1,0 +1,195 @@
+@page "/seller/orders/{sellerOrderId:int}"
+@model SD.ProjectName.WebApp.Pages.Seller.Orders.DetailsModel
+@using SD.ProjectName.Modules.Cart.Domain
+@{
+    ViewData["Title"] = "Sub-order details";
+    var subOrder = Model.SellerOrder!;
+    var parentOrder = Model.ParentOrder;
+}
+
+<h1 class="mb-2 d-flex align-items-center gap-3">
+    <span>Sub-order #@subOrder.Id</span>
+    <span class="badge bg-secondary text-uppercase">@OrderStatusFlow.NormalizeStatus(subOrder.Status)</span>
+</h1>
+<div class="text-muted mb-4">
+    <span>Parent order #@parentOrder?.Id</span>
+    <span class="mx-2">•</span>
+    <span>Created @parentOrder?.CreatedAt.ToLocalTime().ToString("f")</span>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Line items</span>
+                <span class="badge bg-light text-dark">@subOrder.Items.Count item(s)</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table mb-0">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th class="text-end">Quantity</th>
+                                <th class="text-end">Unit price</th>
+                                <th class="text-end">Taxes</th>
+                                <th class="text-end">Line total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in subOrder.Items)
+                            {
+                                var lineTotal = item.UnitPrice * item.Quantity;
+                                <tr>
+                                    <td>@item.ProductName</td>
+                                    <td class="text-end">@item.Quantity</td>
+                                    <td class="text-end">@item.UnitPrice.ToString("C")</td>
+                                    <td class="text-end text-muted">Included</td>
+                                    <td class="text-end">@lineTotal.ToString("C")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-end p-3 border-top">
+                    <div style="min-width: 240px;">
+                        <div class="d-flex justify-content-between">
+                            <span>Items subtotal</span>
+                            <span>@subOrder.ItemsSubtotal.ToString("C")</span>
+                        </div>
+                        @if (subOrder.DiscountTotal > 0)
+                        {
+                            <div class="d-flex justify-content-between text-success">
+                                <span>Discount</span>
+                                <span>-@subOrder.DiscountTotal.ToString("C")</span>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between">
+                            <span>Shipping</span>
+                            <span>@subOrder.ShippingTotal.ToString("C")</span>
+                        </div>
+                        @if (subOrder.RefundedAmount > 0)
+                        {
+                            <div class="d-flex justify-content-between text-success">
+                                <span>Refunded amount</span>
+                                <span>@subOrder.RefundedAmount.ToString("C")</span>
+                            </div>
+                        }
+                        <div class="d-flex justify-content-between fw-bold mt-2">
+                            <span>Sub-order total</span>
+                            <span>@subOrder.TotalAmount.ToString("C")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Activity</div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex justify-content-between">
+                        <span>Created</span>
+                        <span>@parentOrder?.CreatedAt.ToLocalTime().ToString("g")</span>
+                    </li>
+                    <li class="d-flex justify-content-between">
+                        <span>Current status</span>
+                        <span class="text-capitalize">@OrderStatusFlow.NormalizeStatus(subOrder.Status)</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header">Payment & status</div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <span>Payment status</span>
+                    <span class="fw-semibold">@Model.PaymentStatus</span>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <span>Payment method</span>
+                    <span>@(parentOrder?.PaymentMethod ?? "Not specified")</span>
+                </div>
+                <div class="d-flex justify-content-between mt-2">
+                    <span>Parent order</span>
+                    <span>#@parentOrder?.Id</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Shipping</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="text-muted small">Method</div>
+                    <div>@(subOrder.ShippingSelection?.ShippingMethod ?? "Not selected")</div>
+                    <div class="text-muted small">Cost @subOrder.ShippingTotal.ToString("C")</div>
+                </div>
+                @if (subOrder.ShippingSelection?.EstimatedDeliveryDate is { } eta)
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Estimated delivery</div>
+                        <div>@eta.ToLocalTime().ToString("D")</div>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(subOrder.TrackingNumber))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Tracking</div>
+                        <div>@subOrder.TrackingNumber</div>
+                    </div>
+                }
+                <div class="mt-3">
+                    <div class="text-muted small">Delivery address</div>
+                    <div>@parentOrder?.DeliveryRecipientName</div>
+                    <div>@parentOrder?.DeliveryLine1</div>
+                    @if (!string.IsNullOrWhiteSpace(parentOrder?.DeliveryLine2))
+                    {
+                        <div>@parentOrder?.DeliveryLine2</div>
+                    }
+                    <div>@parentOrder?.DeliveryPostalCode @parentOrder?.DeliveryCity</div>
+                    <div>@parentOrder?.DeliveryRegion, @parentOrder?.DeliveryCountryCode</div>
+                    @if (!string.IsNullOrWhiteSpace(parentOrder?.DeliveryPhoneNumber))
+                    {
+                        <div class="mt-2">Phone: @parentOrder?.DeliveryPhoneNumber</div>
+                    }
+                </div>
+                <div class="mt-3">
+                    <div class="text-muted small">Delivery instructions</div>
+                    <div class="text-muted">Not provided.</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Buyer contact</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="text-muted small">Name</div>
+                    <div>@Model.BuyerName</div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.BuyerEmail))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Email</div>
+                        <div>@Model.BuyerEmail</div>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.BuyerPhone))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Phone</div>
+                        <div>@Model.BuyerPhone</div>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(parentOrder?.BuyerId))
+                {
+                    <div class="text-muted small">Buyer ID</div>
+                    <div class="text-muted">@parentOrder?.BuyerId</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
