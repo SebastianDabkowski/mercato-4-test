@@ -430,6 +430,11 @@ public class CartRepository : ICartRepository
         return await _context.PaymentSelections.FirstOrDefaultAsync(p => p.BuyerId == buyerId);
     }
 
+    public async Task<bool> HasEscrowEntriesAsync(int orderId)
+    {
+        return await _context.EscrowLedgerEntries.AnyAsync(e => e.OrderId == orderId);
+    }
+
     public async Task<PaymentSelectionModel?> GetPaymentSelectionByReferenceAsync(string providerReference)
     {
         return await _context.PaymentSelections.FirstOrDefaultAsync(p =>
@@ -455,6 +460,12 @@ public class CartRepository : ICartRepository
 
         await _context.SaveChangesAsync();
         return existing ?? selection;
+    }
+
+    public async Task AddEscrowEntriesAsync(List<EscrowLedgerEntry> entries)
+    {
+        _context.EscrowLedgerEntries.AddRange(entries);
+        await _context.SaveChangesAsync();
     }
 
     public async Task<PromoSelectionModel?> GetPromoSelectionAsync(string buyerId)
@@ -510,6 +521,16 @@ public class CartRepository : ICartRepository
 
         _context.PaymentSelections.Remove(existing);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task<List<EscrowLedgerEntry>> GetEscrowEntriesForOrderAsync(int orderId)
+    {
+        return await _context.EscrowLedgerEntries.Where(e => e.OrderId == orderId).ToListAsync();
+    }
+
+    public async Task<EscrowLedgerEntry?> GetEscrowEntryForSellerOrderAsync(int sellerOrderId)
+    {
+        return await _context.EscrowLedgerEntries.FirstOrDefaultAsync(e => e.SellerOrderId == sellerOrderId);
     }
 
     public async Task ClearCartItemsAsync(string buyerId)

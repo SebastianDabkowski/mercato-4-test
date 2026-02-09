@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Moq;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
@@ -21,10 +22,11 @@ public class BuyerOrderDetailsModelTests
         var identity = new Mock<ICartIdentityService>();
         identity.Setup(s => s.GetOrCreateBuyerId()).Returns("buyer-123");
 
+        var escrowService = new EscrowService(cartRepository.Object, TimeProvider.System, Options.Create(new EscrowOptions()));
         var model = new DetailsModel(
             identity.Object,
             cartRepository.Object,
-            new OrderStatusService(cartRepository.Object),
+            new OrderStatusService(cartRepository.Object, escrowService),
             new ReturnRequestService(cartRepository.Object, TimeProvider.System));
 
         var result = await model.OnGetAsync(1);

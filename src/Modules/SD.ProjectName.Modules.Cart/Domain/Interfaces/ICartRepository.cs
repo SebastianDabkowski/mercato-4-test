@@ -26,6 +26,10 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<PromoSelectionModel> UpsertPromoSelectionAsync(PromoSelectionModel selection);
         Task ClearPromoSelectionAsync(string buyerId);
         Task<PromoCodeModel?> GetPromoCodeAsync(string code);
+        Task<bool> HasEscrowEntriesAsync(int orderId);
+        Task AddEscrowEntriesAsync(List<EscrowLedgerEntry> entries);
+        Task<List<EscrowLedgerEntry>> GetEscrowEntriesForOrderAsync(int orderId);
+        Task<EscrowLedgerEntry?> GetEscrowEntryForSellerOrderAsync(int sellerOrderId);
       
         Task<CartItemModel> AddAsync(CartItemModel item);
         Task<CartModel> CreateAsync(string userId);

@@ -151,9 +151,11 @@ builder.Services.Configure<SecurityStampValidatorOptions>(options =>
     options.ValidationInterval = TimeSpan.FromMinutes(1);
 });
 
+builder.Services.Configure<EscrowOptions>(builder.Configuration.GetSection("Escrow"));
 builder.Services.AddTransient<IEmailSender, LoggingEmailSender>();
 builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, LoggingAuthorizationMiddlewareResultHandler>();
 builder.Services.AddScoped<ILoginEventLogger, LoginEventLogger>();
+builder.Services.AddScoped<EscrowService>();
 builder.Services.AddScoped<PaymentProcessingService>();
 
 var authenticationBuilder = builder.Services.AddAuthentication();
