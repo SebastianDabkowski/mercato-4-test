@@ -73,15 +73,19 @@ else
                         </td>
                         <td>@Model.GetCaseTypeLabel(request.RequestType)</td>
                         <td>@request.RequestedAt.ToLocalTime().ToString("g")</td>
-                        <td>
-                            <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">
-                                @Model.GetCaseStatusLabel(request.Status)
-                            </span>
-                        </td>
-                        <td>
-                            <a class="btn btn-link btn-sm" asp-page="/Seller/Cases/Details" asp-route-caseId="@request.Id">Review</a>
-                        </td>
-                    </tr>
+                    <td>
+                        <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">
+                            @Model.GetCaseStatusLabel(request.Status)
+                        </span>
+                        @if (request.SellerUnreadCount > 0)
+                        {
+                            <div class="text-info small mt-1">New message</div>
+                        }
+                    </td>
+                    <td>
+                        <a class="btn btn-link btn-sm" asp-page="/Seller/Cases/Details" asp-route-caseId="@request.Id">Review</a>
+                    </td>
+                </tr>
                 }
             </tbody>
         </table>

@@ -138,6 +138,7 @@ public class CartRepository : ICartRepository
                 .ThenInclude(i => i.OrderItem)
             .Include(r => r.SellerOrder)
             .Include(r => r.Order)
+            .Include(r => r.Messages)
             .FirstOrDefaultAsync(r => r.Id == requestId && r.BuyerId == buyerId);
     }
 
@@ -145,6 +146,11 @@ public class CartRepository : ICartRepository
     {
         return await _context.ReturnRequests
             .AsNoTracking()
+            .Include(r => r.Items)
+                .ThenInclude(i => i.OrderItem)
+            .Include(r => r.SellerOrder)
+                .ThenInclude(o => o!.Items)
+            .Include(r => r.Messages)
             .FirstOrDefaultAsync(r => r.Id == requestId);
     }
 
@@ -190,7 +196,7 @@ public class CartRepository : ICartRepository
                 .ThenInclude(o => o!.ShippingSelection)
             .Include(r => r.Items)
                 .ThenInclude(i => i.OrderItem)
-            .OrderByDescending(r => r.RequestedAt)
+            .OrderByDescending(r => r.UpdatedAt ?? r.RequestedAt)
             .Skip(skip)
             .Take(normalizedPageSize)
             .ToListAsync();
@@ -215,6 +221,7 @@ public class CartRepository : ICartRepository
             .Include(r => r.SellerOrder)
                 .ThenInclude(o => o!.ShippingSelection)
             .Include(r => r.Order)
+            .Include(r => r.Messages)
             .FirstOrDefaultAsync(r => r.Id == requestId && r.SellerOrder != null && r.SellerOrder.SellerId == sellerId);
     }
 
@@ -233,6 +240,102 @@ public class CartRepository : ICartRepository
         request.UpdatedAt = updatedAt;
         await _context.SaveChangesAsync();
         return request;
+    }
+
+    public async Task<ReturnRequestMessageModel?> AddBuyerReturnRequestMessageAsync(int requestId, string buyerId, string body, DateTimeOffset createdAt)
+    {
+        var request = await _context.ReturnRequests
+            .Include(r => r.Messages)
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.BuyerId == buyerId);
+
+        if (request is null)
+        {
+            return null;
+        }
+
+        var message = new ReturnRequestMessageModel
+        {
+            ReturnRequestId = requestId,
+            SenderRole = ReturnRequestMessageSender.Buyer,
+            SenderId = buyerId,
+            Body = body,
+            CreatedAt = createdAt
+        };
+
+        request.Messages.Add(message);
+        request.SellerUnreadCount += 1;
+        request.UpdatedAt = createdAt;
+
+        await _context.SaveChangesAsync();
+        return message;
+    }
+
+    public async Task<ReturnRequestMessageModel?> AddSellerReturnRequestMessageAsync(int requestId, string sellerId, string body, DateTimeOffset createdAt)
+    {
+        var request = await _context.ReturnRequests
+            .Include(r => r.Messages)
+            .Include(r => r.SellerOrder)
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.SellerOrder != null && r.SellerOrder.SellerId == sellerId);
+
+        if (request is null)
+        {
+            return null;
+        }
+
+        var message = new ReturnRequestMessageModel
+        {
+            ReturnRequestId = requestId,
+            SenderRole = ReturnRequestMessageSender.Seller,
+            SenderId = sellerId,
+            Body = body,
+            CreatedAt = createdAt
+        };
+
+        request.Messages.Add(message);
+        request.BuyerUnreadCount += 1;
+        request.UpdatedAt = createdAt;
+
+        await _context.SaveChangesAsync();
+        return message;
+    }
+
+    public async Task<bool> MarkBuyerMessagesReadAsync(int requestId, string buyerId)
+    {
+        var request = await _context.ReturnRequests
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.BuyerId == buyerId);
+
+        if (request is null)
+        {
+            return false;
+        }
+
+        if (request.BuyerUnreadCount > 0)
+        {
+            request.BuyerUnreadCount = 0;
+            await _context.SaveChangesAsync();
+        }
+
+        return true;
+    }
+
+    public async Task<bool> MarkSellerMessagesReadAsync(int requestId, string sellerId)
+    {
+        var request = await _context.ReturnRequests
+            .Include(r => r.SellerOrder)
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.SellerOrder != null && r.SellerOrder.SellerId == sellerId);
+
+        if (request is null)
+        {
+            return false;
+        }
+
+        if (request.SellerUnreadCount > 0)
+        {
+            request.SellerUnreadCount = 0;
+            await _context.SaveChangesAsync();
+        }
+
+        return true;
     }
 
     public async Task<OrderModel?> GetOrderAsync(int orderId, string buyerId)
