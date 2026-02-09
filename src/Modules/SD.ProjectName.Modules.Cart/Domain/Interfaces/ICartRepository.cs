@@ -29,6 +29,8 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<PromoCodeModel?> GetPromoCodeAsync(string code);
         Task<bool> HasEscrowEntriesAsync(int orderId);
         Task<List<EscrowLedgerEntry>> GetPayoutEligibleEscrowEntriesAsync(DateTimeOffset asOf);
+        Task<List<EscrowLedgerEntry>> GetCommissionableEscrowEntriesAsync(string sellerId, DateTimeOffset periodStart, DateTimeOffset periodEnd);
+        Task<List<EscrowLedgerEntry>> GetCommissionCorrectionsAsync(string sellerId, DateTimeOffset periodStart, DateTimeOffset periodEnd);
         Task AddEscrowEntriesAsync(List<EscrowLedgerEntry> entries);
         Task AddPayoutScheduleAsync(PayoutSchedule schedule);
         Task<PayoutSchedule?> GetPayoutScheduleAsync(int scheduleId);
@@ -38,6 +40,10 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<PayoutScheduleResult> GetPayoutSchedulesForSellerAsync(string sellerId, PayoutScheduleQuery query);
         Task<List<EscrowLedgerEntry>> GetEscrowEntriesForOrderAsync(int orderId);
         Task<EscrowLedgerEntry?> GetEscrowEntryForSellerOrderAsync(int sellerOrderId);
+        Task<CommissionInvoice?> GetCommissionInvoiceAsync(int invoiceId, string sellerId);
+        Task<CommissionInvoice?> GetCommissionInvoiceForPeriodAsync(string sellerId, DateTimeOffset periodStart, DateTimeOffset periodEnd);
+        Task<CommissionInvoiceResult> GetCommissionInvoicesAsync(string sellerId, CommissionInvoiceQuery query);
+        Task AddCommissionInvoiceAsync(CommissionInvoice invoice);
       
         Task<CartItemModel> AddAsync(CartItemModel item);
         Task<CartModel> CreateAsync(string userId);

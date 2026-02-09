@@ -1,0 +1,98 @@
+@page "/seller/invoices"
+@model SD.ProjectName.WebApp.Pages.Seller.Invoices.IndexModel
+@{
+    ViewData["Title"] = "Commission invoices";
+}
+
+<h1 class="mb-3" data-testid="invoice-history-heading">Commission invoices</h1>
+<p class="text-muted">Download monthly commission invoices and credit notes for your records.</p>
+
+<form method="get" class="row g-3 mb-3">
+    <div class="col-md-3">
+        <label asp-for="PeriodFrom" class="form-label">Period from</label>
+        <input asp-for="PeriodFrom" type="date" class="form-control" data-testid="filter-from" />
+    </div>
+    <div class="col-md-3">
+        <label asp-for="PeriodTo" class="form-label">Period to</label>
+        <input asp-for="PeriodTo" type="date" class="form-control" data-testid="filter-to" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Status</label>
+        <select asp-for="Statuses" class="form-select" multiple data-testid="filter-status">
+            @foreach (var status in Model.StatusOptions)
+            {
+                var isSelected = Model.Statuses.Any(s => string.Equals(s, status, StringComparison.OrdinalIgnoreCase));
+                <option value="@status" selected="@(isSelected)">@Model.StatusLabel(status)</option>
+            }
+        </select>
+        <div class="form-text">Hold Ctrl/Cmd to select multiple statuses.</div>
+    </div>
+    <div class="col-md-2 d-flex align-items-end gap-2">
+        <div class="form-check">
+            <input asp-for="IncludeCreditNotes" class="form-check-input" type="checkbox" id="includeCredits" />
+            <label class="form-check-label" for="includeCredits">Include credit notes</label>
+        </div>
+    </div>
+    <div class="col-md-1 d-flex align-items-end gap-2">
+        <button type="submit" class="btn btn-primary w-100" data-testid="apply-filters">Apply</button>
+    </div>
+</form>
+
+@if (!Model.Invoices.Any())
+{
+    <div class="alert alert-info" data-testid="invoice-empty">
+        No commission invoices found for the selected filters.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle" data-testid="invoice-table">
+            <thead>
+                <tr>
+                    <th scope="col">Number</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Period</th>
+                    <th scope="col">Total</th>
+                    <th scope="col"></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var invoice in Model.Invoices)
+            {
+                <tr data-testid="invoice-row">
+                    <td>@invoice.Number</td>
+                    <td>
+                        <span class="badge @(invoice.IsCreditNote ? "bg-warning text-dark" : "bg-secondary")">
+                            @Model.InvoiceType(invoice)
+                        </span>
+                    </td>
+                    <td>@Model.StatusLabel(invoice.Status)</td>
+                    <td>@invoice.PeriodStart.ToString("yyyy-MM-dd") – @invoice.PeriodEnd.ToString("yyyy-MM-dd")</td>
+                    <td>@invoice.TotalAmount.ToString("C")</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-secondary" asp-page="/Seller/Invoices/Download" asp-route-invoiceId="@invoice.Id" data-testid="invoice-download">Download PDF</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="Invoice pagination" class="d-flex justify-content-between align-items-center">
+        <div class="text-muted small">Page @Model.Page of @Model.TotalPages (@Model.TotalCount total)</div>
+        <div class="btn-group" role="group">
+            <a class="btn btn-outline-secondary @(Model.HasPreviousPage ? string.Empty : "disabled")"
+               href="@(Model.HasPreviousPage ? Model.BuildPageUrl(Model.Page - 1) : "#")"
+               aria-disabled="@(Model.HasPreviousPage ? "false" : "true")">
+                Previous
+            </a>
+            <a class="btn btn-outline-secondary @(Model.HasNextPage ? string.Empty : "disabled")"
+               href="@(Model.HasNextPage ? Model.BuildPageUrl(Model.Page + 1) : "#")"
+               aria-disabled="@(Model.HasNextPage ? "false" : "true")">
+                Next
+            </a>
+        </div>
+    </nav>
+}
