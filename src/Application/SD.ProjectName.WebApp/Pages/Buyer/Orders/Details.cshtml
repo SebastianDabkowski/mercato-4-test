@@ -67,14 +67,25 @@
                             (<span class="text-muted">@sub.ShippingTotal.ToString("C")</span>)
                             @if (!string.IsNullOrWhiteSpace(sub.TrackingNumber))
                             {
-                                var trackingNumber = sub.TrackingNumber;
-                                if (Uri.TryCreate(trackingNumber, UriKind.Absolute, out var trackingUri))
+                                var trackingLabel = $"Tracking: {sub.TrackingNumber}";
+                                var trackingUrl = !string.IsNullOrWhiteSpace(sub.TrackingUrl)
+                                    ? sub.TrackingUrl
+                                    : (Uri.TryCreate(sub.TrackingNumber, UriKind.Absolute, out var trackingUri) ? trackingUri.ToString() : null);
+                                if (!string.IsNullOrWhiteSpace(trackingUrl))
                                 {
-                                    <a class="badge bg-light text-dark ms-2" href="@trackingUri" target="_blank" rel="noopener noreferrer">Tracking: @trackingNumber</a>
+                                    <a class="badge bg-light text-dark ms-2" href="@trackingUrl" target="_blank" rel="noopener noreferrer">@trackingLabel</a>
                                 }
                                 else
                                 {
-                                    <span class="badge bg-light text-dark ms-2" data-testid="tracking-number">Tracking: @trackingNumber</span>
+                                    <span class="badge bg-light text-dark ms-2" data-testid="tracking-number">@trackingLabel</span>
+                                }
+                                if (!string.IsNullOrWhiteSpace(sub.TrackingCarrier))
+                                {
+                                    <span class="badge bg-light text-dark ms-2">Carrier: @sub.TrackingCarrier</span>
+                                }
+                                if (string.IsNullOrWhiteSpace(trackingUrl))
+                                {
+                                    <span class="text-muted small ms-2">Track on the carrier site with this number.</span>
                                 }
                             }
                         </p>

@@ -31,6 +31,8 @@ public class OrderStatusService
         string sellerId,
         string targetStatus,
         string? trackingNumber = null,
+        string? trackingCarrier = null,
+        string? trackingUrl = null,
         decimal? refundAmount = null)
     {
         var sellerOrder = await _cartRepository.GetSellerOrderAsync(sellerOrderId, sellerId);
@@ -54,7 +56,7 @@ public class OrderStatusService
                 overrideReturnRules: true);
         }
 
-        ApplyStatusChange(sellerOrder, targetStatus, trackingNumber, refundAmount);
+        ApplyStatusChange(sellerOrder, targetStatus, trackingNumber, trackingCarrier, trackingUrl, refundAmount);
         var refundOverride = string.Equals(targetStatus, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase)
             ? refundAmount
             : null;
@@ -83,7 +85,9 @@ public class OrderStatusService
         string sellerId,
         IReadOnlyCollection<int>? shippedItemIds,
         IReadOnlyCollection<int>? cancelledItemIds,
-        string? trackingNumber = null)
+        string? trackingNumber = null,
+        string? trackingCarrier = null,
+        string? trackingUrl = null)
     {
         var sellerOrder = await _cartRepository.GetSellerOrderAsync(sellerOrderId, sellerId);
         if (sellerOrder is null)
@@ -135,6 +139,14 @@ public class OrderStatusService
         {
             sellerOrder.TrackingNumber = trackingNumber.Trim();
         }
+        if (!string.IsNullOrWhiteSpace(trackingCarrier))
+        {
+            sellerOrder.TrackingCarrier = trackingCarrier.Trim();
+        }
+        if (!string.IsNullOrWhiteSpace(trackingUrl))
+        {
+            sellerOrder.TrackingUrl = trackingUrl.Trim();
+        }
 
         RecalculateSellerOrderFromItems(sellerOrder);
         RollupOrderStatus(sellerOrder.Order);
@@ -176,6 +188,8 @@ public class OrderStatusService
             }
 
             sub.TrackingNumber = null;
+            sub.TrackingCarrier = null;
+            sub.TrackingUrl = null;
             foreach (var item in sub.Items)
             {
                 TryUpdateItemStatus(item, OrderStatus.Cancelled);
@@ -306,14 +320,27 @@ public class OrderStatusService
         SellerOrderModel sellerOrder,
         string targetStatus,
         string? trackingNumber,
+        string? trackingCarrier,
+        string? trackingUrl,
         decimal? refundAmount)
     {
+        if (!string.IsNullOrWhiteSpace(trackingNumber))
+        {
+            sellerOrder.TrackingNumber = trackingNumber.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(trackingCarrier))
+        {
+            sellerOrder.TrackingCarrier = trackingCarrier.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(trackingUrl))
+        {
+            sellerOrder.TrackingUrl = trackingUrl.Trim();
+        }
+
         if (string.Equals(targetStatus, OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase))
         {
-            sellerOrder.TrackingNumber = string.IsNullOrWhiteSpace(trackingNumber)
-                ? sellerOrder.TrackingNumber
-                : trackingNumber.Trim();
-
             foreach (var item in sellerOrder.Items)
             {
                 TryUpdateItemStatus(item, OrderStatus.Shipped);
@@ -328,6 +355,8 @@ public class OrderStatusService
         if (string.Equals(targetStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
             sellerOrder.TrackingNumber = null;
+            sellerOrder.TrackingCarrier = null;
+            sellerOrder.TrackingUrl = null;
             foreach (var item in sellerOrder.Items)
             {
                 TryUpdateItemStatus(item, OrderStatus.Cancelled);
@@ -386,6 +415,8 @@ public class OrderStatusService
         {
             sellerOrder.Status = OrderStatus.Cancelled;
             sellerOrder.TrackingNumber = null;
+            sellerOrder.TrackingCarrier = null;
+            sellerOrder.TrackingUrl = null;
             sellerOrder.DeliveredAt = null;
         }
         else if (allDelivered)
@@ -495,6 +526,8 @@ public class OrderStatusService
         {
             sellerOrder.Status = OrderStatus.Refunded;
             sellerOrder.TrackingNumber = null;
+            sellerOrder.TrackingCarrier = null;
+            sellerOrder.TrackingUrl = null;
         }
 
         _commissionService.RecalculateAfterRefund(sellerOrder);
