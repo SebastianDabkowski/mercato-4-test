@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -16,21 +17,25 @@ public class DetailsModel : PageModel
     private readonly ICartIdentityService _cartIdentityService;
     private readonly ICartRepository _cartRepository;
     private readonly OrderStatusService _orderStatusService;
+    private readonly ReturnRequestService _returnRequestService;
 
     public DetailsModel(
         ICartIdentityService cartIdentityService,
         ICartRepository cartRepository,
-        OrderStatusService orderStatusService)
+        OrderStatusService orderStatusService,
+        ReturnRequestService returnRequestService)
     {
         _cartIdentityService = cartIdentityService;
         _cartRepository = cartRepository;
         _orderStatusService = orderStatusService;
+        _returnRequestService = returnRequestService;
     }
 
     public OrderModel? Order { get; private set; }
     public string EstimatedDeliveryText { get; private set; } = string.Empty;
     public string OverallStatus { get; private set; } = string.Empty;
     public bool CanCancel { get; private set; }
+    public Dictionary<int, ReturnRequestInfo> ReturnInfo { get; } = new();
 
     public async Task<IActionResult> OnGetAsync(int orderId)
     {
@@ -54,6 +59,15 @@ public class DetailsModel : PageModel
                     !string.Equals(OverallStatus, OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(OverallStatus, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase);
         EstimatedDeliveryText = ResolveEstimatedDelivery(Order);
+        foreach (var subOrder in Order.SubOrders)
+        {
+            var eligibility = _returnRequestService.EvaluateEligibility(Order, subOrder);
+            var latest = subOrder.ReturnRequests
+                .OrderByDescending(r => r.RequestedAt)
+                .FirstOrDefault();
+            ReturnInfo[subOrder.Id] = new ReturnRequestInfo(eligibility, latest);
+        }
+
         return Page();
     }
 
@@ -89,6 +103,28 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { orderId });
     }
 
+    public async Task<IActionResult> OnPostRequestReturnAsync(int orderId, int subOrderId, List<int>? itemIds, string reason)
+    {
+        var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+        var result = await _returnRequestService.CreateAsync(
+            orderId,
+            subOrderId,
+            buyerId,
+            itemIds ?? new List<int>(),
+            reason ?? string.Empty);
+
+        if (!result.IsSuccess)
+        {
+            TempData["OrderError"] = result.Error;
+        }
+        else
+        {
+            TempData["OrderSuccess"] = "Return request submitted.";
+        }
+
+        return RedirectToPage(new { orderId });
+    }
+
     private static string ResolveEstimatedDelivery(OrderModel order)
     {
         var estimated = order.ShippingSelections
@@ -98,4 +134,6 @@ public class DetailsModel : PageModel
 
         return estimated?.EstimatedDeliveryDate?.ToLocalTime().ToString("D") ?? "Not available";
     }
+
+    public record ReturnRequestInfo(ReturnEligibility Eligibility, ReturnRequestModel? LatestRequest);
 }

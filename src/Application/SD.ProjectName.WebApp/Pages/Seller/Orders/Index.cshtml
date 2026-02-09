@@ -98,7 +98,18 @@ else
                             }
                         </td>
                         <td>@order.Order?.CreatedAt.ToLocalTime().ToString("g")</td>
-                        <td class="text-capitalize">@OrderStatusFlow.NormalizeStatus(order.Status)</td>
+                        <td class="text-capitalize">
+                            @OrderStatusFlow.NormalizeStatus(order.Status)
+                            @{
+                                var latestReturn = order.ReturnRequests
+                                    .OrderByDescending(r => r.RequestedAt)
+                                    .FirstOrDefault();
+                            }
+                            @if (latestReturn is not null)
+                            {
+                                <div class="badge bg-warning text-dark mt-1">Return @latestReturn.Status</div>
+                            }
+                        </td>
                         <td>
                             @(order.ShippingSelection?.ShippingMethod ?? "Not selected")
                             <div class="text-muted small">@order.ShippingTotal.ToString("C")</div>

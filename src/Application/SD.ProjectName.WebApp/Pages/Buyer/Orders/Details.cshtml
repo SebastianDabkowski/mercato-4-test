@@ -1,6 +1,7 @@
 @page "/buyer/orders/{orderId:int}"
 @model SD.ProjectName.WebApp.Pages.Buyer.Orders.DetailsModel
 @using System
+@using SD.ProjectName.Modules.Cart.Application
 @using SD.ProjectName.Modules.Cart.Domain
 @{
     ViewData["Title"] = "Order confirmation";
@@ -26,8 +27,10 @@
         @if (order.SubOrders.Any())
         {
             <div class="alert alert-info">Each seller may ship separately, so statuses and delivery dates can differ.</div>
-            foreach (var sub in order.SubOrders)
+            @foreach (var sub in order.SubOrders)
             {
+                Model.ReturnInfo.TryGetValue(sub.Id, out var returnInfo);
+                returnInfo ??= new SD.ProjectName.WebApp.Pages.Buyer.Orders.DetailsModel.ReturnRequestInfo(ReturnEligibility.NotAllowed("Return request is not available."), null);
                 <div class="card mb-3">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span>Seller: @(string.IsNullOrWhiteSpace(sub.SellerName) ? sub.SellerId : sub.SellerName)</span>
@@ -119,6 +122,49 @@
                                 <input type="hidden" name="subOrderId" value="@sub.Id" />
                                 <button type="submit" class="btn btn-outline-success btn-sm">Confirm delivery</button>
                             </form>
+                        }
+                        @if (returnInfo.LatestRequest is not null)
+                        {
+                            <div class="alert alert-warning mt-3" data-testid="return-status">
+                                <div class="fw-semibold text-uppercase">Return @returnInfo.LatestRequest.Status</div>
+                                <div class="small text-muted">Submitted @returnInfo.LatestRequest.RequestedAt.ToLocalTime().ToString("g")</div>
+                                <div class="mb-0">@returnInfo.LatestRequest.Reason</div>
+                            </div>
+                        }
+                        else if (returnInfo.Eligibility.IsAllowed)
+                        {
+                            <div class="mt-3 border rounded p-3 bg-light">
+                                <div class="fw-semibold mb-2">Request a return</div>
+                                <form method="post" asp-page-handler="RequestReturn">
+                                    <input type="hidden" name="orderId" value="@order.Id" />
+                                    <input type="hidden" name="subOrderId" value="@sub.Id" />
+                                    <div class="mb-3">
+                                        <div class="text-muted small mb-2">Select items to return. Leave all selected to return the full sub-order.</div>
+                                        @foreach (var item in sub.Items)
+                                        {
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="itemIds" value="@item.Id" id="return-item-@item.Id-@sub.Id" checked />
+                                                <label class="form-check-label" for="return-item-@item.Id-@sub.Id">
+                                                    @item.ProductName (@item.Quantity x @item.UnitPrice.ToString("C"))
+                                                </label>
+                                            </div>
+                                        }
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label" for="reason-@sub.Id">Reason</label>
+                                        <textarea id="reason-@sub.Id" name="reason" class="form-control" rows="3" required></textarea>
+                                    </div>
+                                    <button type="submit" class="btn btn-outline-primary btn-sm">Submit return request</button>
+                                    @if (returnInfo.Eligibility.Deadline.HasValue)
+                                    {
+                                        <div class="text-muted small mt-2">Return window ends @returnInfo.Eligibility.Deadline.Value.ToLocalTime().ToString("D").</div>
+                                    }
+                                </form>
+                            </div>
+                        }
+                        else if (!string.IsNullOrWhiteSpace(returnInfo.Eligibility.Message))
+                        {
+                            <div class="text-muted small mt-3">@returnInfo.Eligibility.Message</div>
                         }
                     </div>
                 </div>

@@ -96,6 +96,14 @@
                         <span>Current status</span>
                         <span class="text-capitalize">@OrderStatusFlow.NormalizeStatus(subOrder.Status)</span>
                     </li>
+                    @if (subOrder.ReturnRequests.Any())
+                    {
+                        var latestReturn = subOrder.ReturnRequests.OrderByDescending(r => r.RequestedAt).First();
+                        <li class="d-flex justify-content-between">
+                            <span>Return status</span>
+                            <span class="text-warning text-capitalize">Return @latestReturn.Status</span>
+                        </li>
+                    }
                 </ul>
             </div>
         </div>

@@ -68,8 +68,10 @@ public class SellerOrderModel
     public decimal RefundedAmount { get; set; }
     public string Status { get; set; } = OrderStatus.New;
     public string? TrackingNumber { get; set; }
+    public DateTimeOffset? DeliveredAt { get; set; }
     public OrderShippingSelectionModel? ShippingSelection { get; set; }
     public List<OrderItemModel> Items { get; set; } = new();
+    public List<ReturnRequestModel> ReturnRequests { get; set; } = new();
 }
 
 public static class OrderStatus
