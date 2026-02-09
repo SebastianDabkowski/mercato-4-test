@@ -1,5 +1,6 @@
 @page "/buyer/orders"
 @model SD.ProjectName.WebApp.Pages.Buyer.Orders.IndexModel
+@using SD.ProjectName.Modules.Cart.Domain
 @{
     ViewData["Title"] = "Order history";
 }
@@ -29,7 +30,7 @@ else
                     <tr>
                         <td>#@order.Id</td>
                         <td>@order.CreatedAt.ToLocalTime().ToString("g")</td>
-                        <td class="text-capitalize">@order.Status</td>
+                        <td class="text-capitalize">@OrderStatusFlow.NormalizeStatus(order.Status)</td>
                         <td>@order.TotalAmount.ToString("C")</td>
                         <td>
                             <a class="btn btn-link btn-sm" asp-page="/Buyer/Orders/Details" asp-route-orderId="@order.Id">View</a>

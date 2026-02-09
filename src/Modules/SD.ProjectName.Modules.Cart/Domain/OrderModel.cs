@@ -17,8 +17,9 @@ public class OrderModel
     public decimal ShippingTotal { get; set; }
     public decimal DiscountTotal { get; set; }
     public decimal TotalAmount { get; set; }
+    public decimal RefundedAmount { get; set; }
     public string? PromoCode { get; set; }
-    public string Status { get; set; } = OrderStatus.Pending;
+    public string Status { get; set; } = OrderStatus.New;
     public DateTimeOffset CreatedAt { get; set; }
     public List<OrderShippingSelectionModel> ShippingSelections { get; set; } = new();
     public List<OrderItemModel> Items { get; set; } = new();
@@ -64,7 +65,9 @@ public class SellerOrderModel
     public decimal ShippingTotal { get; set; }
     public decimal DiscountTotal { get; set; }
     public decimal TotalAmount { get; set; }
-    public string Status { get; set; } = OrderStatus.Pending;
+    public decimal RefundedAmount { get; set; }
+    public string Status { get; set; } = OrderStatus.New;
+    public string? TrackingNumber { get; set; }
     public OrderShippingSelectionModel? ShippingSelection { get; set; }
     public List<OrderItemModel> Items { get; set; } = new();
 }
@@ -73,4 +76,11 @@ public static class OrderStatus
 {
     public const string Pending = "pending";
     public const string Confirmed = "confirmed";
+    public const string New = "new";
+    public const string Paid = "paid";
+    public const string Preparing = "preparing";
+    public const string Shipped = "shipped";
+    public const string Delivered = "delivered";
+    public const string Cancelled = "cancelled";
+    public const string Refunded = "refunded";
 }

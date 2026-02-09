@@ -266,6 +266,7 @@ builder.Services.AddScoped<IProductAvailabilityService, ProductAvailabilityServi
 builder.Services.AddScoped<IProductSnapshotService, ProductSnapshotService>();
 builder.Services.AddScoped<ICheckoutValidationService, CheckoutValidationService>();
 builder.Services.AddScoped<PlaceOrder>();
+builder.Services.AddScoped<OrderStatusService>();
 builder.Services.AddScoped<ICartIdentityService, CartIdentityService>();
 builder.Services.AddScoped<OrderConfirmationEmailService>();
 

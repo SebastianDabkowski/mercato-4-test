@@ -1,15 +1,23 @@
 @page "/buyer/orders/{orderId:int}"
 @model SD.ProjectName.WebApp.Pages.Buyer.Orders.DetailsModel
+@using SD.ProjectName.Modules.Cart.Domain
 @{
     ViewData["Title"] = "Order confirmation";
     var order = Model.Order!;
 }
 
-<h1 class="mb-3" data-testid="order-confirmation">Order #@order.Id</h1>
+<h1 class="mb-3 d-flex align-items-center gap-3" data-testid="order-confirmation">
+    <span>Order #@order.Id</span>
+    <span class="badge bg-secondary text-uppercase">@Model.OverallStatus</span>
+</h1>
 
 @if (TempData["OrderSuccess"] is string orderSuccess)
 {
     <div class="alert alert-success">@orderSuccess</div>
+}
+@if (TempData["OrderError"] is string orderError)
+{
+    <div class="alert alert-danger">@orderError</div>
 }
 
 <div class="row">
@@ -21,13 +29,17 @@
                 <div class="card mb-3">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <span>Seller: @(string.IsNullOrWhiteSpace(sub.SellerName) ? sub.SellerId : sub.SellerName)</span>
-                        <span class="badge bg-secondary text-uppercase">@sub.Status</span>
+                        <span class="badge bg-secondary text-uppercase">@OrderStatusFlow.NormalizeStatus(sub.Status)</span>
                     </div>
                     <div class="card-body">
                         <p class="mb-2">
                             <strong>Shipping:</strong>
                             @(sub.ShippingSelection?.ShippingMethod ?? "Not selected")
                             (<span class="text-muted">@sub.ShippingTotal.ToString("C")</span>)
+                            @if (!string.IsNullOrWhiteSpace(sub.TrackingNumber))
+                            {
+                                <span class="badge bg-light text-dark ms-2">Tracking: @sub.TrackingNumber</span>
+                            }
                         </p>
                         <div class="table-responsive">
                             <table class="table mb-0">
@@ -69,23 +81,38 @@
                                     <span>Shipping</span>
                                     <span>@sub.ShippingTotal.ToString("C")</span>
                                 </div>
+                                @if (sub.RefundedAmount > 0)
+                                {
+                                    <div class="d-flex justify-content-between text-success">
+                                        <span>Refunded</span>
+                                        <span>@sub.RefundedAmount.ToString("C")</span>
+                                    </div>
+                                }
                                 <div class="d-flex justify-content-between fw-bold mt-2">
                                     <span>Sub-order total</span>
                                     <span>@sub.TotalAmount.ToString("C")</span>
                                 </div>
                             </div>
                         </div>
+                        @if (sub.Status == OrderStatus.Shipped)
+                        {
+                            <form method="post" asp-page-handler="MarkDelivered" class="mt-3">
+                                <input type="hidden" name="orderId" value="@order.Id" />
+                                <input type="hidden" name="subOrderId" value="@sub.Id" />
+                                <button type="submit" class="btn btn-outline-success btn-sm">Confirm delivery</button>
+                            </form>
+                        }
                     </div>
                 </div>
             }
         }
         else
         {
-            <div class="card mb-3">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span>Items ordered</span>
-                    <span class="badge bg-secondary text-uppercase">@order.Status</span>
-                </div>
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span>Items ordered</span>
+                        <span class="badge bg-secondary text-uppercase">@Model.OverallStatus</span>
+                    </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
                         <table class="table mb-0">
@@ -167,11 +194,27 @@
                     <span>Shipping</span>
                     <span>@order.ShippingTotal.ToString("C")</span>
                 </div>
+                @if (order.RefundedAmount > 0)
+                {
+                    <div class="d-flex justify-content-between text-success">
+                        <span>Refunded</span>
+                        <span>@order.RefundedAmount.ToString("C")</span>
+                    </div>
+                }
                 <div class="d-flex justify-content-between fw-bold mt-2">
                     <span>Total</span>
                     <span>@order.TotalAmount.ToString("C")</span>
                 </div>
             </div>
+            @if (Model.CanCancel)
+            {
+                <div class="card-footer bg-transparent">
+                    <form method="post" asp-page-handler="Cancel">
+                        <input type="hidden" name="orderId" value="@order.Id" />
+                        <button type="submit" class="btn btn-outline-danger w-100">Cancel order</button>
+                    </form>
+                </div>
+            }
         </div>
 
         <div class="card">

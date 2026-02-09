@@ -128,6 +128,7 @@ public class CartDbContext : DbContext
             entity.HasIndex(o => o.BuyerId);
             entity.Property(o => o.PaymentMethod).HasMaxLength(100);
             entity.Property(o => o.Status).HasMaxLength(50);
+            entity.Property(o => o.RefundedAmount);
             entity.Property(o => o.DeliveryRecipientName).HasMaxLength(200);
             entity.Property(o => o.DeliveryLine1).HasMaxLength(300);
             entity.Property(o => o.DeliveryLine2).HasMaxLength(300);
@@ -188,6 +189,8 @@ public class CartDbContext : DbContext
             entity.Property(o => o.SellerId).HasMaxLength(100);
             entity.Property(o => o.SellerName).HasMaxLength(200);
             entity.Property(o => o.Status).HasMaxLength(50);
+            entity.Property(o => o.TrackingNumber).HasMaxLength(200);
+            entity.Property(o => o.RefundedAmount);
             entity
                 .HasOne(o => o.Order)
                 .WithMany(o => o.SubOrders)

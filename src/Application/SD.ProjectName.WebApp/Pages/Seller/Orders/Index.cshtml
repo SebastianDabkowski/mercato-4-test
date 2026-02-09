@@ -1,10 +1,21 @@
 @page "/seller/orders"
 @model SD.ProjectName.WebApp.Pages.Seller.Orders.IndexModel
+@using SD.ProjectName.Modules.Cart.Domain
 @{
     ViewData["Title"] = "Seller orders";
 }
 
 <h1 class="mb-3">Orders</h1>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success">@Model.StatusMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
 
 @if (!Model.Orders.Any())
 {
@@ -21,6 +32,7 @@ else
                     <th>Status</th>
                     <th>Shipping</th>
                     <th class="text-end">Total</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -32,15 +44,51 @@ else
                             <div class="text-muted small">Sub-order #@order.Id</div>
                         </td>
                         <td>@order.Order?.CreatedAt.ToLocalTime().ToString("g")</td>
-                        <td class="text-capitalize">@order.Status</td>
+                        <td class="text-capitalize">@OrderStatusFlow.NormalizeStatus(order.Status)</td>
                         <td>
                             @(order.ShippingSelection?.ShippingMethod ?? "Not selected")
                             <div class="text-muted small">@order.ShippingTotal.ToString("C")</div>
+                            @if (!string.IsNullOrWhiteSpace(order.TrackingNumber))
+                            {
+                                <div class="small mt-1">Tracking: @order.TrackingNumber</div>
+                            }
                         </td>
-                        <td class="text-end">@order.TotalAmount.ToString("C")</td>
+                        <td class="text-end">
+                            @order.TotalAmount.ToString("C")
+                            @if (order.RefundedAmount > 0)
+                            {
+                                <div class="text-success small">Refunded @order.RefundedAmount.ToString("C")</div>
+                            }
+                        </td>
+                        <td>
+                            @{
+                                var nextStatuses = OrderStatusFlow.NextStatuses(order.Status);
+                            }
+                            @if (nextStatuses.Any())
+                            {
+                                <form method="post" asp-page-handler="UpdateStatus" class="d-flex gap-2 align-items-center">
+                                    <input type="hidden" name="sellerOrderId" value="@order.Id" />
+                                    <select name="status" class="form-select form-select-sm w-auto">
+                                        @foreach (var status in nextStatuses)
+                                        {
+                                            <option value="@status">@status</option>
+                                        }
+                                    </select>
+                                    @if (nextStatuses.Contains(OrderStatus.Shipped))
+                                    {
+                                        <input type="text" name="trackingNumber" class="form-control form-control-sm" placeholder="Tracking (optional)" />
+                                    }
+                                    <button type="submit" class="btn btn-sm btn-primary">Update</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="text-muted small">No actions</span>
+                            }
+                        </td>
                     </tr>
                     <tr>
-                        <td colspan="5" class="pb-3">
+                        <td colspan="6" class="pb-3">
                             <div class="px-2">
                                 <div class="fw-semibold mb-2">Items</div>
                                 <ul class="list-unstyled mb-0">
