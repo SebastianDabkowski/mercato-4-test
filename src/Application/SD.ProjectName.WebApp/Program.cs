@@ -282,6 +282,7 @@ builder.Services.AddScoped<OrderStatusService>();
 builder.Services.AddScoped<ReturnRequestService>();
 builder.Services.AddScoped<ICartIdentityService, CartIdentityService>();
 builder.Services.AddScoped<OrderConfirmationEmailService>();
+builder.Services.AddScoped<ShippingNotificationEmailService>();
 
 builder.Services.AddRazorPages(options =>
 {

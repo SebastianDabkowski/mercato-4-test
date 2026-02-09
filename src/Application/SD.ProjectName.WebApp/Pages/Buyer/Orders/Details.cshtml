@@ -53,6 +53,12 @@
                         }
                     </div>
                     <div class="card-body">
+                        @if (string.Equals(sub.Status, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="alert alert-success small mb-3">
+                                Delivered@(sub.DeliveredAt.HasValue ? $" on {sub.DeliveredAt.Value.ToLocalTime().ToString("g")}" : string.Empty).
+                            </div>
+                        }
                         @if (string.Equals(sub.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
                         {
                             <div class="text-warning small mb-2">This sub-order was cancelled; items below will not be shipped (value: @sub.TotalAmount.ToString("C")).</div>

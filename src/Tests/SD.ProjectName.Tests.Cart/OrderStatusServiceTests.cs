@@ -63,6 +63,27 @@ public class OrderStatusServiceTests
     }
 
     [Fact]
+    public async Task UpdateSellerOrderStatusAsync_AddsShippingHistoryEntry()
+    {
+        var repo = CreateRepository(nameof(UpdateSellerOrderStatusAsync_AddsShippingHistoryEntry));
+        var order = await SeedOrderAsync(repo, OrderStatus.Preparing);
+        var service = CreateService(repo);
+
+        await service.UpdateSellerOrderStatusAsync(
+            order.SubOrders[0].Id,
+            order.SubOrders[0].SellerId,
+            OrderStatus.Shipped,
+            trackingNumber: "TRACK-HISTORY");
+
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        var latest = updated!.ShippingHistory.OrderBy(h => h.ChangedAt).Last();
+        Assert.Equal(OrderStatus.Shipped, OrderStatusFlow.NormalizeStatus(latest.Status));
+        Assert.Equal(order.SubOrders[0].SellerId, latest.ChangedBy);
+        Assert.Equal("seller", latest.ChangedByRole);
+        Assert.Equal("TRACK-HISTORY", latest.TrackingNumber);
+    }
+
+    [Fact]
     public async Task UpdateSellerOrderStatusAsync_AllowsTrackingUpdateWithoutStatusChange()
     {
         var repo = CreateRepository(nameof(UpdateSellerOrderStatusAsync_AllowsTrackingUpdateWithoutStatusChange));
@@ -214,6 +235,21 @@ public class OrderStatusServiceTests
         var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
         Assert.All(updated!.Items, i => Assert.Equal(OrderStatus.Delivered, i.Status));
         Assert.Equal(OrderStatus.Delivered, updated.Status);
+    }
+
+    [Fact]
+    public async Task MarkSubOrderDeliveredAsync_RecordsHistory()
+    {
+        var repo = CreateRepository(nameof(MarkSubOrderDeliveredAsync_RecordsHistory));
+        var order = await SeedOrderAsync(repo, OrderStatus.Shipped);
+        var service = CreateService(repo);
+
+        await service.MarkSubOrderDeliveredAsync(order.Id, order.SubOrders[0].Id, order.BuyerId);
+
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        Assert.Contains(updated!.ShippingHistory, h =>
+            OrderStatusFlow.NormalizeStatus(h.Status) == OrderStatus.Delivered &&
+            h.ChangedBy == order.BuyerId);
     }
 
     [Fact]

@@ -81,6 +81,7 @@ public class SellerOrderModel
     public OrderShippingSelectionModel? ShippingSelection { get; set; }
     public List<OrderItemModel> Items { get; set; } = new();
     public List<ReturnRequestModel> ReturnRequests { get; set; } = new();
+    public List<ShippingStatusHistory> ShippingHistory { get; set; } = new();
 }
 
 public static class OrderStatus

@@ -24,6 +24,7 @@ public class CartDbContext : DbContext
     public DbSet<SellerOrderModel> SellerOrders { get; set; }
     public DbSet<ReturnRequestModel> ReturnRequests { get; set; }
     public DbSet<ReturnRequestItemModel> ReturnRequestItems { get; set; }
+    public DbSet<ShippingStatusHistory> ShippingStatusHistory { get; set; }
     public DbSet<EscrowLedgerEntry> EscrowLedgerEntries { get; set; }
     public DbSet<PayoutSchedule> PayoutSchedules { get; set; }
     public DbSet<PayoutScheduleItem> PayoutScheduleItems { get; set; }
@@ -226,6 +227,26 @@ public class CartDbContext : DbContext
                 .HasOne(o => o.Order)
                 .WithMany(o => o.SubOrders)
                 .HasForeignKey(o => o.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ShippingStatusHistory>(entity =>
+        {
+            entity.ToTable("ShippingStatusHistory");
+            entity.HasIndex(h => h.SellerOrderId);
+            entity.HasIndex(h => h.Status);
+            entity.Property(h => h.Status).HasMaxLength(50);
+            entity.Property(h => h.Notes).HasMaxLength(500);
+            entity.Property(h => h.ChangedBy).HasMaxLength(200);
+            entity.Property(h => h.ChangedByRole).HasMaxLength(50);
+            entity.Property(h => h.TrackingNumber).HasMaxLength(200);
+            entity.Property(h => h.TrackingCarrier).HasMaxLength(200);
+            entity.Property(h => h.TrackingUrl).HasMaxLength(500);
+            entity.Property(h => h.ChangedAt);
+            entity
+                .HasOne(h => h.SellerOrder)
+                .WithMany(o => o.ShippingHistory)
+                .HasForeignKey(h => h.SellerOrderId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
