@@ -450,7 +450,7 @@ public class CartRepository : ICartRepository
             .ToListAsync();
     }
 
-    public async Task SetShippingSelectionAsync(string buyerId, string sellerId, string shippingMethod, decimal cost)
+    public async Task SetShippingSelectionAsync(string buyerId, string sellerId, string shippingMethod, decimal cost, string? deliveryEstimate = null)
     {
         var existing = await _context.ShippingSelections
             .FirstOrDefaultAsync(s => s.BuyerId == buyerId && s.SellerId == sellerId);
@@ -463,6 +463,7 @@ public class CartRepository : ICartRepository
                 SellerId = sellerId,
                 ShippingMethod = shippingMethod,
                 Cost = cost,
+                DeliveryEstimate = deliveryEstimate,
                 SelectedAt = DateTimeOffset.UtcNow
             });
         }
@@ -470,6 +471,7 @@ public class CartRepository : ICartRepository
         {
             existing.ShippingMethod = shippingMethod;
             existing.Cost = cost;
+            existing.DeliveryEstimate = deliveryEstimate;
             existing.SelectedAt = DateTimeOffset.UtcNow;
         }
 

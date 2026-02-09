@@ -75,6 +75,8 @@ public class PlaceOrder
         }
 
         totals = promoTotals.Totals;
+        var shippingCostBySeller = totals.SellerBreakdown
+            .ToDictionary(b => b.SellerId, b => b.ShippingCost, StringComparer.OrdinalIgnoreCase);
 
         var sellerGroups = validation.CartItems
             .GroupBy(i => i.SellerId, StringComparer.OrdinalIgnoreCase)
@@ -94,7 +96,10 @@ public class PlaceOrder
             SellerId = selection.SellerId,
             SellerName = sellerGroups.FirstOrDefault(g => g.SellerId.Equals(selection.SellerId, StringComparison.OrdinalIgnoreCase))?.SellerName ?? string.Empty,
             ShippingMethod = selection.ShippingMethod,
-            Cost = selection.Cost
+            DeliveryEstimate = selection.DeliveryEstimate,
+            Cost = shippingCostBySeller.TryGetValue(selection.SellerId, out var selectionCost)
+                ? selectionCost
+                : selection.Cost
         }).ToList();
 
         var totalItemsSubtotal = sellerGroups.Sum(g => g.Items.Sum(i => i.UnitPrice * i.Quantity));
@@ -107,7 +112,9 @@ public class PlaceOrder
             var group = sellerGroups[index];
             var itemsSubtotal = group.Items.Sum(i => i.UnitPrice * i.Quantity);
             var selection = selectionBySeller.GetValueOrDefault(group.SellerId);
-            var shippingCost = selection?.Cost ?? 0m;
+            var shippingCost = shippingCostBySeller.TryGetValue(group.SellerId, out var sellerShipping)
+                ? sellerShipping
+                : selection?.Cost ?? 0m;
 
             var discountShare = 0m;
             if (totals.DiscountTotal > 0 && totalItemsSubtotal > 0)
@@ -143,7 +150,8 @@ public class PlaceOrder
                     SellerId = selection.SellerId,
                     SellerName = group.SellerName,
                     ShippingMethod = selection.ShippingMethod,
-                    Cost = selection.Cost
+                    DeliveryEstimate = selection.DeliveryEstimate,
+                    Cost = shippingCost
                 };
                 orderShippingSelections.Add(selectionModel);
             }

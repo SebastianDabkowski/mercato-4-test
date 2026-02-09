@@ -90,7 +90,12 @@ public class ShippingModel : PageModel
         {
             var sellerOption = SellerOptions.First(o => o.SellerId == selection.SellerId);
             var selectedOption = sellerOption.Options.First(o => string.Equals(o.ShippingMethod, selection.ShippingMethod, StringComparison.OrdinalIgnoreCase));
-            await _cartRepository.SetShippingSelectionAsync(buyerId, sellerOption.SellerId, selectedOption.ShippingMethod, selectedOption.Cost);
+            await _cartRepository.SetShippingSelectionAsync(
+                buyerId,
+                sellerOption.SellerId,
+                selectedOption.ShippingMethod,
+                selectedOption.Cost,
+                selectedOption.DeliveryEstimate);
         }
 
         await _cartRepository.ClearPaymentSelectionAsync(buyerId);
@@ -147,7 +152,7 @@ public class ShippingModel : PageModel
 
         var shippingRules = await _cartRepository.GetShippingRulesAsync();
         var existingSelections = await _cartRepository.GetShippingSelectionsAsync(buyerId);
-        SellerOptions = BuildSellerOptions(cartItems, shippingRules, existingSelections);
+        SellerOptions = BuildSellerOptions(cartItems, shippingRules, existingSelections, SelectedAddress);
         Selections = SellerOptions
             .Select(o => new SellerShippingSelectionInput
             {
@@ -170,7 +175,8 @@ public class ShippingModel : PageModel
     private List<SellerShippingOptionsViewModel> BuildSellerOptions(
         List<CartItemModel> cartItems,
         List<ShippingRuleModel> shippingRules,
-        List<ShippingSelectionModel> existingSelections)
+        List<ShippingSelectionModel> existingSelections,
+        DeliveryAddressModel? selectedAddress)
     {
         var result = new List<SellerShippingOptionsViewModel>();
         var groupedItems = cartItems.GroupBy(i => new { i.SellerId, i.SellerName });
@@ -184,12 +190,14 @@ public class ShippingModel : PageModel
             var applicableRules = shippingRules
                 .Where(r => r.SellerId == group.Key.SellerId && r.IsActive)
                 .Where(r => !r.MaxWeightKg.HasValue || totalWeight <= r.MaxWeightKg.Value)
+                .Where(r => IsRuleAllowedForAddress(r, selectedAddress))
                 .ToList();
 
             var options = applicableRules
                 .Select(r => new ShippingOptionViewModel(
                     r.ShippingMethod,
-                    _cartCalculationService.CalculateShippingCost(subtotal, totalWeight, r)))
+                    _cartCalculationService.CalculateShippingCost(subtotal, totalWeight, r),
+                    r.DeliveryEstimate))
                 .OrderBy(o => o.Cost)
                 .ToList();
 
@@ -225,6 +233,35 @@ public class ShippingModel : PageModel
             selectedShippingMethods: selectionMap);
     }
 
+    private static bool IsRuleAllowedForAddress(ShippingRuleModel rule, DeliveryAddressModel? address)
+    {
+        if (address is null)
+        {
+            return true;
+        }
+
+        var allowedCountries = SplitCsv(rule.AllowedCountryCodes);
+        if (allowedCountries.Any() && !allowedCountries.Contains(address.CountryCode, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var allowedRegions = SplitCsv(rule.AllowedRegions);
+        if (allowedRegions.Any() && !allowedRegions.Contains(address.Region, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static List<string> SplitCsv(string? value) =>
+        value?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(v => v.Trim())
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .ToList()
+        ?? new List<string>();
+
     private Dictionary<string, string> GetSelectionMap()
     {
         return SellerOptions
@@ -251,4 +288,4 @@ public record SellerShippingOptionsViewModel(
     public string SellerLabel => string.IsNullOrWhiteSpace(SellerName) ? SellerId : SellerName;
 }
 
-public record ShippingOptionViewModel(string ShippingMethod, decimal Cost);
+public record ShippingOptionViewModel(string ShippingMethod, decimal Cost, string? DeliveryEstimate);

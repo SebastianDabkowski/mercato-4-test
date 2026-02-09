@@ -7,5 +7,6 @@ public class ShippingSelectionModel
     public string SellerId { get; set; } = string.Empty;
     public string ShippingMethod { get; set; } = string.Empty;
     public decimal Cost { get; set; }
+    public string? DeliveryEstimate { get; set; }
     public DateTimeOffset SelectedAt { get; set; }
 }

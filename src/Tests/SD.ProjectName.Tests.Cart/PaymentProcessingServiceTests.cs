@@ -30,6 +30,7 @@ public class PaymentProcessingServiceTests
             new() { ProductId = 1, ProductName = "Test", ProductSku = "SKU", Quantity = 1, UnitPrice = 20m, SellerId = "seller-1", SellerName = "Seller" }
         };
 
+        var calculationService = new CartCalculationService();
         var escrowEntries = new List<EscrowLedgerEntry>();
         var repo = new Mock<ICartRepository>();
         repo.Setup(r => r.GetPaymentSelectionByReferenceAsync("ref-1")).ReturnsAsync(selection);
@@ -73,9 +74,9 @@ public class PaymentProcessingServiceTests
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(1)).ReturnsAsync(new ProductSnapshot(1, 20m, 2));
 
-        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
-        var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, calculationService);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), calculationService, TimeProvider.System);
+        var placeOrder = new PlaceOrder(validationService, repo.Object, calculationService, promoService, TimeProvider.System);
         var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
         var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
         var orderStatusService = new OrderStatusService(repo.Object, escrowService, commissionService, TimeProvider.System);
@@ -124,6 +125,7 @@ public class PaymentProcessingServiceTests
             new() { ProductId = 2, ProductName = "Test B", ProductSku = "SKU-B", Quantity = 2, UnitPrice = 5m, SellerId = "seller-2", SellerName = "Seller Two" }
         };
 
+        var calculationService = new CartCalculationService();
         var escrowEntries = new List<EscrowLedgerEntry>();
         var repo = new Mock<ICartRepository>();
         repo.Setup(r => r.GetPaymentSelectionByReferenceAsync("ref-escrow")).ReturnsAsync(selection);
@@ -172,9 +174,9 @@ public class PaymentProcessingServiceTests
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(It.IsAny<int>())).ReturnsAsync((int id) => new ProductSnapshot(id, id == 1 ? 10m : 5m, 10));
 
-        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
-        var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, calculationService);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), calculationService, TimeProvider.System);
+        var placeOrder = new PlaceOrder(validationService, repo.Object, calculationService, promoService, TimeProvider.System);
         var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
         var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
         var orderStatusService = new OrderStatusService(repo.Object, escrowService, commissionService, TimeProvider.System);
@@ -216,6 +218,7 @@ public class PaymentProcessingServiceTests
             new() { ProductId = 1, ProductName = "Pending Product", ProductSku = "SKU-P", Quantity = 1, UnitPrice = 15m, SellerId = "seller-1", SellerName = "Seller Pending" }
         };
 
+        var calculationService = new CartCalculationService();
         var repo = new Mock<ICartRepository>();
         repo.Setup(r => r.GetPaymentSelectionByReferenceAsync("ref-pending")).ReturnsAsync(selection);
         repo.Setup(r => r.GetByBuyerIdAsync(buyerId)).ReturnsAsync(cartItems);
@@ -248,9 +251,9 @@ public class PaymentProcessingServiceTests
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(1)).ReturnsAsync(new ProductSnapshot(1, 15m, 2));
 
-        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
-        var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, calculationService);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), calculationService, TimeProvider.System);
+        var placeOrder = new PlaceOrder(validationService, repo.Object, calculationService, promoService, TimeProvider.System);
         var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
         var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
         var orderStatusService = new OrderStatusService(repo.Object, escrowService, commissionService, TimeProvider.System);

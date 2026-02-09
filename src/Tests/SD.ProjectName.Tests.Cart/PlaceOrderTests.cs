@@ -24,11 +24,15 @@ public class PlaceOrderTests
             .ReturnsAsync(new DeliveryAddressModel { BuyerId = buyerId, RecipientName = "John Doe" });
         repo.Setup(r => r.GetShippingSelectionsAsync(buyerId))
             .ReturnsAsync(new List<ShippingSelectionModel> { new() { BuyerId = buyerId, SellerId = "seller-1", ShippingMethod = "Standard" } });
+        repo.Setup(r => r.GetShippingRulesAsync()).ReturnsAsync(new List<ShippingRuleModel>
+        {
+            new() { SellerId = "seller-1", ShippingMethod = "Standard", BasePrice = 5m, IsActive = true }
+        });
 
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(1)).ReturnsAsync(new ProductSnapshot(1, 12m, 5));
 
-        var service = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
+        var service = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, new CartCalculationService());
 
         var result = await service.ValidateAsync(buyerId);
 
@@ -39,9 +43,100 @@ public class PlaceOrderTests
     }
 
     [Fact]
+    public async Task ValidateAsync_BlocksUnavailableRegionShipping()
+    {
+        var buyerId = "buyer-region";
+        var cartItems = new List<CartItemModel>
+        {
+            new() { ProductId = 9, ProductName = "Regional", UnitPrice = 20m, Quantity = 1, SellerId = "seller-regional", SellerName = "Regional Seller" }
+        };
+
+        var repo = new Mock<ICartRepository>();
+        repo.Setup(r => r.GetByBuyerIdAsync(buyerId)).ReturnsAsync(cartItems);
+        repo.Setup(r => r.GetPaymentSelectionAsync(buyerId))
+            .ReturnsAsync(new PaymentSelectionModel { BuyerId = buyerId, PaymentMethod = "Card", Status = PaymentStatus.Authorized });
+        repo.Setup(r => r.GetSelectedAddressAsync(buyerId))
+            .ReturnsAsync(new DeliveryAddressModel { BuyerId = buyerId, RecipientName = "Region Buyer", CountryCode = "US", Region = "NY" });
+        repo.Setup(r => r.GetShippingSelectionsAsync(buyerId))
+            .ReturnsAsync(new List<ShippingSelectionModel> { new() { BuyerId = buyerId, SellerId = "seller-regional", ShippingMethod = "Standard" } });
+        repo.Setup(r => r.GetShippingRulesAsync()).ReturnsAsync(new List<ShippingRuleModel>
+        {
+            new() { SellerId = "seller-regional", ShippingMethod = "Standard", BasePrice = 10m, IsActive = true, AllowedCountryCodes = "US", AllowedRegions = "CA" }
+        });
+
+        var snapshotService = new Mock<IProductSnapshotService>();
+        snapshotService.Setup(s => s.GetSnapshotAsync(9)).ReturnsAsync(new ProductSnapshot(9, 20m, 5));
+
+        var service = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, new CartCalculationService());
+
+        var result = await service.ValidateAsync(buyerId);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Issues, i => i.Code == "shipping-unavailable");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_UsesCurrentShippingCostAndEstimate()
+    {
+        var buyerId = "buyer-updated-shipping";
+        var calculationService = new CartCalculationService();
+        var cartItems = new List<CartItemModel>
+        {
+            new()
+            {
+                ProductId = 21,
+                ProductName = "Widget",
+                ProductSku = "W-1",
+                UnitPrice = 25m,
+                Quantity = 1,
+                SellerId = "seller-shipping",
+                SellerName = "Shipping Seller"
+            }
+        };
+
+        var repo = new Mock<ICartRepository>();
+        repo.Setup(r => r.GetByBuyerIdAsync(buyerId)).ReturnsAsync(cartItems);
+        repo.Setup(r => r.GetPaymentSelectionAsync(buyerId))
+            .ReturnsAsync(new PaymentSelectionModel { BuyerId = buyerId, PaymentMethod = "Card", Status = PaymentStatus.Authorized });
+        repo.Setup(r => r.GetSelectedAddressAsync(buyerId))
+            .ReturnsAsync(new DeliveryAddressModel { BuyerId = buyerId, RecipientName = "Buyer", CountryCode = "US", Region = "CA" });
+        repo.Setup(r => r.GetShippingSelectionsAsync(buyerId))
+            .ReturnsAsync(new List<ShippingSelectionModel> { new() { BuyerId = buyerId, SellerId = "seller-shipping", ShippingMethod = "Standard", Cost = 1m } });
+        repo.Setup(r => r.GetShippingRulesAsync()).ReturnsAsync(new List<ShippingRuleModel>
+        {
+            new() { SellerId = "seller-shipping", ShippingMethod = "Standard", BasePrice = 12m, DeliveryEstimate = "2-3 business days", IsActive = true, AllowedCountryCodes = "US" }
+        });
+        repo.Setup(r => r.AddOrderAsync(It.IsAny<OrderModel>())).ReturnsAsync((OrderModel order) => order);
+        repo.Setup(r => r.ClearCartItemsAsync(buyerId)).Returns(Task.CompletedTask);
+        repo.Setup(r => r.ClearShippingSelectionsAsync(buyerId)).Returns(Task.CompletedTask);
+        repo.Setup(r => r.ClearPaymentSelectionAsync(buyerId)).Returns(Task.CompletedTask);
+        repo.Setup(r => r.GetPromoSelectionAsync(It.IsAny<string>())).ReturnsAsync((PromoSelectionModel?)null);
+
+        var snapshotService = new Mock<IProductSnapshotService>();
+        snapshotService.Setup(s => s.GetSnapshotAsync(21)).ReturnsAsync(new ProductSnapshot(21, 25m, 3));
+
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, calculationService);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), calculationService, TimeProvider.System);
+        var handler = new PlaceOrder(validationService, repo.Object, calculationService, promoService, TimeProvider.System);
+
+        var result = await handler.ExecuteAsync(buyerId);
+
+        Assert.True(result.Success);
+        var order = result.Order;
+        Assert.NotNull(order);
+        Assert.Equal(12m, order!.ShippingTotal);
+        var shippingSelection = Assert.Single(order.ShippingSelections);
+        Assert.Equal(12m, shippingSelection.Cost);
+        Assert.Equal("2-3 business days", shippingSelection.DeliveryEstimate);
+        var subOrder = Assert.Single(order.SubOrders);
+        Assert.Equal(12m, subOrder.ShippingTotal);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_CreatesOrderSnapshot_WhenValidationPasses()
     {
         var buyerId = "buyer-2";
+        var calculationService = new CartCalculationService();
         var cartItems = new List<CartItemModel>
         {
             new()
@@ -77,9 +172,9 @@ public class PlaceOrderTests
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(2)).ReturnsAsync(new ProductSnapshot(2, 15m, 10));
 
-        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
-        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, calculationService);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), calculationService, TimeProvider.System);
+        var handler = new PlaceOrder(validationService, repo.Object, calculationService, promoService, TimeProvider.System);
 
         var result = await handler.ExecuteAsync(buyerId);
 
@@ -111,6 +206,7 @@ public class PlaceOrderTests
     public async Task ExecuteAsync_CreatesFailedOrder_WhenPaymentFails()
     {
         var buyerId = "buyer-failed";
+        var calculationService = new CartCalculationService();
         var cartItems = new List<CartItemModel>
         {
             new()
@@ -143,9 +239,9 @@ public class PlaceOrderTests
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(5)).ReturnsAsync(new ProductSnapshot(5, 10m, 2));
 
-        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
-        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, calculationService);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), calculationService, TimeProvider.System);
+        var handler = new PlaceOrder(validationService, repo.Object, calculationService, promoService, TimeProvider.System);
 
         var result = await handler.ExecuteAsync(buyerId, PaymentStatus.Failed);
 
@@ -162,6 +258,7 @@ public class PlaceOrderTests
     public async Task ExecuteAsync_SplitsIntoSubOrdersPerSeller()
     {
         var buyerId = "buyer-4";
+        var calculationService = new CartCalculationService();
         var cartItems = new List<CartItemModel>
         {
             new()
@@ -213,9 +310,9 @@ public class PlaceOrderTests
         snapshotService.Setup(s => s.GetSnapshotAsync(10)).ReturnsAsync(new ProductSnapshot(10, 20m, 5));
         snapshotService.Setup(s => s.GetSnapshotAsync(11)).ReturnsAsync(new ProductSnapshot(11, 30m, 5));
 
-        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
-        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, calculationService);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), calculationService, TimeProvider.System);
+        var handler = new PlaceOrder(validationService, repo.Object, calculationService, promoService, TimeProvider.System);
 
         var result = await handler.ExecuteAsync(buyerId);
 
@@ -239,6 +336,7 @@ public class PlaceOrderTests
     public async Task ExecuteAsync_Fails_WhenStockIsInsufficient()
     {
         var buyerId = "buyer-3";
+        var calculationService = new CartCalculationService();
         var cartItems = new List<CartItemModel>
         {
             new() { ProductId = 3, ProductName = "Low Stock", UnitPrice = 8m, Quantity = 3, SellerId = "seller-3" }
@@ -252,14 +350,15 @@ public class PlaceOrderTests
             .ReturnsAsync(new DeliveryAddressModel { BuyerId = buyerId, RecipientName = "Sam Buyer" });
         repo.Setup(r => r.GetShippingSelectionsAsync(buyerId))
             .ReturnsAsync(new List<ShippingSelectionModel> { new() { BuyerId = buyerId, SellerId = "seller-3", ShippingMethod = "Standard" } });
+        repo.Setup(r => r.GetShippingRulesAsync()).ReturnsAsync(new List<ShippingRuleModel>());
         repo.Setup(r => r.GetPromoSelectionAsync(It.IsAny<string>())).ReturnsAsync((PromoSelectionModel?)null);
 
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(3)).ReturnsAsync(new ProductSnapshot(3, 8m, 1));
 
-        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
-        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
+        var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object, calculationService);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), calculationService, TimeProvider.System);
+        var handler = new PlaceOrder(validationService, repo.Object, calculationService, promoService, TimeProvider.System);
 
         var result = await handler.ExecuteAsync(buyerId);
 

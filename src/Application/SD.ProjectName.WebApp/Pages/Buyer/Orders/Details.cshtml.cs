@@ -167,6 +167,14 @@ public class DetailsModel : PageModel
 
     private static string ResolveEstimatedDelivery(OrderModel order)
     {
+        var deliveryEstimate = order.ShippingSelections
+            .Select(s => s.DeliveryEstimate)
+            .FirstOrDefault(e => !string.IsNullOrWhiteSpace(e));
+        if (!string.IsNullOrWhiteSpace(deliveryEstimate))
+        {
+            return deliveryEstimate!;
+        }
+
         var estimated = order.ShippingSelections
             .Where(s => s.EstimatedDeliveryDate.HasValue)
             .OrderBy(s => s.EstimatedDeliveryDate)

@@ -51,10 +51,10 @@ public class OrderConfirmationEmailService
         builder.AppendLine($"<p>{_localizer["ShippingMethods"]}: {shippingMethods}</p>");
 
         var estimatedDelivery = order.ShippingSelections
-            .Where(s => s.EstimatedDeliveryDate.HasValue)
-            .OrderBy(s => s.EstimatedDeliveryDate)
-            .Select(s => s.EstimatedDeliveryDate?.ToString("D", culture))
-            .FirstOrDefault();
+            .Select(s => string.IsNullOrWhiteSpace(s.DeliveryEstimate)
+                ? s.EstimatedDeliveryDate?.ToString("D", culture)
+                : s.DeliveryEstimate)
+            .FirstOrDefault(e => !string.IsNullOrWhiteSpace(e));
         builder.AppendLine($"<p>{_localizer["EstimatedDelivery"]}: {estimatedDelivery ?? _localizer["EstimatedDeliveryUnavailable"]}</p>");
 
         builder.AppendLine("<h3>" + _localizer["DeliveryAddress"] + "</h3>");

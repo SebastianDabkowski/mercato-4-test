@@ -53,6 +53,7 @@ public class OrderShippingSelectionModel
     public string SellerName { get; set; } = string.Empty;
     public string ShippingMethod { get; set; } = string.Empty;
     public decimal Cost { get; set; }
+    public string? DeliveryEstimate { get; set; }
     public DateTimeOffset? EstimatedDeliveryDate { get; set; }
     public SellerOrderModel? SellerOrder { get; set; }
 }

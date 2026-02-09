@@ -13,15 +13,18 @@ public class CheckoutValidationService : ICheckoutValidationService
     private readonly GetCartItems _getCartItems;
     private readonly ICartRepository _cartRepository;
     private readonly IProductSnapshotService _productSnapshotService;
+    private readonly CartCalculationService _cartCalculationService;
 
     public CheckoutValidationService(
         GetCartItems getCartItems,
         ICartRepository cartRepository,
-        IProductSnapshotService productSnapshotService)
+        IProductSnapshotService productSnapshotService,
+        CartCalculationService cartCalculationService)
     {
         _getCartItems = getCartItems;
         _cartRepository = cartRepository;
         _productSnapshotService = productSnapshotService;
+        _cartCalculationService = cartCalculationService;
     }
 
     public async Task<CheckoutValidationResult> ValidateAsync(string buyerId, bool requirePaymentAuthorized = true)
@@ -52,7 +55,14 @@ public class CheckoutValidationService : ICheckoutValidationService
             issues.Add(CheckoutValidationIssue.ForCart("address-required", "Select a delivery address before placing the order."));
         }
 
+        var shippingRules = await _cartRepository.GetShippingRulesAsync() ?? new List<ShippingRuleModel>();
         var shippingSelections = await _cartRepository.GetShippingSelectionsAsync(buyerId);
+        shippingSelections = NormalizeShippingSelections(
+            cartItems,
+            shippingSelections,
+            shippingRules,
+            selectedAddress,
+            issues);
         if (!HasSelectionsForAllSellers(cartItems, shippingSelections))
         {
             issues.Add(CheckoutValidationIssue.ForCart("shipping-required", "Choose shipping methods for all sellers before placing the order."));
@@ -100,6 +110,92 @@ public class CheckoutValidationService : ICheckoutValidationService
             paymentSelection,
             selectedAddress);
     }
+
+    private List<ShippingSelectionModel> NormalizeShippingSelections(
+        List<CartItemModel> cartItems,
+        List<ShippingSelectionModel> existingSelections,
+        List<ShippingRuleModel> shippingRules,
+        DeliveryAddressModel? selectedAddress,
+        List<CheckoutValidationIssue> issues)
+    {
+        var normalized = new List<ShippingSelectionModel>();
+        var groups = cartItems
+            .GroupBy(i => i.SellerId, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in groups)
+        {
+            var sellerId = group.Key;
+            var sellerName = group.First().SellerName;
+            var sellerLabel = string.IsNullOrWhiteSpace(sellerName) ? sellerId : sellerName;
+            var subtotal = group.Sum(i => i.UnitPrice * i.Quantity);
+            var totalWeight = group.Sum(i => i.WeightKg * i.Quantity);
+
+            var availableRules = shippingRules
+                .Where(r => string.Equals(r.SellerId, sellerId, StringComparison.OrdinalIgnoreCase) && r.IsActive)
+                .Where(r => !r.MaxWeightKg.HasValue || totalWeight <= r.MaxWeightKg.Value)
+                .Where(r => IsRuleAllowedForAddress(r, selectedAddress))
+                .ToList();
+
+            if (availableRules.Count == 0)
+            {
+                issues.Add(CheckoutValidationIssue.ForCart("shipping-unavailable", $"Shipping is not available for {sellerLabel} to the selected address."));
+                continue;
+            }
+
+            var selected = existingSelections.FirstOrDefault(s => string.Equals(s.SellerId, sellerId, StringComparison.OrdinalIgnoreCase));
+            if (selected is null)
+            {
+                issues.Add(CheckoutValidationIssue.ForCart("shipping-required", $"Choose a shipping method for {sellerLabel}."));
+                continue;
+            }
+
+            var matchedRule = availableRules.FirstOrDefault(r =>
+                string.Equals(r.ShippingMethod, selected.ShippingMethod, StringComparison.OrdinalIgnoreCase));
+
+            if (matchedRule is null)
+            {
+                issues.Add(CheckoutValidationIssue.ForCart("shipping-required", $"Selected shipping is not available for {sellerLabel}."));
+                continue;
+            }
+
+            var cost = _cartCalculationService.CalculateShippingCost(subtotal, totalWeight, matchedRule);
+            selected.ShippingMethod = matchedRule.ShippingMethod;
+            selected.Cost = cost;
+            selected.DeliveryEstimate = matchedRule.DeliveryEstimate;
+            normalized.Add(selected);
+        }
+
+        return normalized;
+    }
+
+    private static bool IsRuleAllowedForAddress(ShippingRuleModel rule, DeliveryAddressModel? address)
+    {
+        if (address is null)
+        {
+            return true;
+        }
+
+        var allowedCountries = SplitCsv(rule.AllowedCountryCodes);
+        if (allowedCountries.Any() && !allowedCountries.Contains(address.CountryCode, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var allowedRegions = SplitCsv(rule.AllowedRegions);
+        if (allowedRegions.Any() && !allowedRegions.Contains(address.Region, StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static List<string> SplitCsv(string? value) =>
+        value?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(v => v.Trim())
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .ToList()
+        ?? new List<string>();
 
     private static bool HasSelectionsForAllSellers(IEnumerable<CartItemModel> cartItems, IEnumerable<ShippingSelectionModel> selections)
     {
