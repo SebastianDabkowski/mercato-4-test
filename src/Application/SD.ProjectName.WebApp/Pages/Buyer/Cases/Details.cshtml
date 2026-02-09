@@ -1,0 +1,152 @@
+@page "/buyer/cases/{caseId:int}"
+@model SD.ProjectName.WebApp.Pages.Buyer.Cases.DetailsModel
+@using SD.ProjectName.Modules.Cart.Domain
+@{
+    ViewData["Title"] = "Case details";
+    var request = Model.Case!;
+    var sellerOrder = Model.SellerOrder;
+    var order = Model.Order;
+}
+
+<div class="d-flex align-items-center gap-3 mb-3">
+    <h1 class="mb-0">Case #@request.Id</h1>
+    <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status)</span>
+</div>
+
+<div class="mb-3">
+    <a class="btn btn-link p-0" asp-page="/Buyer/Cases/Index">Back to cases</a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row gy-2">
+            <div class="col-md-6">
+                <div class="text-muted">Type</div>
+                <div class="fw-semibold">@Model.GetCaseTypeLabel(request.RequestType)</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted">Created</div>
+                <div class="fw-semibold">@request.RequestedAt.ToLocalTime().ToString("f")</div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted">Order</div>
+                <div>
+                    <a asp-page="/Buyer/Orders/Details" asp-route-orderId="@request.OrderId">Order #@request.OrderId</a>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="text-muted">Seller</div>
+                <div>@(string.IsNullOrWhiteSpace(sellerOrder?.SellerName) ? sellerOrder?.SellerId : sellerOrder?.SellerName)</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">Request details</div>
+    <div class="card-body">
+        <div class="mb-2">
+            <div class="text-muted">Reason</div>
+            <div class="fw-semibold">@request.Reason</div>
+        </div>
+        @if (!string.IsNullOrWhiteSpace(request.Description))
+        {
+            <div class="mb-2">
+                <div class="text-muted">Description</div>
+                <div>@request.Description</div>
+            </div>
+        }
+        <div class="mb-2">
+            <div class="text-muted">Items</div>
+            @if (request.Items?.Any() == true)
+            {
+                <ul class="mb-0">
+                    @foreach (var item in request.Items)
+                    {
+                        var itemName = item.OrderItem?.ProductName ?? $"Item #{item.OrderItemId}";
+                        <li>@itemName (x@item.Quantity)</li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <div class="text-muted">No items recorded.</div>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">Status &amp; resolution</div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+                <div class="text-muted">Current status</div>
+                <div class="fw-semibold">@Model.GetCaseStatusLabel(request.Status)</div>
+            </div>
+            <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status)</span>
+        </div>
+        <div>@Model.GetResolutionSummary(request.Status)</div>
+        @if (request.UpdatedAt.HasValue)
+        {
+            <div class="text-muted small mt-1">Last updated @request.UpdatedAt.Value.ToLocalTime().ToString("g")</div>
+        }
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">Refunds</div>
+    <div class="card-body">
+        @if ((sellerOrder?.RefundedAmount ?? 0) > 0 || (order?.RefundedAmount ?? 0) > 0 || Model.PaymentSelection is not null)
+        {
+            <ul class="mb-0">
+                @if ((sellerOrder?.RefundedAmount ?? 0) > 0)
+                {
+                    <li>Refunded for this seller order: @sellerOrder!.RefundedAmount.ToString("C")</li>
+                }
+                @if ((order?.RefundedAmount ?? 0) > 0)
+                {
+                    <li>Total order refunds: @order!.RefundedAmount.ToString("C")</li>
+                }
+                @if (Model.PaymentSelection is not null && !string.IsNullOrWhiteSpace(Model.PaymentSelection.ProviderReference))
+                {
+                    <li>Payment reference: <span class="text-monospace">@Model.PaymentSelection.ProviderReference</span></li>
+                }
+            </ul>
+        }
+        else
+        {
+            <div class="text-muted">No refund has been linked to this case yet.</div>
+        }
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">Messaging thread</div>
+    <div class="list-group list-group-flush">
+        <div class="list-group-item">
+            <div class="fw-semibold">You</div>
+            <div class="text-muted small">Submitted @request.RequestedAt.ToLocalTime().ToString("g")</div>
+            @if (!string.IsNullOrWhiteSpace(request.Description))
+            {
+                <div>@request.Description</div>
+            }
+            else
+            {
+                <div class="text-muted">No additional details provided.</div>
+            }
+        </div>
+        @if (!string.Equals(request.Status, ReturnRequestStatus.Requested, StringComparison.OrdinalIgnoreCase))
+        {
+            <div class="list-group-item">
+                <div class="fw-semibold">Seller</div>
+                <div class="text-muted small">@((request.UpdatedAt ?? request.RequestedAt).ToLocalTime().ToString("g"))</div>
+                <div>@Model.GetResolutionSummary(request.Status)</div>
+            </div>
+        }
+        else
+        {
+            <div class="list-group-item text-muted">No seller responses yet. Updates will appear here.</div>
+        }
+    </div>
+</div>

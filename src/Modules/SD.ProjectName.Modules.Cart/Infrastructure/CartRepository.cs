@@ -75,6 +75,79 @@ public class CartRepository : ICartRepository
         return request;
     }
 
+    public async Task<BuyerReturnRequestsResult> GetReturnRequestsForBuyerAsync(string buyerId, BuyerReturnRequestsQuery query)
+    {
+        var normalizedPage = query.Page < 1 ? 1 : query.Page;
+        var normalizedPageSize = query.PageSize < 1 ? 10 : query.PageSize;
+        var statusFilter = (query.Statuses ?? Array.Empty<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        var filteredQuery = _context.ReturnRequests
+            .AsNoTracking()
+            .Where(r => r.BuyerId == buyerId);
+
+        if (statusFilter.Count > 0)
+        {
+            filteredQuery = filteredQuery.Where(r => statusFilter.Contains(r.Status));
+        }
+
+        if (query.CreatedFrom.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(r => r.RequestedAt >= query.CreatedFrom.Value);
+        }
+
+        if (query.CreatedTo.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(r => r.RequestedAt <= query.CreatedTo.Value);
+        }
+
+        var totalCount = await filteredQuery.CountAsync();
+        var totalPages = totalCount == 0
+            ? 1
+            : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
+        var currentPage = normalizedPage > totalPages ? totalPages : normalizedPage;
+        var skip = (currentPage - 1) * normalizedPageSize;
+
+        var requests = await filteredQuery
+            .Include(r => r.Order)
+            .Include(r => r.SellerOrder)
+            .Include(r => r.Items)
+                .ThenInclude(i => i.OrderItem)
+            .OrderByDescending(r => r.RequestedAt)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .ToListAsync();
+
+        return new BuyerReturnRequestsResult
+        {
+            Requests = requests,
+            TotalCount = totalCount,
+            Page = currentPage,
+            PageSize = normalizedPageSize
+        };
+    }
+
+    public async Task<ReturnRequestModel?> GetReturnRequestAsync(int requestId, string buyerId)
+    {
+        return await _context.ReturnRequests
+            .AsNoTracking()
+            .Include(r => r.Items)
+                .ThenInclude(i => i.OrderItem)
+            .Include(r => r.SellerOrder)
+            .Include(r => r.Order)
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.BuyerId == buyerId);
+    }
+
+    public async Task<ReturnRequestModel?> GetReturnRequestByIdAsync(int requestId)
+    {
+        return await _context.ReturnRequests
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => r.Id == requestId);
+    }
+
     public async Task<OrderModel?> GetOrderAsync(int orderId, string buyerId)
     {
         return await _context.Orders
