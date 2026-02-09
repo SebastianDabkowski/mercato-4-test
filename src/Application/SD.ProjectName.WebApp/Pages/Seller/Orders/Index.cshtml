@@ -17,17 +17,61 @@
     <div class="alert alert-danger">@Model.ErrorMessage</div>
 }
 
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <input type="hidden" name="Page" value="1" />
+            <div class="col-12">
+                <label class="form-label mb-2">Status</label>
+                <div class="d-flex flex-wrap gap-3">
+                    @foreach (var status in Model.StatusOptions)
+                    {
+                        var isChecked = Model.Statuses.Any(s => s.Equals(status, StringComparison.OrdinalIgnoreCase));
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="Statuses" value="@status" id="status-@status" @(isChecked ? "checked" : string.Empty) />
+                            <label class="form-check-label text-capitalize" for="status-@status">@OrderStatusFlow.NormalizeStatus(status)</label>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="CreatedFrom" class="form-label">From</label>
+                <input asp-for="CreatedFrom" class="form-control" type="date" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="CreatedTo" class="form-label">To</label>
+                <input asp-for="CreatedTo" class="form-control" type="date" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="BuyerId" class="form-label">Buyer</label>
+                <input asp-for="BuyerId" class="form-control" placeholder="Buyer ID" />
+                <div class="form-text">Show sub-orders for this buyer.</div>
+            </div>
+            <div class="col-auto d-flex gap-2 align-items-center">
+                <button type="submit" class="btn btn-primary">Apply filters</button>
+                <button type="submit" class="btn btn-outline-secondary" formmethod="get" formaction="@Url.Page("/Seller/Orders/Index", new { handler = "Export" })">Export CSV</button>
+                <a class="btn btn-link" asp-page="/Seller/Orders/Index">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
 @if (!Model.Orders.Any())
 {
     <div class="alert alert-info">You have no orders yet.</div>
 }
 else
 {
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="text-muted">Showing @Model.TotalCount sub-order(s)</div>
+        <div class="text-muted">Page @Model.Page of @Model.TotalPages</div>
+    </div>
     <div class="table-responsive">
         <table class="table align-middle">
             <thead>
                 <tr>
                     <th>Order</th>
+                    <th>Buyer</th>
                     <th>Date</th>
                     <th>Status</th>
                     <th>Shipping</th>
@@ -42,6 +86,16 @@ else
                         <td>
                             <div class="fw-semibold">#@order.OrderId</div>
                             <div class="text-muted small">Sub-order #@order.Id</div>
+                        </td>
+                        <td>
+                            @if (!string.IsNullOrWhiteSpace(order.Order?.BuyerId))
+                            {
+                                <span class="badge bg-secondary">@order.Order?.BuyerId</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">Unknown</span>
+                            }
                         </td>
                         <td>@order.Order?.CreatedAt.ToLocalTime().ToString("g")</td>
                         <td class="text-capitalize">@OrderStatusFlow.NormalizeStatus(order.Status)</td>
@@ -66,8 +120,25 @@ else
                             }
                             @if (nextStatuses.Any())
                             {
-                                <form method="post" asp-page-handler="UpdateStatus" class="d-flex gap-2 align-items-center">
+                                <form method="post" asp-page-handler="UpdateStatus" class="d-flex flex-wrap gap-2 align-items-center">
                                     <input type="hidden" name="sellerOrderId" value="@order.Id" />
+                                    <input type="hidden" name="Page" value="@Model.Page" />
+                                    @foreach (var status in Model.Statuses)
+                                    {
+                                        <input type="hidden" name="Statuses" value="@status" />
+                                    }
+                                    @if (Model.CreatedFrom.HasValue)
+                                    {
+                                        <input type="hidden" name="CreatedFrom" value="@Model.CreatedFrom?.ToString(\"yyyy-MM-dd\")" />
+                                    }
+                                    @if (Model.CreatedTo.HasValue)
+                                    {
+                                        <input type="hidden" name="CreatedTo" value="@Model.CreatedTo?.ToString(\"yyyy-MM-dd\")" />
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(Model.BuyerId))
+                                    {
+                                        <input type="hidden" name="BuyerId" value="@Model.BuyerId" />
+                                    }
                                     <select name="status" class="form-select form-select-sm w-auto">
                                         @foreach (var status in nextStatuses)
                                         {
@@ -88,7 +159,7 @@ else
                         </td>
                     </tr>
                     <tr>
-                        <td colspan="6" class="pb-3">
+                        <td colspan="7" class="pb-3">
                             <div class="px-2">
                                 <div class="fw-semibold mb-2">Items</div>
                                 <ul class="list-unstyled mb-0">
@@ -107,4 +178,34 @@ else
             </tbody>
         </table>
     </div>
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Orders pagination">
+            <ul class="pagination">
+                <li class="page-item @(Model.HasPreviousPage ? string.Empty : "disabled")">
+                    @if (Model.HasPreviousPage)
+                    {
+                        <a class="page-link" href="@Model.BuildPageUrl(Model.Page - 1)">Previous</a>
+                    }
+                    else
+                    {
+                        <span class="page-link">Previous</span>
+                    }
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">Page @Model.Page of @Model.TotalPages</span>
+                </li>
+                <li class="page-item @(Model.HasNextPage ? string.Empty : "disabled")">
+                    @if (Model.HasNextPage)
+                    {
+                        <a class="page-link" href="@Model.BuildPageUrl(Model.Page + 1)">Next</a>
+                    }
+                    else
+                    {
+                        <span class="page-link">Next</span>
+                    }
+                </li>
+            </ul>
+        </nav>
+    }
 }

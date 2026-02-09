@@ -187,15 +187,64 @@ public class CartRepository : ICartRepository
             .FirstOrDefaultAsync(o => o.Id == sellerOrderId && o.SellerId == sellerId);
     }
 
-    public async Task<List<SellerOrderModel>> GetSellerOrdersAsync(string sellerId)
+    public async Task<SellerOrdersResult> GetSellerOrdersAsync(string sellerId, SellerOrdersQuery query)
     {
-        return await _context.SellerOrders
+        var normalizedPage = query.Page < 1 ? 1 : query.Page;
+        var normalizedPageSize = query.PageSize < 1 ? 10 : query.PageSize;
+        var statusFilter = (query.Statuses ?? Array.Empty<string>())
+            .Select(OrderStatusFlow.NormalizeStatus)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        var filteredQuery = _context.SellerOrders
+            .AsNoTracking()
+            .Where(o => o.SellerId == sellerId);
+
+        if (statusFilter.Count > 0)
+        {
+            filteredQuery = filteredQuery.Where(o => statusFilter.Contains(o.Status));
+        }
+
+        if (query.CreatedFrom.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(o => o.Order!.CreatedAt >= query.CreatedFrom.Value);
+        }
+
+        if (query.CreatedTo.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(o => o.Order!.CreatedAt <= query.CreatedTo.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.BuyerId))
+        {
+            filteredQuery = filteredQuery.Where(o => o.Order!.BuyerId == query.BuyerId);
+        }
+
+        var totalCount = await filteredQuery.CountAsync();
+        var totalPages = totalCount == 0
+            ? 1
+            : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
+        var currentPage = normalizedPage > totalPages ? totalPages : normalizedPage;
+        var skip = (currentPage - 1) * normalizedPageSize;
+
+        var orders = await filteredQuery
             .Include(o => o.Items)
             .Include(o => o.ShippingSelection)
             .Include(o => o.Order)
-            .Where(o => o.SellerId == sellerId)
             .OrderByDescending(o => o.Order!.CreatedAt)
+            .Skip(skip)
+            .Take(normalizedPageSize)
             .ToListAsync();
+
+        return new SellerOrdersResult
+        {
+            Orders = orders,
+            TotalCount = totalCount,
+            Page = currentPage,
+            PageSize = normalizedPageSize
+        };
     }
 
     public async Task UpdateAsync(CartModel cart)
