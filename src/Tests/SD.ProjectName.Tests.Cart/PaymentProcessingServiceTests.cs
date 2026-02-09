@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
+using SD.ProjectName.Modules.Cart.Infrastructure;
 using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.Tests.Cart;
@@ -76,12 +78,14 @@ public class PaymentProcessingServiceTests
         var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
         var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
         var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var orderStatusService = new OrderStatusService(repo.Object, escrowService, commissionService, TimeProvider.System);
         var service = new PaymentProcessingService(
             repo.Object,
             placeOrder,
             TimeProvider.System,
             escrowService,
             commissionService,
+            orderStatusService,
             Mock.Of<ILogger<PaymentProcessingService>>());
 
         var first = await service.HandleCallbackAsync("ref-1", "success");
@@ -173,12 +177,14 @@ public class PaymentProcessingServiceTests
         var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
         var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
         var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var orderStatusService = new OrderStatusService(repo.Object, escrowService, commissionService, TimeProvider.System);
         var service = new PaymentProcessingService(
             repo.Object,
             placeOrder,
             TimeProvider.System,
             escrowService,
             commissionService,
+            orderStatusService,
             Mock.Of<ILogger<PaymentProcessingService>>());
 
         var result = await service.HandleCallbackAsync("ref-escrow", "success");
@@ -247,12 +253,14 @@ public class PaymentProcessingServiceTests
         var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
         var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
         var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var orderStatusService = new OrderStatusService(repo.Object, escrowService, commissionService, TimeProvider.System);
         var service = new PaymentProcessingService(
             repo.Object,
             placeOrder,
             TimeProvider.System,
             escrowService,
             commissionService,
+            orderStatusService,
             Mock.Of<ILogger<PaymentProcessingService>>());
 
         var result = await service.HandleCallbackAsync("ref-pending", "pending");
@@ -276,8 +284,47 @@ public class PaymentProcessingServiceTests
             OrderId = 777
         };
 
+        var order = new OrderModel
+        {
+            Id = 777,
+            BuyerId = selection.BuyerId,
+            PaymentMethod = "Card",
+            ItemsSubtotal = 10m,
+            ShippingTotal = 0m,
+            TotalAmount = 10m,
+            Status = OrderStatus.Paid,
+            SubOrders = new List<SellerOrderModel>
+            {
+                new()
+                {
+                    Id = 900,
+                    SellerId = "seller-1",
+                    SellerName = "Seller",
+                    ItemsSubtotal = 10m,
+                    ShippingTotal = 0m,
+                    TotalAmount = 10m,
+                    Status = OrderStatus.Preparing,
+                    Items = new List<OrderItemModel>
+                    {
+                        new()
+                        {
+                            ProductId = 1,
+                            ProductSku = "SKU",
+                            ProductName = "Test",
+                            SellerId = "seller-1",
+                            SellerName = "Seller",
+                            UnitPrice = 10m,
+                            Quantity = 1,
+                            Status = OrderStatus.Preparing
+                        }
+                    }
+                }
+            }
+        };
+
         var repo = new Mock<ICartRepository>();
         repo.Setup(r => r.GetPaymentSelectionByReferenceAsync("ref-refund")).ReturnsAsync(selection);
+        repo.Setup(r => r.GetOrderWithSubOrdersAsync(777)).ReturnsAsync(order);
         repo.Setup(r => r.SaveChangesAsync()).Returns(Task.CompletedTask);
 
         var validationService = new Mock<ICheckoutValidationService>();
@@ -285,12 +332,14 @@ public class PaymentProcessingServiceTests
         var placeOrder = new PlaceOrder(validationService.Object, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
         var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
         var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var orderStatusService = new OrderStatusService(repo.Object, escrowService, commissionService, TimeProvider.System);
         var service = new PaymentProcessingService(
             repo.Object,
             placeOrder,
             TimeProvider.System,
             escrowService,
             commissionService,
+            orderStatusService,
             Mock.Of<ILogger<PaymentProcessingService>>());
 
         var result = await service.HandleCallbackAsync("ref-refund", "refunded");
@@ -299,5 +348,118 @@ public class PaymentProcessingServiceTests
         Assert.Equal(PaymentStatus.Refunded, result.Status);
         Assert.False(result.AlreadyProcessed);
         Assert.Equal(PaymentStatus.Refunded, selection.Status);
+    }
+
+    [Fact]
+    public async Task HandleCallbackAsync_RefundsOrderAndReleasesEscrow()
+    {
+        var options = new DbContextOptionsBuilder<CartDbContext>()
+            .UseInMemoryDatabase(nameof(HandleCallbackAsync_RefundsOrderAndReleasesEscrow))
+            .Options;
+        var context = new CartDbContext(options);
+        var repo = new CartRepository(context);
+
+        var order = new OrderModel
+        {
+            BuyerId = "buyer-full-refund",
+            PaymentMethod = "Card",
+            DeliveryRecipientName = "Buyer",
+            DeliveryLine1 = "123 Street",
+            DeliveryCity = "Town",
+            DeliveryRegion = "Region",
+            DeliveryPostalCode = "12345",
+            DeliveryCountryCode = "US",
+            ItemsSubtotal = 20m,
+            ShippingTotal = 5m,
+            TotalAmount = 25m,
+            Status = OrderStatus.Paid,
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            SubOrders = new List<SellerOrderModel>
+            {
+                new()
+                {
+                    SellerId = "seller-1",
+                    SellerName = "Seller",
+                    ItemsSubtotal = 20m,
+                    ShippingTotal = 5m,
+                    TotalAmount = 25m,
+                    Status = OrderStatus.Preparing,
+                    DeliveredAt = DateTimeOffset.UtcNow.AddDays(-1),
+                    Items = new List<OrderItemModel>
+                    {
+                        new()
+                        {
+                            ProductId = 1,
+                            ProductSku = "SKU-1",
+                            ProductName = "Test",
+                            SellerId = "seller-1",
+                            SellerName = "Seller",
+                            UnitPrice = 20m,
+                            Quantity = 1,
+                            Status = OrderStatus.Preparing
+                        }
+                    }
+                }
+            }
+        };
+
+        await repo.AddOrderAsync(order);
+
+        var escrowEntry = new EscrowLedgerEntry
+        {
+            OrderId = order.Id,
+            SellerOrderId = order.SubOrders[0].Id,
+            BuyerId = order.BuyerId,
+            SellerId = order.SubOrders[0].SellerId,
+            HeldAmount = 25m,
+            CommissionAmount = 0m,
+            SellerPayoutAmount = 25m,
+            Status = EscrowLedgerStatus.Held,
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-1),
+            PayoutEligibleAt = DateTimeOffset.UtcNow.AddDays(6)
+        };
+        await repo.AddEscrowEntriesAsync(new List<EscrowLedgerEntry> { escrowEntry });
+
+        var selection = new PaymentSelectionModel
+        {
+            BuyerId = order.BuyerId,
+            PaymentMethod = "Card",
+            ProviderReference = "ref-provider-refund",
+            Status = PaymentStatus.Paid,
+            OrderId = order.Id,
+            UpdatedAt = DateTimeOffset.UtcNow
+        };
+        context.PaymentSelections.Add(selection);
+        await context.SaveChangesAsync();
+
+        var validationService = new Mock<ICheckoutValidationService>();
+        var promoService = new PromoService(repo, new GetCartItems(repo), new CartCalculationService(), TimeProvider.System);
+        var placeOrder = new PlaceOrder(validationService.Object, repo, new CartCalculationService(), promoService, TimeProvider.System);
+        var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
+        var escrowService = new EscrowService(repo, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var orderStatusService = new OrderStatusService(repo, escrowService, commissionService, TimeProvider.System);
+
+        var service = new PaymentProcessingService(
+            repo,
+            placeOrder,
+            TimeProvider.System,
+            escrowService,
+            commissionService,
+            orderStatusService,
+            Mock.Of<ILogger<PaymentProcessingService>>());
+
+        var result = await service.HandleCallbackAsync("ref-provider-refund", "refunded");
+
+        Assert.True(result.Success);
+        Assert.Equal(PaymentStatus.Refunded, result.Status);
+        var updatedOrder = await repo.GetOrderWithSubOrdersAsync(order.Id);
+        Assert.NotNull(updatedOrder);
+        Assert.Equal(OrderStatus.Refunded, updatedOrder!.Status);
+        Assert.Equal(updatedOrder.TotalAmount, updatedOrder.RefundedAmount);
+        Assert.Equal(OrderStatus.Refunded, updatedOrder.SubOrders[0].Status);
+        Assert.Equal(updatedOrder.SubOrders[0].TotalAmount, updatedOrder.SubOrders[0].RefundedAmount);
+        var ledger = await repo.GetEscrowEntryForSellerOrderAsync(updatedOrder.SubOrders[0].Id);
+        Assert.NotNull(ledger);
+        Assert.Equal(EscrowLedgerStatus.ReleasedToBuyer, ledger!.Status);
     }
 }

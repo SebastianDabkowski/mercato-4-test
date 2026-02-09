@@ -12,15 +12,18 @@ public class OrderStatusService
     private readonly ICartRepository _cartRepository;
     private readonly EscrowService _escrowService;
     private readonly CommissionService _commissionService;
+    private readonly TimeProvider _timeProvider;
 
     public OrderStatusService(
         ICartRepository cartRepository,
         EscrowService escrowService,
-        CommissionService commissionService)
+        CommissionService commissionService,
+        TimeProvider timeProvider)
     {
         _cartRepository = cartRepository;
         _escrowService = escrowService;
         _commissionService = commissionService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<OrderStatusResult> UpdateSellerOrderStatusAsync(
@@ -39,6 +42,16 @@ public class OrderStatusService
         if (!OrderStatusFlow.IsValidTransition(sellerOrder.Status, targetStatus))
         {
             return OrderStatusResult.InvalidTransition(sellerOrder.Status, targetStatus);
+        }
+
+        if (string.Equals(targetStatus, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase))
+        {
+            var amount = refundAmount ?? sellerOrder.TotalAmount;
+            return await RefundSellerOrderInternalAsync(
+                sellerOrder,
+                amount,
+                "Seller marked order refunded",
+                overrideReturnRules: true);
         }
 
         ApplyStatusChange(sellerOrder, targetStatus, trackingNumber, refundAmount);
@@ -215,6 +228,80 @@ public class OrderStatusService
         return OrderStatusResult.SuccessResult(subOrder.Status, order.Status);
     }
 
+    public async Task<OrderStatusResult> RefundSellerOrderAsync(
+        int sellerOrderId,
+        string sellerId,
+        decimal refundAmount,
+        string? reason = null)
+    {
+        var sellerOrder = await _cartRepository.GetSellerOrderAsync(sellerOrderId, sellerId);
+        if (sellerOrder is null)
+        {
+            return OrderStatusResult.NotFound("Sub-order not found.");
+        }
+
+        if (refundAmount <= 0)
+        {
+            return OrderStatusResult.Failed("Refund amount must be greater than zero.");
+        }
+
+        return await RefundSellerOrderInternalAsync(
+            sellerOrder,
+            refundAmount,
+            reason,
+            overrideReturnRules: false);
+    }
+
+    public async Task<OrderStatusResult> RefundOrderAsync(
+        int orderId,
+        decimal? refundAmount = null,
+        string? reason = null,
+        bool overrideReturnRules = false)
+    {
+        var order = await _cartRepository.GetOrderWithSubOrdersAsync(orderId);
+        if (order is null)
+        {
+            return OrderStatusResult.NotFound("Order not found.");
+        }
+
+        if (order.SubOrders.Count == 0)
+        {
+            return OrderStatusResult.Failed("Order has no items to refund.");
+        }
+
+        var outstandingTotal = order.SubOrders.Sum(s => Math.Max(0m, s.TotalAmount - s.RefundedAmount));
+        if (outstandingTotal <= 0)
+        {
+            return OrderStatusResult.Failed("No refundable balance remains.");
+        }
+
+        var targetAmount = refundAmount.HasValue
+            ? Math.Min(refundAmount.Value, outstandingTotal)
+            : outstandingTotal;
+
+        if (targetAmount <= 0)
+        {
+            return OrderStatusResult.Failed("Invalid refund amount.");
+        }
+
+        var allocations = AllocateRefunds(order.SubOrders, targetAmount);
+        foreach (var allocation in allocations)
+        {
+            var result = await RefundSellerOrderInternalAsync(
+                allocation.SellerOrder,
+                allocation.Amount,
+                reason,
+                overrideReturnRules);
+
+            if (!result.IsSuccess)
+            {
+                return result;
+            }
+        }
+
+        return OrderStatusResult.SuccessResult(order.Status, order.Status);
+    }
+
     private static void ApplyStatusChange(
         SellerOrderModel sellerOrder,
         string targetStatus,
@@ -368,6 +455,114 @@ public class OrderStatusService
         item.Status = targetStatus;
         return true;
     }
+
+    private async Task<OrderStatusResult> RefundSellerOrderInternalAsync(
+        SellerOrderModel sellerOrder,
+        decimal refundAmount,
+        string? reason,
+        bool overrideReturnRules)
+    {
+        var now = _timeProvider.GetUtcNow();
+        if (!overrideReturnRules)
+        {
+            if (!sellerOrder.DeliveredAt.HasValue)
+            {
+                return OrderStatusResult.Failed("Order must be delivered before processing a refund.");
+            }
+
+            var deadline = sellerOrder.DeliveredAt.Value.AddDays(14);
+            if (deadline < now)
+            {
+                return OrderStatusResult.Failed("Refund window has expired.");
+            }
+        }
+
+        var outstanding = Math.Max(0m, sellerOrder.TotalAmount - sellerOrder.RefundedAmount);
+        if (outstanding <= 0)
+        {
+            return OrderStatusResult.Failed("No refundable balance remains.");
+        }
+
+        var applied = Math.Min(refundAmount, outstanding);
+        if (applied <= 0)
+        {
+            return OrderStatusResult.Failed("Invalid refund amount.");
+        }
+
+        sellerOrder.RefundedAmount += applied;
+        var fullyRefunded = sellerOrder.RefundedAmount >= sellerOrder.TotalAmount - 0.01m;
+        if (fullyRefunded)
+        {
+            sellerOrder.Status = OrderStatus.Refunded;
+            sellerOrder.TrackingNumber = null;
+        }
+
+        _commissionService.RecalculateAfterRefund(sellerOrder);
+
+        if (fullyRefunded)
+        {
+            await _escrowService.ReleaseSellerOrderEscrowToBuyerAsync(
+                sellerOrder.Id,
+                string.IsNullOrWhiteSpace(reason) ? "Refund processed" : reason);
+        }
+        else
+        {
+            await _escrowService.UpdateEscrowForSellerOrderAsync(sellerOrder);
+        }
+
+        RollupOrderStatus(sellerOrder.Order);
+        await _cartRepository.SaveChangesAsync();
+        return OrderStatusResult.SuccessResult(sellerOrder.Status, sellerOrder.Order?.Status);
+    }
+
+    private static List<RefundAllocation> AllocateRefunds(
+        IEnumerable<SellerOrderModel> sellerOrders,
+        decimal targetAmount)
+    {
+        var orders = sellerOrders.ToList();
+        var outstandingTotal = orders.Sum(o => Math.Max(0m, o.TotalAmount - o.RefundedAmount));
+        var allocations = new List<RefundAllocation>();
+
+        if (outstandingTotal <= 0 || targetAmount <= 0)
+        {
+            return allocations;
+        }
+
+        var remaining = targetAmount;
+        for (var i = 0; i < orders.Count; i++)
+        {
+            var order = orders[i];
+            var outstanding = Math.Max(0m, order.TotalAmount - order.RefundedAmount);
+            if (outstanding <= 0)
+            {
+                continue;
+            }
+
+            decimal allocation;
+            if (i == orders.Count - 1)
+            {
+                allocation = Math.Min(outstanding, remaining);
+            }
+            else
+            {
+                var share = outstanding / outstandingTotal;
+                allocation = Math.Min(outstanding, Math.Round(targetAmount * share, 2, MidpointRounding.AwayFromZero));
+            }
+
+            remaining -= allocation;
+            allocations.Add(new RefundAllocation(order, allocation));
+        }
+
+        if (remaining > 0 && allocations.Count > 0)
+        {
+            var last = allocations[^1];
+            allocations[^1] = last with { Amount = last.Amount + remaining };
+        }
+
+        return allocations.Where(a => a.Amount > 0).ToList();
+    }
+
+    private record RefundAllocation(SellerOrderModel SellerOrder, decimal Amount);
 }
 
 public record OrderStatusResult(bool IsSuccess, string? Error, string? SubOrderStatus = null, string? OrderStatus = null)

@@ -176,11 +176,81 @@ public class OrderStatusServiceTests
         Assert.Equal(OrderStatus.Delivered, updated.Status);
     }
 
+    [Fact]
+    public async Task RefundSellerOrderAsync_ReleasesEscrowOnFullRefund()
+    {
+        var repo = CreateRepository(nameof(RefundSellerOrderAsync_ReleasesEscrowOnFullRefund));
+        var order = await SeedOrderAsync(repo, OrderStatus.Delivered);
+        order.SubOrders[0].DeliveredAt = DateTimeOffset.UtcNow.AddDays(-2);
+        var escrow = new EscrowLedgerEntry
+        {
+            OrderId = order.Id,
+            SellerOrderId = order.SubOrders[0].Id,
+            BuyerId = order.BuyerId,
+            SellerId = order.SubOrders[0].SellerId,
+            HeldAmount = order.TotalAmount,
+            CommissionAmount = 0.15m,
+            SellerPayoutAmount = 14.85m,
+            Status = EscrowLedgerStatus.Held,
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-3),
+            PayoutEligibleAt = DateTimeOffset.UtcNow.AddDays(4)
+        };
+        await repo.AddEscrowEntriesAsync(new List<EscrowLedgerEntry> { escrow });
+        var service = CreateService(repo);
+
+        var result = await service.RefundSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId, order.SubOrders[0].TotalAmount, "Return approved");
+
+        Assert.True(result.IsSuccess);
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        Assert.Equal(OrderStatus.Refunded, updated!.Status);
+        Assert.Equal(order.SubOrders[0].TotalAmount, updated.RefundedAmount);
+        Assert.Equal(order.SubOrders[0].TotalAmount, updated.Order!.RefundedAmount);
+        var ledger = await repo.GetEscrowEntryForSellerOrderAsync(order.SubOrders[0].Id);
+        Assert.NotNull(ledger);
+        Assert.Equal(EscrowLedgerStatus.ReleasedToBuyer, ledger!.Status);
+        Assert.Equal("Return approved", ledger.ReleaseReason);
+    }
+
+    [Fact]
+    public async Task RefundSellerOrderAsync_ClampsAmountToOutstanding()
+    {
+        var repo = CreateRepository(nameof(RefundSellerOrderAsync_ClampsAmountToOutstanding));
+        var order = await SeedOrderAsync(repo, OrderStatus.Delivered);
+        order.SubOrders[0].DeliveredAt = DateTimeOffset.UtcNow.AddDays(-1);
+        order.SubOrders[0].RefundedAmount = 5m;
+        order.RefundedAmount = 5m;
+        var escrow = new EscrowLedgerEntry
+        {
+            OrderId = order.Id,
+            SellerOrderId = order.SubOrders[0].Id,
+            BuyerId = order.BuyerId,
+            SellerId = order.SubOrders[0].SellerId,
+            HeldAmount = order.TotalAmount,
+            CommissionAmount = 0.15m,
+            SellerPayoutAmount = 14.85m,
+            Status = EscrowLedgerStatus.Held,
+            CreatedAt = DateTimeOffset.UtcNow.AddDays(-2),
+            PayoutEligibleAt = DateTimeOffset.UtcNow.AddDays(5)
+        };
+        await repo.AddEscrowEntriesAsync(new List<EscrowLedgerEntry> { escrow });
+        var service = CreateService(repo);
+
+        var result = await service.RefundSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId, 100m, "Over-refund");
+
+        Assert.True(result.IsSuccess);
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        Assert.Equal(OrderStatus.Refunded, updated!.Status);
+        Assert.Equal(order.SubOrders[0].TotalAmount, updated.RefundedAmount);
+        var ledger = await repo.GetEscrowEntryForSellerOrderAsync(order.SubOrders[0].Id);
+        Assert.NotNull(ledger);
+        Assert.Equal(EscrowLedgerStatus.ReleasedToBuyer, ledger!.Status);
+    }
+
     private static OrderStatusService CreateService(CartRepository repo)
     {
         var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
         var escrowService = new EscrowService(repo, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
-        return new OrderStatusService(repo, escrowService, commissionService);
+        return new OrderStatusService(repo, escrowService, commissionService, TimeProvider.System);
     }
 
     private static CartRepository CreateRepository(string dbName)

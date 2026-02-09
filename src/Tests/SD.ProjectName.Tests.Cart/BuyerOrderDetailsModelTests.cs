@@ -31,7 +31,7 @@ public class BuyerOrderDetailsModelTests
         var model = new DetailsModel(
             identity.Object,
             cartRepository.Object,
-            new OrderStatusService(cartRepository.Object, escrowService, commissionService),
+            new OrderStatusService(cartRepository.Object, escrowService, commissionService, TimeProvider.System),
             new ReturnRequestService(cartRepository.Object, TimeProvider.System));
 
         var result = await model.OnGetAsync(1);

@@ -14,6 +14,7 @@ public class PaymentProcessingService
     private readonly ILogger<PaymentProcessingService> _logger;
     private readonly EscrowService _escrowService;
     private readonly CommissionService _commissionService;
+    private readonly OrderStatusService _orderStatusService;
 
     public PaymentProcessingService(
         ICartRepository cartRepository,
@@ -21,6 +22,7 @@ public class PaymentProcessingService
         TimeProvider timeProvider,
         EscrowService escrowService,
         CommissionService commissionService,
+        OrderStatusService orderStatusService,
         ILogger<PaymentProcessingService> logger)
     {
         _cartRepository = cartRepository;
@@ -28,13 +30,15 @@ public class PaymentProcessingService
         _timeProvider = timeProvider;
         _escrowService = escrowService;
         _commissionService = commissionService;
+        _orderStatusService = orderStatusService;
         _logger = logger;
     }
 
     public async Task<PaymentProcessingResult> HandleCallbackAsync(
         string providerReference,
         string status,
-        string? failureReason = null)
+        string? failureReason = null,
+        decimal? refundAmount = null)
     {
         var selection = await _cartRepository.GetPaymentSelectionByReferenceAsync(providerReference);
         if (selection is null)
@@ -48,7 +52,7 @@ public class PaymentProcessingService
         {
             PaymentStatus.Paid => await HandlePaidAsync(selection, providerReference),
             PaymentStatus.Pending => await HandlePendingAsync(selection, providerReference),
-            PaymentStatus.Refunded => await HandleRefundedAsync(selection),
+            PaymentStatus.Refunded => await HandleRefundedAsync(selection, refundAmount, failureReason),
             _ => await HandleFailedAsync(selection, providerReference, failureReason)
         };
     }
@@ -138,7 +142,10 @@ public class PaymentProcessingService
         return PaymentProcessingResult.CreatePending(orderResult.Order.Id, alreadyProcessed: false);
     }
 
-    private async Task<PaymentProcessingResult> HandleRefundedAsync(PaymentSelectionModel selection)
+    private async Task<PaymentProcessingResult> HandleRefundedAsync(
+        PaymentSelectionModel selection,
+        decimal? refundAmount,
+        string? providerReason)
     {
         var alreadyRefunded = selection.Status == PaymentStatus.Refunded;
         selection.Status = PaymentStatus.Refunded;
@@ -147,6 +154,24 @@ public class PaymentProcessingService
 
         if (selection.OrderId.HasValue)
         {
+            var refundResult = await _orderStatusService.RefundOrderAsync(
+                selection.OrderId.Value,
+                refundAmount,
+                string.IsNullOrWhiteSpace(providerReason) ? "Payment provider refund" : providerReason,
+                overrideReturnRules: true);
+
+            if (!refundResult.IsSuccess && !string.IsNullOrWhiteSpace(refundResult.Error))
+            {
+                _logger.LogError(
+                    "Failed to apply refund for order {OrderId}: {Error}",
+                    selection.OrderId.Value,
+                    refundResult.Error);
+                return PaymentProcessingResult.CreateRefunded(
+                    selection.OrderId.Value,
+                    alreadyRefunded,
+                    refundResult.Error);
+            }
+
             return PaymentProcessingResult.CreateRefunded(selection.OrderId.Value, alreadyRefunded);
         }
 
@@ -217,6 +242,9 @@ public record PaymentProcessingResult(
     public static PaymentProcessingResult CreatePending(int? orderId, bool alreadyProcessed) =>
         new(false, false, false, alreadyProcessed, orderId, null, new(), PaymentStatus.Pending);
 
-    public static PaymentProcessingResult CreateRefunded(int? orderId, bool alreadyProcessed) =>
-        new(true, false, false, alreadyProcessed, orderId, null, new(), PaymentStatus.Refunded);
+    public static PaymentProcessingResult CreateRefunded(
+        int? orderId,
+        bool alreadyProcessed,
+        string? failureReason = null) =>
+        new(failureReason is null, failureReason is not null, false, alreadyProcessed, orderId, failureReason, new(), PaymentStatus.Refunded);
 }
