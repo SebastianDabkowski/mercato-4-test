@@ -41,6 +41,24 @@
                     <span class="ms-2" data-testid="dashboard-payout-account">Account: @Model.MaskedPayoutAccount</span>
                 }
             </p>
+            @if (Model.LatestPayout is not null)
+            {
+                <div class="mt-2" data-testid="dashboard-payout-status">
+                    <div class="small text-muted">Latest payout</div>
+                    <div class="fw-semibold">@Model.LatestPayout.StatusLabel</div>
+                    <div class="text-muted small">
+                        Amount @Model.LatestPayout.Amount.ToString("C") · Scheduled @Model.LatestPayout.ScheduledFor.ToString("yyyy-MM-dd")
+                        @if (!string.IsNullOrWhiteSpace(Model.LatestPayout.ErrorReference) && Model.LatestPayout.Status == SD.ProjectName.Modules.Cart.Domain.PayoutStatus.Failed)
+                        {
+                            <span class="text-danger ms-1">Error: @Model.LatestPayout.ErrorReference</span>
+                        }
+                    </div>
+                </div>
+            }
+            else
+            {
+                <p class="text-muted small mb-2">No payouts scheduled yet.</p>
+            }
         }
         else
         {

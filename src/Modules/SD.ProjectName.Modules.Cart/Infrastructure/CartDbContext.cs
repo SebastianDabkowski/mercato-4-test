@@ -25,6 +25,8 @@ public class CartDbContext : DbContext
     public DbSet<ReturnRequestModel> ReturnRequests { get; set; }
     public DbSet<ReturnRequestItemModel> ReturnRequestItems { get; set; }
     public DbSet<EscrowLedgerEntry> EscrowLedgerEntries { get; set; }
+    public DbSet<PayoutSchedule> PayoutSchedules { get; set; }
+    public DbSet<PayoutScheduleItem> PayoutScheduleItems { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -265,6 +267,33 @@ public class CartDbContext : DbContext
             entity.Property(e => e.HeldAmount).HasColumnType("decimal(18,6)");
             entity.Property(e => e.CommissionAmount).HasColumnType("decimal(18,6)");
             entity.Property(e => e.SellerPayoutAmount).HasColumnType("decimal(18,6)");
+        });
+
+        modelBuilder.Entity<PayoutSchedule>(entity =>
+        {
+            entity.ToTable("PayoutSchedule");
+            entity.HasIndex(p => p.SellerId);
+            entity.Property(p => p.SellerId).HasMaxLength(200);
+            entity.Property(p => p.Status).HasMaxLength(50);
+            entity.Property(p => p.ErrorReference).HasMaxLength(500);
+            entity.Property(p => p.TotalAmount).HasColumnType("decimal(18,6)");
+        });
+
+        modelBuilder.Entity<PayoutScheduleItem>(entity =>
+        {
+            entity.ToTable("PayoutScheduleItem");
+            entity.HasIndex(i => i.EscrowLedgerEntryId).IsUnique();
+            entity.Property(i => i.Amount).HasColumnType("decimal(18,6)");
+            entity
+                .HasOne(i => i.PayoutSchedule)
+                .WithMany(p => p.Items)
+                .HasForeignKey(i => i.PayoutScheduleId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity
+                .HasOne(i => i.EscrowEntry)
+                .WithOne()
+                .HasForeignKey<PayoutScheduleItem>(i => i.EscrowLedgerEntryId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

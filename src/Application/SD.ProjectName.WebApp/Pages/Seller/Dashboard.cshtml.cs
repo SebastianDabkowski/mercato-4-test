@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Options;
+using SD.ProjectName.Modules.Cart.Application;
+using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.WebApp;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
@@ -15,11 +17,16 @@ namespace SD.ProjectName.WebApp.Pages.Seller
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly FeatureFlags _featureFlags;
+        private readonly PayoutScheduleService _payoutScheduleService;
 
-        public DashboardModel(UserManager<ApplicationUser> userManager, IOptions<FeatureFlags> featureOptions)
+        public DashboardModel(
+            UserManager<ApplicationUser> userManager,
+            IOptions<FeatureFlags> featureOptions,
+            PayoutScheduleService payoutScheduleService)
         {
             _userManager = userManager;
             _featureFlags = featureOptions.Value;
+            _payoutScheduleService = payoutScheduleService;
         }
 
         public bool RequiresKyc { get; private set; }
@@ -35,6 +42,8 @@ namespace SD.ProjectName.WebApp.Pages.Seller
         public string? MaskedPayoutAccount { get; private set; }
 
         public PayoutMethod PayoutDefaultMethod { get; private set; } = PayoutMethod.BankTransfer;
+
+        public PayoutScheduleSummary? LatestPayout { get; private set; }
 
         public bool SellerUserManagementEnabled { get; private set; }
 
@@ -88,10 +97,45 @@ namespace SD.ProjectName.WebApp.Pages.Seller
             {
                 StatusMessage ??= "Add payout details to receive transfers.";
             }
+            else
+            {
+                var schedules = await _payoutScheduleService.GetRecentSchedulesForSellerAsync(user.Id, 1);
+                var latest = schedules.FirstOrDefault();
+                if (latest is not null)
+                {
+                    LatestPayout = new PayoutScheduleSummary
+                    {
+                        Status = latest.Status,
+                        Amount = latest.TotalAmount,
+                        ScheduledFor = latest.ScheduledFor,
+                        PaidAt = latest.PaidAt,
+                        ErrorReference = latest.ErrorReference,
+                        ProcessingStartedAt = latest.ProcessingStartedAt
+                    };
+                }
+            }
 
             SellerUserManagementEnabled = _featureFlags.EnableSellerInternalUsers;
 
             return Page();
+        }
+
+        public class PayoutScheduleSummary
+        {
+            public string Status { get; set; } = string.Empty;
+            public decimal Amount { get; set; }
+            public DateTimeOffset ScheduledFor { get; set; }
+            public DateTimeOffset? PaidAt { get; set; }
+            public string? ErrorReference { get; set; }
+            public DateTimeOffset? ProcessingStartedAt { get; set; }
+
+            public string StatusLabel => Status switch
+            {
+                PayoutStatus.Paid => "Paid",
+                PayoutStatus.Processing => "Processing",
+                PayoutStatus.Failed => "Failed",
+                _ => "Scheduled"
+            };
         }
     }
 }

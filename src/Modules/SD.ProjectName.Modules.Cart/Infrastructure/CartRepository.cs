@@ -440,6 +440,17 @@ public class CartRepository : ICartRepository
         return await _context.EscrowLedgerEntries.AnyAsync(e => e.OrderId == orderId);
     }
 
+    public async Task<List<EscrowLedgerEntry>> GetPayoutEligibleEscrowEntriesAsync(DateTimeOffset asOf)
+    {
+        var eligible = _context.EscrowLedgerEntries
+            .Where(e => e.Status == EscrowLedgerStatus.Held && e.PayoutEligibleAt <= asOf)
+            .Where(e => !_context.PayoutScheduleItems.Any(p => p.EscrowLedgerEntryId == e.Id));
+
+        return await eligible
+            .OrderBy(e => e.PayoutEligibleAt)
+            .ToListAsync();
+    }
+
     public async Task<PaymentSelectionModel?> GetPaymentSelectionByReferenceAsync(string providerReference)
     {
         return await _context.PaymentSelections.FirstOrDefaultAsync(p =>
@@ -470,6 +481,12 @@ public class CartRepository : ICartRepository
     public async Task AddEscrowEntriesAsync(List<EscrowLedgerEntry> entries)
     {
         _context.EscrowLedgerEntries.AddRange(entries);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task AddPayoutScheduleAsync(PayoutSchedule schedule)
+    {
+        _context.PayoutSchedules.Add(schedule);
         await _context.SaveChangesAsync();
     }
 
@@ -536,6 +553,30 @@ public class CartRepository : ICartRepository
     public async Task<EscrowLedgerEntry?> GetEscrowEntryForSellerOrderAsync(int sellerOrderId)
     {
         return await _context.EscrowLedgerEntries.FirstOrDefaultAsync(e => e.SellerOrderId == sellerOrderId);
+    }
+
+    public async Task<PayoutSchedule?> GetPayoutScheduleAsync(int scheduleId)
+    {
+        return await _context.PayoutSchedules.FirstOrDefaultAsync(p => p.Id == scheduleId);
+    }
+
+    public async Task<PayoutSchedule?> GetPayoutScheduleWithItemsAsync(int scheduleId)
+    {
+        return await _context.PayoutSchedules
+            .Include(p => p.Items)
+                .ThenInclude(i => i.EscrowEntry)
+            .FirstOrDefaultAsync(p => p.Id == scheduleId);
+    }
+
+    public async Task<List<PayoutSchedule>> GetPayoutSchedulesForSellerAsync(string sellerId, int take = 5)
+    {
+        var normalizedTake = take < 1 ? 1 : take;
+        return await _context.PayoutSchedules
+            .AsNoTracking()
+            .Where(p => p.SellerId == sellerId)
+            .OrderByDescending(p => p.ScheduledAt)
+            .Take(normalizedTake)
+            .ToListAsync();
     }
 
     public async Task ClearCartItemsAsync(string buyerId)

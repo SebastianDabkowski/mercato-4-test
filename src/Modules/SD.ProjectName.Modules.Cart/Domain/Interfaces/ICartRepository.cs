@@ -28,7 +28,12 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task ClearPromoSelectionAsync(string buyerId);
         Task<PromoCodeModel?> GetPromoCodeAsync(string code);
         Task<bool> HasEscrowEntriesAsync(int orderId);
+        Task<List<EscrowLedgerEntry>> GetPayoutEligibleEscrowEntriesAsync(DateTimeOffset asOf);
         Task AddEscrowEntriesAsync(List<EscrowLedgerEntry> entries);
+        Task AddPayoutScheduleAsync(PayoutSchedule schedule);
+        Task<PayoutSchedule?> GetPayoutScheduleAsync(int scheduleId);
+        Task<PayoutSchedule?> GetPayoutScheduleWithItemsAsync(int scheduleId);
+        Task<List<PayoutSchedule>> GetPayoutSchedulesForSellerAsync(string sellerId, int take = 5);
         Task<List<EscrowLedgerEntry>> GetEscrowEntriesForOrderAsync(int orderId);
         Task<EscrowLedgerEntry?> GetEscrowEntryForSellerOrderAsync(int sellerOrderId);
       
