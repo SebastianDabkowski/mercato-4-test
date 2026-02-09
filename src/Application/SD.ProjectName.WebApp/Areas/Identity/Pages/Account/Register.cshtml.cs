@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.WebUtilities;
+using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Identity;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
 {
@@ -19,17 +21,23 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IEmailSender _emailSender;
         private readonly ILogger<RegisterModel> _logger;
+        private readonly CartMergeService _cartMergeService;
+        private readonly ICartIdentityService _cartIdentityService;
 
         public RegisterModel(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             IEmailSender emailSender,
-            ILogger<RegisterModel> logger)
+            ILogger<RegisterModel> logger,
+            CartMergeService cartMergeService,
+            ICartIdentityService cartIdentityService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _emailSender = emailSender;
             _logger = logger;
+            _cartMergeService = cartMergeService;
+            _cartIdentityService = cartIdentityService;
         }
 
         [BindProperty]
@@ -114,6 +122,7 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
             ReturnUrl = returnUrl ?? Url.Content("~/");
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
             _logger.LogInformation("Processing registration for {Email}", Input.Email);
+            var guestBuyerId = _cartIdentityService.GetGuestBuyerId();
             if (ModelState.IsValid)
             {
                 var user = CreateUser();
@@ -159,6 +168,11 @@ namespace SD.ProjectName.WebApp.Areas.Identity.Pages.Account
                     else
                     {
                         await _signInManager.SignInAsync(user, isPersistent: false);
+                        if (!string.IsNullOrWhiteSpace(guestBuyerId))
+                        {
+                            await _cartMergeService.MergeAsync(guestBuyerId, user.Id);
+                            _cartIdentityService.ClearGuestBuyerId();
+                        }
                         return LocalRedirect(ReturnUrl);
                     }
                 }

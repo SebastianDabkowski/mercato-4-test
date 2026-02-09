@@ -1,9 +1,8 @@
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
-using SD.ProjectName.WebApp.Data;
+using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Buyer
 {
@@ -12,21 +11,21 @@ namespace SD.ProjectName.WebApp.Pages.Buyer
         private readonly GetCartItems _getCartItems;
         private readonly RemoveFromCart _removeFromCart;
         private readonly UpdateCartItemQuantity _updateQuantity;
-        private readonly UserManager<ApplicationUser> _userManager;
         private readonly IProductAvailabilityService _productAvailabilityService;
+        private readonly ICartIdentityService _cartIdentityService;
 
         public CartModel(
             GetCartItems getCartItems,
             RemoveFromCart removeFromCart,
             UpdateCartItemQuantity updateQuantity,
-            UserManager<ApplicationUser> userManager,
-            IProductAvailabilityService productAvailabilityService)
+            IProductAvailabilityService productAvailabilityService,
+            ICartIdentityService cartIdentityService)
         {
             _getCartItems = getCartItems;
             _removeFromCart = removeFromCart;
             _updateQuantity = updateQuantity;
-            _userManager = userManager;
             _productAvailabilityService = productAvailabilityService;
+            _cartIdentityService = cartIdentityService;
         }
 
         public List<SellerGroup> SellerGroups { get; set; } = new();
@@ -35,8 +34,8 @@ namespace SD.ProjectName.WebApp.Pages.Buyer
 
         public async Task OnGetAsync()
         {
-            var userId = _userManager.GetUserId(User)!;
-            var items = await _getCartItems.ExecuteAsync(userId);
+            var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+            var items = await _getCartItems.ExecuteAsync(buyerId);
 
             ItemAvailability = await BuildAvailabilityAsync(items);
             SellerGroups = items
@@ -48,13 +47,15 @@ namespace SD.ProjectName.WebApp.Pages.Buyer
 
         public async Task<IActionResult> OnPostRemoveAsync(int itemId)
         {
-            await _removeFromCart.ExecuteAsync(itemId);
+            var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+            await _removeFromCart.ExecuteAsync(itemId, buyerId);
             return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostUpdateQuantityAsync(int itemId, int quantity)
         {
-            await _updateQuantity.ExecuteAsync(itemId, quantity);
+            var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+            await _updateQuantity.ExecuteAsync(itemId, quantity, buyerId);
             return RedirectToPage();
         }
 
