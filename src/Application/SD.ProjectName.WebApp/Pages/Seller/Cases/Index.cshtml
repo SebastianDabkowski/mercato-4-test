@@ -75,7 +75,7 @@ else
                         <td>@request.RequestedAt.ToLocalTime().ToString("g")</td>
                     <td>
                         <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">
-                            @Model.GetCaseStatusLabel(request.Status)
+                            @Model.GetCaseStatusLabel(request.Status, request.Resolution)
                         </span>
                         @if (request.SellerUnreadCount > 0)
                         {

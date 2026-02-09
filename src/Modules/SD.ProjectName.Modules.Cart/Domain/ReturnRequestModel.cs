@@ -10,6 +10,11 @@ public class ReturnRequestModel
     public string Status { get; set; } = ReturnRequestStatus.Requested;
     public string Reason { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public string? Resolution { get; set; }
+    public string? ResolutionNote { get; set; }
+    public decimal? RefundAmount { get; set; }
+    public string? RefundStatus { get; set; } = ReturnRequestRefundStatus.NotRequired;
+    public string? RefundReference { get; set; }
     public DateTimeOffset RequestedAt { get; set; }
     public DateTimeOffset? UpdatedAt { get; set; }
     public int BuyerUnreadCount { get; set; }
@@ -62,4 +67,22 @@ public static class ReturnRequestMessageSender
     public const string Buyer = "buyer";
     public const string Seller = "seller";
     public const string Admin = "admin";
+}
+
+public static class ReturnRequestResolution
+{
+    public const string FullRefund = "full_refund";
+    public const string PartialRefund = "partial_refund";
+    public const string Replacement = "replacement";
+    public const string Repair = "repair";
+    public const string NoRefund = "no_refund";
+}
+
+public static class ReturnRequestRefundStatus
+{
+    public const string NotRequired = "not_required";
+    public const string Pending = "pending";
+    public const string Completed = "completed";
+    public const string Linked = "linked";
+    public const string Failed = "failed";
 }

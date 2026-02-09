@@ -10,7 +10,7 @@
 
 <div class="d-flex align-items-center gap-3 mb-3">
     <h1 class="mb-0">Case #@request.Id</h1>
-    <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status)</span>
+    <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status, request.Resolution)</span>
 </div>
 
 <div class="mb-3">
@@ -82,11 +82,18 @@
         <div class="d-flex justify-content-between align-items-center mb-2">
             <div>
                 <div class="text-muted">Current status</div>
-                <div class="fw-semibold">@Model.GetCaseStatusLabel(request.Status)</div>
+                <div class="fw-semibold">@Model.GetCaseStatusLabel(request.Status, request.Resolution)</div>
             </div>
-            <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status)</span>
+            <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status, request.Resolution)</span>
         </div>
-        <div>@Model.GetResolutionSummary(request.Status)</div>
+        <div>@Model.GetResolutionSummary(request)</div>
+        @if (!string.IsNullOrWhiteSpace(request.ResolutionNote))
+        {
+            <div class="mt-2">
+                <div class="text-muted small">Seller note</div>
+                <div>@request.ResolutionNote</div>
+            </div>
+        }
         @if (request.UpdatedAt.HasValue)
         {
             <div class="text-muted small mt-1">Last updated @request.UpdatedAt.Value.ToLocalTime().ToString("g")</div>
@@ -97,8 +104,29 @@
 <div class="card mb-3">
     <div class="card-header">Refunds</div>
     <div class="card-body">
+        @if ((request.RefundAmount.HasValue && request.RefundAmount.Value > 0) ||
+            !string.IsNullOrWhiteSpace(request.RefundStatus) ||
+            !string.IsNullOrWhiteSpace(request.RefundReference))
+        {
+            <ul class="mb-0">
+                <li>Status: @Model.GetRefundStatusLabel(request)</li>
+                @if (request.RefundAmount.HasValue)
+                {
+                    <li>Amount: @request.RefundAmount.Value.ToString("C")</li>
+                }
+                @if (!string.IsNullOrWhiteSpace(request.RefundReference))
+                {
+                    <li>Reference: <span class="text-monospace">@request.RefundReference</span></li>
+                }
+            </ul>
+        }
+        else
+        {
+            <div class="text-muted">No refund has been linked to this case yet.</div>
+        }
         @if ((sellerOrder?.RefundedAmount ?? 0) > 0 || (order?.RefundedAmount ?? 0) > 0 || Model.PaymentSelection is not null)
         {
+            <hr />
             <ul class="mb-0">
                 @if ((sellerOrder?.RefundedAmount ?? 0) > 0)
                 {
@@ -113,10 +141,6 @@
                     <li>Payment reference: <span class="text-monospace">@Model.PaymentSelection.ProviderReference</span></li>
                 }
             </ul>
-        }
-        else
-        {
-            <div class="text-muted">No refund has been linked to this case yet.</div>
         }
     </div>
 </div>

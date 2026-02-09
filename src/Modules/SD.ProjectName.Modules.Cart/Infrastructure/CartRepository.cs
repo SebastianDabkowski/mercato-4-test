@@ -225,7 +225,16 @@ public class CartRepository : ICartRepository
             .FirstOrDefaultAsync(r => r.Id == requestId && r.SellerOrder != null && r.SellerOrder.SellerId == sellerId);
     }
 
-    public async Task<ReturnRequestModel?> UpdateReturnRequestStatusAsync(int requestId, string sellerId, string status, DateTimeOffset updatedAt)
+    public async Task<ReturnRequestModel?> UpdateReturnRequestStatusAsync(
+        int requestId,
+        string sellerId,
+        string status,
+        DateTimeOffset updatedAt,
+        string? resolution = null,
+        decimal? refundAmount = null,
+        string? refundStatus = null,
+        string? refundReference = null,
+        string? resolutionNote = null)
     {
         var request = await _context.ReturnRequests
             .Include(r => r.SellerOrder)
@@ -238,6 +247,31 @@ public class CartRepository : ICartRepository
 
         request.Status = status;
         request.UpdatedAt = updatedAt;
+        if (!string.IsNullOrWhiteSpace(resolution))
+        {
+            request.Resolution = resolution;
+        }
+
+        if (resolutionNote is not null)
+        {
+            request.ResolutionNote = resolutionNote;
+        }
+
+        if (refundAmount.HasValue)
+        {
+            request.RefundAmount = refundAmount;
+        }
+
+        if (!string.IsNullOrWhiteSpace(refundStatus))
+        {
+            request.RefundStatus = refundStatus;
+        }
+
+        if (!string.IsNullOrWhiteSpace(refundReference))
+        {
+            request.RefundReference = refundReference;
+        }
+
         await _context.SaveChangesAsync();
         return request;
     }

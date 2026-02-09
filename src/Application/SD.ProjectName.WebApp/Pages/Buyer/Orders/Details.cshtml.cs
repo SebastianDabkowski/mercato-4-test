@@ -194,9 +194,11 @@ public class DetailsModel : PageModel
         return estimated?.EstimatedDeliveryDate?.ToLocalTime().ToString("D") ?? "Not available";
     }
 
-    public string GetCaseStatusLabel(string status) =>
+    public string GetCaseStatusLabel(string status, string? resolution = null) =>
         status?.ToLowerInvariant() switch
         {
+            ReturnRequestStatus.Completed when !string.IsNullOrWhiteSpace(resolution) =>
+                $"Resolved: {ReturnRequestWorkflow.GetResolutionLabel(resolution)}",
             ReturnRequestStatus.Requested => "Pending seller review",
             ReturnRequestStatus.Approved => "Approved",
             ReturnRequestStatus.PartialProposed => "Partial solution proposed",

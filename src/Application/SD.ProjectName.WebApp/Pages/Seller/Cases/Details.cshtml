@@ -10,7 +10,7 @@
 
 <div class="d-flex align-items-center gap-3 mb-3">
     <h1 class="mb-0">Case #@request.Id</h1>
-    <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status)</span>
+    <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status, request.Resolution)</span>
 </div>
 
 <div class="mb-3 d-flex gap-3 align-items-center">
@@ -50,7 +50,7 @@
                     </div>
                     <div class="col-md-6">
                         <div class="text-muted">Current status</div>
-                        <div class="fw-semibold">@Model.GetCaseStatusLabel(request.Status)</div>
+                        <div class="fw-semibold">@Model.GetCaseStatusLabel(request.Status, request.Resolution)</div>
                     </div>
                 </div>
             </div>
@@ -87,6 +87,49 @@
                         <div class="text-muted">No items recorded.</div>
                     }
                 </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Resolution</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="text-muted small">Current status</div>
+                    <div class="fw-semibold">@Model.GetCaseStatusLabel(request.Status, request.Resolution)</div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(request.Resolution))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Decision</div>
+                        <div class="fw-semibold">@Model.GetResolutionLabel(request)</div>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(request.ResolutionNote))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Note to buyer</div>
+                        <div>@request.ResolutionNote</div>
+                    </div>
+                }
+                @if (ReturnRequestWorkflow.RequiresRefund(request.Resolution ?? string.Empty) || request.RefundAmount.HasValue || !string.IsNullOrWhiteSpace(request.RefundStatus))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Refund</div>
+                        <div class="fw-semibold">@Model.GetRefundStatusLabel(request)</div>
+                        @if (request.RefundAmount.HasValue)
+                        {
+                            <div>Amount: @request.RefundAmount.Value.ToString("C")</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(request.RefundReference))
+                        {
+                            <div class="text-muted small">Reference: <span class="text-monospace">@request.RefundReference</span></div>
+                        }
+                    </div>
+                }
+                @if (request.UpdatedAt.HasValue)
+                {
+                    <div class="text-muted small">Last updated @request.UpdatedAt.Value.ToLocalTime().ToString("g")</div>
+                }
             </div>
         </div>
 
@@ -178,13 +221,60 @@
             <div class="card-body">
                 @if (Model.CanTakeAction)
                 {
-                    <form method="post" asp-page-handler="Decide" class="d-flex flex-column gap-2">
+                    <form method="post" asp-page-handler="Decide" class="d-flex flex-column gap-3">
                         <input type="hidden" name="caseId" value="@request.Id" />
-                        <button type="submit" name="decision" value="@ReturnRequestWorkflow.SellerActionAcceptReturn" class="btn btn-sm btn-success">Accept return</button>
-                        <button type="submit" name="decision" value="@ReturnRequestWorkflow.SellerActionProposePartial" class="btn btn-sm btn-outline-primary">Propose partial solution</button>
-                        <button type="submit" name="decision" value="@ReturnRequestWorkflow.SellerActionRequestInfo" class="btn btn-sm btn-outline-secondary">Request more information</button>
-                        <button type="submit" name="decision" value="@ReturnRequestWorkflow.SellerActionReject" class="btn btn-sm btn-outline-danger">Reject request</button>
-                        <div class="text-muted small">Actions are recorded and buyer will be notified.</div>
+                        <div>
+                            <div class="form-label fw-semibold mb-1">Select resolution</div>
+                            <div class="d-flex flex-column gap-1">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="ResolutionOption" id="resolution-full-refund" value="@ReturnRequestResolution.FullRefund" />
+                                    <label class="form-check-label fw-semibold" for="resolution-full-refund">Full refund</label>
+                                    <div class="form-text">Refund the remaining balance for this seller order.</div>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="ResolutionOption" id="resolution-partial-refund" value="@ReturnRequestResolution.PartialRefund" />
+                                    <label class="form-check-label fw-semibold" for="resolution-partial-refund">Partial refund</label>
+                                    <div class="form-text">Specify the amount below.</div>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="ResolutionOption" id="resolution-replacement" value="@ReturnRequestResolution.Replacement" />
+                                    <label class="form-check-label fw-semibold" for="resolution-replacement">Replacement</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="ResolutionOption" id="resolution-repair" value="@ReturnRequestResolution.Repair" />
+                                    <label class="form-check-label fw-semibold" for="resolution-repair">Repair</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" asp-for="ResolutionOption" id="resolution-no-refund" value="@ReturnRequestResolution.NoRefund" />
+                                    <label class="form-check-label fw-semibold" for="resolution-no-refund">No refund / reject</label>
+                                    <div class="form-text">Add a reason for the buyer.</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label asp-for="ResolutionRefundAmount" class="form-label">Refund amount</label>
+                            <input asp-for="ResolutionRefundAmount" class="form-control" type="number" min="0" step="0.01" />
+                            <div class="form-text">Required for partial refund. Leave blank for full refund to use the outstanding balance.</div>
+                        </div>
+                        <div class="form-check">
+                            <input asp-for="LinkExistingRefund" class="form-check-input" type="checkbox" id="link-existing-refund" />
+                            <label class="form-check-label" for="link-existing-refund">Refund already processed externally</label>
+                            <div class="form-text">We will record the reference instead of initiating a refund now.</div>
+                        </div>
+                        <div>
+                            <label asp-for="RefundReference" class="form-label">Refund reference</label>
+                            <input asp-for="RefundReference" class="form-control" />
+                            <div class="form-text">Provide the payment or refund reference (required when linking an existing refund).</div>
+                        </div>
+                        <div>
+                            <label asp-for="ResolutionNote" class="form-label">Resolution note</label>
+                            <textarea asp-for="ResolutionNote" class="form-control" rows="3"></textarea>
+                            <div class="form-text">This will be shared with the buyer. Explain partial or no-refund decisions.</div>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-sm btn-primary">Confirm resolution</button>
+                            <div class="text-muted small mt-1">Actions are recorded and the buyer will be notified.</div>
+                        </div>
                     </form>
                 }
                 else
