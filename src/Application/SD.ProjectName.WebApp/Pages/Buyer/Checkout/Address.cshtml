@@ -1,0 +1,136 @@
+@page "/buyer/checkout/address"
+@model SD.ProjectName.WebApp.Pages.Buyer.Checkout.AddressModel
+@using Microsoft.AspNetCore.Authorization
+@attribute [AllowAnonymous]
+@{
+    ViewData["Title"] = "Delivery address";
+}
+
+<h1 data-testid="checkout-address-heading">Delivery Address</h1>
+
+@if (TempData["AddressSaved"] is string savedMessage)
+{
+    <div class="alert alert-success" data-testid="address-saved">@savedMessage</div>
+}
+
+<div class="mb-4">
+    <p class="text-muted mb-1">Select a saved address or enter a new one for this order.</p>
+    <p class="text-muted small mb-0">Supported regions: @Model.AllowedRegionsLabel</p>
+</div>
+
+<div class="row">
+    <div class="col-md-5">
+        <h4 class="h5">Saved addresses</h4>
+        @if (!Model.SavedAddresses.Any())
+        {
+            <div class="alert alert-info" data-testid="no-saved-addresses">
+                No saved addresses yet. Enter a new address on the right.
+            </div>
+        }
+        else
+        {
+            <form method="post" class="mb-3">
+                <ul class="list-group" data-testid="saved-address-list">
+                    @foreach (var address in Model.SavedAddresses)
+                    {
+                        <li class="list-group-item d-flex">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="SelectedAddressId" value="@address.Id" id="address-@address.Id" @(address.IsSelectedForCheckout ? "checked" : "") data-testid="saved-address-option" />
+                                <label class="form-check-label ms-2" for="address-@address.Id">
+                                    <strong>@address.RecipientName</strong><br />
+                                    @address.Line1 @if (!string.IsNullOrWhiteSpace(address.Line2))
+                                    {
+                                        <span>, @address.Line2</span>
+                                    }<br />
+                                    @address.City, @address.Region @address.PostalCode<br />
+                                    @address.CountryCode
+                                    @if (!string.IsNullOrWhiteSpace(address.PhoneNumber))
+                                    {
+                                        <div class="text-muted small">@address.PhoneNumber</div>
+                                    }
+                                    @if (address.IsSelectedForCheckout)
+                                    {
+                                        <span class="badge bg-success ms-1" data-testid="address-selected">Selected</span>
+                                    }
+                                </label>
+                            </div>
+                        </li>
+                    }
+                </ul>
+                <div class="mt-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" data-testid="use-saved-address">Use selected</button>
+                    <a asp-page="/Buyer/Checkout/Address" class="btn btn-outline-secondary">Enter new address</a>
+                </div>
+            </form>
+        }
+    </div>
+    <div class="col-md-7">
+        <h4 class="h5">New address</h4>
+        <form method="post" class="card card-body">
+            <div asp-validation-summary="All" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="Input.RecipientName" class="form-label">Full name</label>
+                <input asp-for="Input.RecipientName" class="form-control" data-testid="address-recipient" />
+                <span asp-validation-for="Input.RecipientName" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Line1" class="form-label">Address line 1</label>
+                <input asp-for="Input.Line1" class="form-control" data-testid="address-line1" />
+                <span asp-validation-for="Input.Line1" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.Line2" class="form-label">Address line 2</label>
+                <input asp-for="Input.Line2" class="form-control" data-testid="address-line2" />
+                <span asp-validation-for="Input.Line2" class="text-danger"></span>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Input.City" class="form-label">City</label>
+                    <input asp-for="Input.City" class="form-control" data-testid="address-city" />
+                    <span asp-validation-for="Input.City" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Input.Region" class="form-label">State/Region</label>
+                    <input asp-for="Input.Region" class="form-control" data-testid="address-region" />
+                    <span asp-validation-for="Input.Region" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Input.PostalCode" class="form-label">Postal code</label>
+                    <input asp-for="Input.PostalCode" class="form-control" data-testid="address-postalcode" />
+                    <span asp-validation-for="Input.PostalCode" class="text-danger"></span>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label asp-for="Input.CountryCode" class="form-label">Country (ISO code)</label>
+                    <input asp-for="Input.CountryCode" class="form-control" data-testid="address-country" />
+                    <span asp-validation-for="Input.CountryCode" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Input.PhoneNumber" class="form-label">Phone number</label>
+                <input asp-for="Input.PhoneNumber" class="form-control" data-testid="address-phone" />
+                <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+            </div>
+
+            <div class="form-check mb-3">
+                <input asp-for="SaveToProfile" class="form-check-input" disabled="@(Model.IsAuthenticated ? null : "disabled")" data-testid="address-save-profile" />
+                <label asp-for="SaveToProfile" class="form-check-label">Save to my profile for future orders</label>
+                @if (!Model.IsAuthenticated)
+                {
+                    <div class="text-muted small">Sign in to save this address for future checkouts.</div>
+                }
+            </div>
+
+            <button type="submit" class="btn btn-primary" data-testid="address-submit">Save and continue</button>
+        </form>
+    </div>
+</div>
+
+<partial name="_ValidationScriptsPartial" />
