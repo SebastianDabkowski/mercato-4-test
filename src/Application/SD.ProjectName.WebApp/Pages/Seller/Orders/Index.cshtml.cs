@@ -202,5 +202,4 @@ public class IndexModel : PageModel
 
     private static string Quote(string value) =>
         $"\"{value.Replace("\"", "\"\"")}\"";
-    }
 }
