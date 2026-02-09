@@ -93,6 +93,7 @@ public class OrderStatusService
         }
 
         subOrder.Status = targetStatus;
+        subOrder.DeliveredAt ??= DateTimeOffset.UtcNow;
         RollupOrderStatus(order);
 
         await _cartRepository.SaveChangesAsync();
@@ -120,6 +121,11 @@ public class OrderStatusService
         if (string.Equals(targetStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
             sellerOrder.TrackingNumber = null;
+        }
+
+        if (string.Equals(targetStatus, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase))
+        {
+            sellerOrder.DeliveredAt ??= DateTimeOffset.UtcNow;
         }
 
         sellerOrder.Status = targetStatus;

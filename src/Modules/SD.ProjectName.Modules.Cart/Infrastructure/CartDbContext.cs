@@ -22,6 +22,8 @@ public class CartDbContext : DbContext
     public DbSet<OrderItemModel> OrderItems { get; set; }
     public DbSet<OrderShippingSelectionModel> OrderShippingSelections { get; set; }
     public DbSet<SellerOrderModel> SellerOrders { get; set; }
+    public DbSet<ReturnRequestModel> ReturnRequests { get; set; }
+    public DbSet<ReturnRequestItemModel> ReturnRequestItems { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -193,11 +195,52 @@ public class CartDbContext : DbContext
             entity.Property(o => o.Status).HasMaxLength(50);
             entity.Property(o => o.TrackingNumber).HasMaxLength(200);
             entity.Property(o => o.RefundedAmount);
+            entity.Property(o => o.DeliveredAt);
+            entity
+                .HasMany(o => o.ReturnRequests)
+                .WithOne(r => r.SellerOrder)
+                .HasForeignKey(r => r.SellerOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
             entity
                 .HasOne(o => o.Order)
                 .WithMany(o => o.SubOrders)
                 .HasForeignKey(o => o.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReturnRequestModel>(entity =>
+        {
+            entity.ToTable("ReturnRequest");
+            entity.HasIndex(r => r.OrderId);
+            entity.HasIndex(r => r.SellerOrderId);
+            entity.HasIndex(r => r.Status);
+            entity.Property(r => r.BuyerId).HasMaxLength(200);
+            entity.Property(r => r.Status).HasMaxLength(50);
+            entity.Property(r => r.Reason).HasMaxLength(2000);
+            entity.Property(r => r.RequestedAt);
+            entity.Property(r => r.UpdatedAt);
+            entity
+                .HasOne(r => r.Order)
+                .WithMany()
+                .HasForeignKey(r => r.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ReturnRequestItemModel>(entity =>
+        {
+            entity.ToTable("ReturnRequestItem");
+            entity.HasIndex(i => i.ReturnRequestId);
+            entity.Property(i => i.Quantity);
+            entity
+                .HasOne(i => i.ReturnRequest)
+                .WithMany(r => r.Items)
+                .HasForeignKey(i => i.ReturnRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity
+                .HasOne(i => i.OrderItem)
+                .WithMany()
+                .HasForeignKey(i => i.OrderItemId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

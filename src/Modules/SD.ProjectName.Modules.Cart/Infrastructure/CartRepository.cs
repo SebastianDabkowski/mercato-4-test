@@ -68,6 +68,13 @@ public class CartRepository : ICartRepository
         return order;
     }
 
+    public async Task<ReturnRequestModel> AddReturnRequestAsync(ReturnRequestModel request)
+    {
+        _context.ReturnRequests.Add(request);
+        await _context.SaveChangesAsync();
+        return request;
+    }
+
     public async Task<OrderModel?> GetOrderAsync(int orderId, string buyerId)
     {
         return await _context.Orders
@@ -77,6 +84,9 @@ public class CartRepository : ICartRepository
                 .ThenInclude(o => o.Items)
             .Include(o => o.SubOrders)
                 .ThenInclude(o => o.ShippingSelection)
+            .Include(o => o.SubOrders)
+                .ThenInclude(o => o.ReturnRequests)
+                    .ThenInclude(r => r.Items)
             .FirstOrDefaultAsync(o => o.Id == orderId && o.BuyerId == buyerId);
     }
 
@@ -89,6 +99,9 @@ public class CartRepository : ICartRepository
                 .ThenInclude(o => o.Items)
             .Include(o => o.SubOrders)
                 .ThenInclude(o => o.ShippingSelection)
+            .Include(o => o.SubOrders)
+                .ThenInclude(o => o.ReturnRequests)
+                    .ThenInclude(r => r.Items)
             .FirstOrDefaultAsync(o => o.Id == orderId);
     }
 
@@ -184,6 +197,8 @@ public class CartRepository : ICartRepository
             .Include(o => o.ShippingSelection)
             .Include(o => o.Order)
                 .ThenInclude(o => o!.SubOrders)
+            .Include(o => o.ReturnRequests)
+                .ThenInclude(r => r.Items)
             .FirstOrDefaultAsync(o => o.Id == sellerOrderId && o.SellerId == sellerId);
     }
 
@@ -194,6 +209,8 @@ public class CartRepository : ICartRepository
             .Include(o => o.Items)
             .Include(o => o.ShippingSelection)
             .Include(o => o.Order)
+            .Include(o => o.ReturnRequests)
+                .ThenInclude(r => r.Items)
             .FirstOrDefaultAsync(o => o.Id == sellerOrderId);
     }
 
@@ -243,6 +260,8 @@ public class CartRepository : ICartRepository
             .Include(o => o.Items)
             .Include(o => o.ShippingSelection)
             .Include(o => o.Order)
+            .Include(o => o.ReturnRequests)
+                .ThenInclude(r => r.Items)
             .OrderByDescending(o => o.Order!.CreatedAt)
             .Skip(skip)
             .Take(normalizedPageSize)

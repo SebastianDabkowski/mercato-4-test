@@ -21,7 +21,11 @@ public class BuyerOrderDetailsModelTests
         var identity = new Mock<ICartIdentityService>();
         identity.Setup(s => s.GetOrCreateBuyerId()).Returns("buyer-123");
 
-        var model = new DetailsModel(identity.Object, cartRepository.Object, new OrderStatusService(cartRepository.Object));
+        var model = new DetailsModel(
+            identity.Object,
+            cartRepository.Object,
+            new OrderStatusService(cartRepository.Object),
+            new ReturnRequestService(cartRepository.Object, TimeProvider.System));
 
         var result = await model.OnGetAsync(1);
 
