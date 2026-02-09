@@ -255,6 +255,11 @@ public class CartRepository : ICartRepository
             filteredQuery = filteredQuery.Where(o => o.Order!.BuyerId == query.BuyerId);
         }
 
+        if (query.WithoutTracking)
+        {
+            filteredQuery = filteredQuery.Where(o => string.IsNullOrWhiteSpace(o.TrackingNumber));
+        }
+
         var totalCount = await filteredQuery.CountAsync();
         var totalPages = totalCount == 0
             ? 1

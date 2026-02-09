@@ -47,6 +47,13 @@
                 <input asp-for="BuyerId" class="form-control" placeholder="Buyer ID" />
                 <div class="form-text">Show sub-orders for this buyer.</div>
             </div>
+            <div class="col-md-3">
+                <div class="form-check mt-4">
+                    <input asp-for="WithoutTracking" class="form-check-input" />
+                    <label asp-for="WithoutTracking" class="form-check-label">Only orders without tracking</label>
+                    <div class="form-text">Filters to sub-orders that are missing a tracking number.</div>
+                </div>
+            </div>
             <div class="col-auto d-flex gap-2 align-items-center">
                 <button type="submit" class="btn btn-primary">Apply filters</button>
                 <button type="submit" class="btn btn-outline-secondary" formmethod="get" formaction="@Url.Page("/Seller/Orders/Index", new { handler = "Export" })">Export CSV</button>
@@ -165,6 +172,7 @@ else
                                         {
                                             <input type="hidden" name="BuyerId" value="@Model.BuyerId" />
                                         }
+                                        <input type="hidden" name="WithoutTracking" value="@(Model.WithoutTracking)" />
                                         <select name="status" class="form-select form-select-sm w-auto">
                                             @foreach (var status in nextStatuses)
                                             {

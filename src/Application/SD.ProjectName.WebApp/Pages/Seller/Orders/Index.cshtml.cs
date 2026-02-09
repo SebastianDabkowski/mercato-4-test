@@ -25,6 +25,7 @@ public class IndexModel : PageModel
     private readonly OrderStatusService _orderStatusService;
     private readonly ShippingNotificationEmailService _shippingNotificationEmailService;
     private const int PageSize = 10;
+    private const int ExportRowLimit = 5000;
 
     public IndexModel(
         UserManager<ApplicationUser> userManager,
@@ -49,6 +50,9 @@ public class IndexModel : PageModel
 
     [BindProperty(SupportsGet = true)]
     public string? BuyerId { get; set; }
+
+    [BindProperty(SupportsGet = true)]
+    public bool WithoutTracking { get; set; }
 
     [BindProperty(SupportsGet = true)]
     public int Page { get; set; } = 1;
@@ -99,10 +103,25 @@ public class IndexModel : PageModel
 
         NormalizeFilters();
         var result = await _cartRepository.GetSellerOrdersAsync(user.Id, BuildQuery(fetchAll: true));
+
+        if (result.TotalCount == 0)
+        {
+            ErrorMessage = "No orders match the selected filters for export.";
+            await LoadOrders(user.Id);
+            return Page();
+        }
+
+        if (result.TotalCount > ExportRowLimit)
+        {
+            ErrorMessage = $"Too many orders to export at once. Please narrow your filters to {ExportRowLimit} or fewer sub-orders.";
+            await LoadOrders(user.Id);
+            return Page();
+        }
+
         var csv = BuildCsv(result.Orders);
         var fileName = $"seller-orders-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
 
-        return File(Encoding.UTF8.GetBytes(csv), "text/csv", fileName);
+        return File(new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(csv), "text/csv", fileName);
     }
 
     public async Task<IActionResult> OnPostUpdateStatusAsync(
@@ -181,6 +200,7 @@ public class IndexModel : PageModel
         var toDate = CreatedTo.HasValue
             ? DateTime.SpecifyKind(CreatedTo.Value, DateTimeKind.Utc).Date.AddDays(1).AddTicks(-1)
             : (DateTime?)null;
+        var pageSize = fetchAll ? ExportRowLimit : PageSize;
 
         return new SellerOrdersQuery
         {
@@ -188,8 +208,9 @@ public class IndexModel : PageModel
             CreatedFrom = fromDate.HasValue ? new DateTimeOffset(fromDate.Value) : null,
             CreatedTo = toDate.HasValue ? new DateTimeOffset(toDate.Value) : null,
             BuyerId = BuyerId,
+            WithoutTracking = WithoutTracking,
             Page = fetchAll ? 1 : Page,
-            PageSize = fetchAll ? int.MaxValue : PageSize
+            PageSize = pageSize
         };
     }
 
@@ -201,6 +222,7 @@ public class IndexModel : PageModel
             BuyerId,
             CreatedFrom = CreatedFrom?.ToString("yyyy-MM-dd"),
             CreatedTo = CreatedTo?.ToString("yyyy-MM-dd"),
+            WithoutTracking,
             Statuses = Statuses.ToArray()
         };
 
@@ -210,31 +232,53 @@ public class IndexModel : PageModel
     private static string BuildCsv(IEnumerable<SellerOrderModel> orders)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("OrderId,SubOrderId,CreatedAt,Status,BuyerId,TotalAmount,ShippingMethod");
+        builder.AppendLine("OrderId,SubOrderId,SellerId,OrderCreatedAt,Status,BuyerId,BuyerName,DeliveryLine1,DeliveryLine2,DeliveryCity,DeliveryRegion,DeliveryPostalCode,DeliveryCountryCode,DeliveryPhone,ShippingMethod,ShippingCost,ItemsSubtotal,OrderTotal,TrackingNumber,TrackingCarrier,TrackingUrl,Items");
 
         foreach (var order in orders)
         {
-            var createdAt = order.Order?.CreatedAt.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? string.Empty;
-            var buyer = order.Order?.BuyerId ?? string.Empty;
-            var shipping = order.ShippingSelection?.ShippingMethod ?? string.Empty;
+            var orderInfo = order.Order;
+            var createdAt = orderInfo?.CreatedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ") ?? string.Empty;
             var status = OrderStatusFlow.NormalizeStatus(order.Status);
-            var total = order.TotalAmount.ToString("0.00", CultureInfo.InvariantCulture);
+            var shippingMethod = order.ShippingSelection?.ShippingMethod ?? string.Empty;
+            var shippingCost = (order.ShippingSelection?.Cost ?? order.ShippingTotal).ToString("0.00", CultureInfo.InvariantCulture);
+            var itemsSubtotal = order.ItemsSubtotal.ToString("0.00", CultureInfo.InvariantCulture);
+            var orderTotal = order.TotalAmount.ToString("0.00", CultureInfo.InvariantCulture);
+            var itemsValue = string.Join("; ", (order.Items ?? Enumerable.Empty<OrderItemModel>())
+                .Select(i => $"{i.ProductName} (SKU: {i.ProductSku}) x{i.Quantity}"));
 
             builder.AppendLine(string.Join(",",
                 order.OrderId,
                 order.Id,
+                Quote(order.SellerId),
                 Quote(createdAt),
                 Quote(status),
-                Quote(buyer),
-                total,
-                Quote(shipping)));
+                Quote(orderInfo?.BuyerId ?? string.Empty),
+                Quote(orderInfo?.DeliveryRecipientName ?? string.Empty),
+                Quote(orderInfo?.DeliveryLine1 ?? string.Empty),
+                Quote(orderInfo?.DeliveryLine2 ?? string.Empty),
+                Quote(orderInfo?.DeliveryCity ?? string.Empty),
+                Quote(orderInfo?.DeliveryRegion ?? string.Empty),
+                Quote(orderInfo?.DeliveryPostalCode ?? string.Empty),
+                Quote(orderInfo?.DeliveryCountryCode ?? string.Empty),
+                Quote(orderInfo?.DeliveryPhoneNumber ?? string.Empty),
+                Quote(shippingMethod),
+                shippingCost,
+                itemsSubtotal,
+                orderTotal,
+                Quote(order.TrackingNumber ?? string.Empty),
+                Quote(order.TrackingCarrier ?? string.Empty),
+                Quote(order.TrackingUrl ?? string.Empty),
+                Quote(itemsValue)));
         }
 
         return builder.ToString();
     }
 
-    private static string Quote(string value) =>
-        $"\"{value.Replace("\"", "\"\"")}\"";
+    private static string Quote(string? value)
+    {
+        var sanitized = value ?? string.Empty;
+        return $"\"{sanitized.Replace("\"", "\"\"")}\"";
+    }
 
     private async Task SendShippingNotificationAsync(SellerOrderModel sellerOrder)
     {

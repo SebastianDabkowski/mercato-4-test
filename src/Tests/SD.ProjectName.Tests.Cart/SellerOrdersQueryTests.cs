@@ -58,6 +58,31 @@ public class SellerOrdersQueryTests
         Assert.Equal(oldest, returned.Order!.CreatedAt);
     }
 
+    [Fact]
+    public async Task GetSellerOrdersAsync_CanFilterOrdersWithoutTracking()
+    {
+        var repo = CreateRepository(nameof(GetSellerOrdersAsync_CanFilterOrdersWithoutTracking));
+        var withTracking = CreateOrder("buyer-1", "seller-1", OrderStatus.Paid, DateTimeOffset.UtcNow.AddDays(-1));
+        withTracking.SubOrders[0].TrackingNumber = "TRACK-123";
+        var withoutTracking = CreateOrder("buyer-1", "seller-1", OrderStatus.Paid, DateTimeOffset.UtcNow);
+
+        await repo.AddOrderAsync(withTracking);
+        await repo.AddOrderAsync(withoutTracking);
+
+        var result = await repo.GetSellerOrdersAsync(
+            "seller-1",
+            new SellerOrdersQuery
+            {
+                WithoutTracking = true,
+                Page = 1,
+                PageSize = 10
+            });
+
+        Assert.Equal(1, result.TotalCount);
+        var order = Assert.Single(result.Orders);
+        Assert.True(string.IsNullOrWhiteSpace(order.TrackingNumber));
+    }
+
     private static CartRepository CreateRepository(string dbName)
     {
         var options = new DbContextOptionsBuilder<CartDbContext>()

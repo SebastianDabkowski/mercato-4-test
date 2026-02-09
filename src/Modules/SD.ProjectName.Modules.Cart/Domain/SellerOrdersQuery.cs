@@ -9,6 +9,7 @@ public class SellerOrdersQuery
     public DateTimeOffset? CreatedFrom { get; init; }
     public DateTimeOffset? CreatedTo { get; init; }
     public string? BuyerId { get; init; }
+    public bool WithoutTracking { get; init; }
     public int Page { get; init; } = 1;
     public int PageSize { get; init; } = 10;
 }

@@ -388,3 +388,9 @@ Create ADRs for:
 
 15. KPIs and SLA  
     Target uptime is 90%. Availability is handled at infrastructure level by Azure.
+
+## 15. Seller Logistics CSV Export
+
+1. Sellers can export their sub-orders from the order list with filters for status, date range, buyer ID, and an option to include only orders without tracking numbers.
+2. Exports are limited to 5,000 sub-orders per download; sellers are prompted to narrow filters if the limit is exceeded.
+3. CSV columns: OrderId, SubOrderId, SellerId, OrderCreatedAt (UTC), Status, BuyerId, BuyerName, DeliveryLine1, DeliveryLine2, DeliveryCity, DeliveryRegion, DeliveryPostalCode, DeliveryCountryCode, DeliveryPhone, ShippingMethod, ShippingCost, ItemsSubtotal, OrderTotal, TrackingNumber, TrackingCarrier, TrackingUrl, Items (semicolon-separated `ProductName (SKU: SKU) xQuantity`).
