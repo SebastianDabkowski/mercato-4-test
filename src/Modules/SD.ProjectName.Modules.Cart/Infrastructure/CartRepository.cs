@@ -80,6 +80,18 @@ public class CartRepository : ICartRepository
             .FirstOrDefaultAsync(o => o.Id == orderId && o.BuyerId == buyerId);
     }
 
+    public async Task<OrderModel?> GetOrderWithSubOrdersAsync(int orderId)
+    {
+        return await _context.Orders
+            .Include(o => o.Items)
+            .Include(o => o.ShippingSelections)
+            .Include(o => o.SubOrders)
+                .ThenInclude(o => o.Items)
+            .Include(o => o.SubOrders)
+                .ThenInclude(o => o.ShippingSelection)
+            .FirstOrDefaultAsync(o => o.Id == orderId);
+    }
+
     public async Task<List<OrderModel>> GetOrdersForBuyerAsync(string buyerId)
     {
         return await _context.Orders
@@ -89,6 +101,16 @@ public class CartRepository : ICartRepository
             .Where(o => o.BuyerId == buyerId)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
+    }
+
+    public async Task<SellerOrderModel?> GetSellerOrderAsync(int sellerOrderId, string sellerId)
+    {
+        return await _context.SellerOrders
+            .Include(o => o.Items)
+            .Include(o => o.ShippingSelection)
+            .Include(o => o.Order)
+                .ThenInclude(o => o!.SubOrders)
+            .FirstOrDefaultAsync(o => o.Id == sellerOrderId && o.SellerId == sellerId);
     }
 
     public async Task<List<SellerOrderModel>> GetSellerOrdersAsync(string sellerId)
@@ -344,4 +366,6 @@ public class CartRepository : ICartRepository
         _context.CartItems.RemoveRange(items);
         await _context.SaveChangesAsync();
     }
+
+    public Task SaveChangesAsync() => _context.SaveChangesAsync();
 }

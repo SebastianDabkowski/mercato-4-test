@@ -88,7 +88,7 @@ public class PlaceOrderTests
         Assert.Equal(30m, result.Order!.ItemsSubtotal);
         Assert.Equal(5m, result.Order.ShippingTotal);
         Assert.Equal(35m, result.Order.TotalAmount);
-        Assert.Equal(OrderStatus.Confirmed, result.Order.Status);
+        Assert.Equal(OrderStatus.Paid, result.Order.Status);
         var shippingSelection = Assert.Single(result.Order.ShippingSelections);
         Assert.Equal("seller-2", shippingSelection.SellerId);
         Assert.Equal("Standard", shippingSelection.ShippingMethod);
@@ -97,6 +97,7 @@ public class PlaceOrderTests
         Assert.Equal(30m, subOrder.ItemsSubtotal);
         Assert.Equal(5m, subOrder.ShippingTotal);
         Assert.Equal(35m, subOrder.TotalAmount);
+        Assert.Equal(OrderStatus.Paid, subOrder.Status);
         var item = Assert.Single(result.Order.Items);
         Assert.Equal(15m, item.UnitPrice);
         Assert.Equal(2, item.Quantity);

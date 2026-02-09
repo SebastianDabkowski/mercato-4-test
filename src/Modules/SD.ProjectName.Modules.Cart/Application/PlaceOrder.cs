@@ -115,7 +115,7 @@ public class PlaceOrder
                 ShippingTotal = shippingCost,
                 DiscountTotal = discountShare,
                 TotalAmount = Math.Max(0m, itemsSubtotal + shippingCost - discountShare),
-                Status = OrderStatus.Confirmed
+                Status = OrderStatus.Paid
             };
 
             var selectionModel = orderShippingSelections.FirstOrDefault(s =>
@@ -179,7 +179,7 @@ public class PlaceOrder
             TotalAmount = totals.TotalAmount,
             PromoCode = promoTotals.AppliedPromoCode,
             CreatedAt = _timeProvider.GetUtcNow(),
-            Status = OrderStatus.Confirmed,
+            Status = OrderStatus.Paid,
             Items = orderItems,
             ShippingSelections = orderShippingSelections,
             SubOrders = subOrders
