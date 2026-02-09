@@ -100,6 +100,23 @@ public class ShippingIntegrationService
             ? providerResult.TrackingUrl
             : BuildTrackingUrl(provider.TrackingUrlTemplate, trackingNumber);
         var carrier = providerResult.Carrier ?? provider.Carrier ?? provider.DisplayName;
+        var requiresLabel = service.SupportsLabelCreation;
+
+        if (requiresLabel && (providerResult.LabelContent is null || providerResult.LabelContent.Length == 0))
+        {
+            return ShipmentCreationResult.Failure("Shipping label was not provided by the provider.", providerResult.IsRetryable);
+        }
+
+        if (providerResult.LabelContent is { Length: > 0 })
+        {
+            sellerOrder.ShippingLabel = providerResult.LabelContent;
+            sellerOrder.ShippingLabelContentType = string.IsNullOrWhiteSpace(providerResult.LabelContentType)
+                ? "application/pdf"
+                : providerResult.LabelContentType;
+            sellerOrder.ShippingLabelFileName = string.IsNullOrWhiteSpace(providerResult.LabelFileName)
+                ? $"shipping-label-{trackingNumber}.pdf"
+                : providerResult.LabelFileName;
+        }
 
         var statusResult = await _orderStatusService.UpdateItemStatusesAsync(
             sellerOrder.Id,
