@@ -16,7 +16,11 @@ public class PaymentCallbackModel : PageModel
         _paymentProcessingService = paymentProcessingService;
     }
 
-    public async Task<IActionResult> OnGetAsync(string paymentReference, string status, string? failureReason)
+    public async Task<IActionResult> OnGetAsync(
+        string paymentReference,
+        string status,
+        string? failureReason,
+        decimal? refundAmount)
     {
         if (string.IsNullOrWhiteSpace(paymentReference) || string.IsNullOrWhiteSpace(status))
         {
@@ -24,7 +28,7 @@ public class PaymentCallbackModel : PageModel
             return RedirectToPage("/Buyer/Checkout/Payment");
         }
 
-        var result = await _paymentProcessingService.HandleCallbackAsync(paymentReference, status, failureReason);
+        var result = await _paymentProcessingService.HandleCallbackAsync(paymentReference, status, failureReason, refundAmount);
         if (result.NotFound)
         {
             TempData["PaymentError"] = "Payment session was not found or has expired.";
@@ -39,7 +43,9 @@ public class PaymentCallbackModel : PageModel
 
         if (result.Status == PaymentStatus.Refunded && result.OrderId.HasValue)
         {
-            TempData["PaymentStatus"] = "Payment refunded.";
+            TempData["PaymentStatus"] = string.IsNullOrWhiteSpace(result.FailureReason)
+                ? "Payment refunded."
+                : $"Refund recorded with issues: {result.FailureReason}";
             return RedirectToPage("/Buyer/Orders/Details", new { orderId = result.OrderId.Value });
         }
 
@@ -51,7 +57,9 @@ public class PaymentCallbackModel : PageModel
 
         if (result.Failure)
         {
-            const string error = "Payment failed. Please try again.";
+            var error = string.IsNullOrWhiteSpace(result.FailureReason)
+                ? "Payment failed. Please try again."
+                : $"Payment failed: {result.FailureReason}";
             TempData["PaymentError"] = error;
             if (result.OrderId.HasValue)
             {

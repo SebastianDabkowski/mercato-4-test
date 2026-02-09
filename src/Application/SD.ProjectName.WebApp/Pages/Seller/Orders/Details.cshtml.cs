@@ -19,15 +19,18 @@ public class DetailsModel : PageModel
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ICartRepository _cartRepository;
     private readonly OrderStatusService _orderStatusService;
+    private readonly TimeProvider _timeProvider;
 
     public DetailsModel(
         UserManager<ApplicationUser> userManager,
         ICartRepository cartRepository,
-        OrderStatusService orderStatusService)
+        OrderStatusService orderStatusService,
+        TimeProvider timeProvider)
     {
         _userManager = userManager;
         _cartRepository = cartRepository;
         _orderStatusService = orderStatusService;
+        _timeProvider = timeProvider;
     }
 
     public SellerOrderModel? SellerOrder { get; private set; }
@@ -36,6 +39,9 @@ public class DetailsModel : PageModel
     public string? BuyerEmail { get; private set; }
     public string? BuyerPhone { get; private set; }
     public string PaymentStatus { get; private set; } = string.Empty;
+    public decimal RefundableAmount { get; private set; }
+    public DateTimeOffset? RefundableUntil { get; private set; }
+    public bool CanRefund { get; private set; }
     [TempData]
     public string? StatusMessage { get; set; }
     [TempData]
@@ -64,6 +70,7 @@ public class DetailsModel : PageModel
         SellerOrder = sellerOrder;
         PaymentStatus = ResolvePaymentStatus(sellerOrder);
         await PopulateBuyerContactAsync(sellerOrder);
+        PopulateRefundWindow(sellerOrder);
 
         return Page();
     }
@@ -110,6 +117,41 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { sellerOrderId });
     }
 
+    public async Task<IActionResult> OnPostRefundAsync(
+        int sellerOrderId,
+        decimal refundAmount,
+        string? reason)
+    {
+        var seller = await _userManager.GetUserAsync(User);
+        if (seller is null)
+        {
+            return Challenge();
+        }
+
+        if (refundAmount <= 0)
+        {
+            ErrorMessage = "Enter a valid refund amount.";
+            return RedirectToPage(new { sellerOrderId });
+        }
+
+        var result = await _orderStatusService.RefundSellerOrderAsync(
+            sellerOrderId,
+            seller.Id,
+            refundAmount,
+            string.IsNullOrWhiteSpace(reason) ? "Seller refund" : reason);
+
+        if (!result.IsSuccess)
+        {
+            ErrorMessage = result.Error;
+        }
+        else
+        {
+            StatusMessage = $"Refunded {refundAmount:C}.";
+        }
+
+        return RedirectToPage(new { sellerOrderId });
+    }
+
     private async Task PopulateBuyerContactAsync(SellerOrderModel sellerOrder)
     {
         var order = sellerOrder.Order;
@@ -133,6 +175,19 @@ public class DetailsModel : PageModel
         {
             BuyerName = order?.BuyerId ?? "Buyer";
         }
+    }
+
+    private void PopulateRefundWindow(SellerOrderModel sellerOrder)
+    {
+        RefundableAmount = Math.Max(0m, sellerOrder.TotalAmount - sellerOrder.RefundedAmount);
+        if (!sellerOrder.DeliveredAt.HasValue)
+        {
+            CanRefund = false;
+            return;
+        }
+
+        RefundableUntil = sellerOrder.DeliveredAt.Value.AddDays(14);
+        CanRefund = RefundableAmount > 0 && RefundableUntil >= _timeProvider.GetUtcNow();
     }
 
     private static string ResolvePaymentStatus(SellerOrderModel order)
