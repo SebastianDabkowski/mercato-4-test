@@ -568,6 +568,15 @@ public class CartRepository : ICartRepository
             .FirstOrDefaultAsync(p => p.Id == scheduleId);
     }
 
+    public async Task<PayoutSchedule?> GetPayoutScheduleDetailsAsync(int scheduleId, string sellerId)
+    {
+        return await _context.PayoutSchedules
+            .AsNoTracking()
+            .Include(p => p.Items)
+                .ThenInclude(i => i.EscrowEntry)
+            .FirstOrDefaultAsync(p => p.Id == scheduleId && p.SellerId == sellerId);
+    }
+
     public async Task<List<PayoutSchedule>> GetPayoutSchedulesForSellerAsync(string sellerId, int take = 5)
     {
         var normalizedTake = take < 1 ? 1 : take;
@@ -577,6 +586,57 @@ public class CartRepository : ICartRepository
             .OrderByDescending(p => p.ScheduledAt)
             .Take(normalizedTake)
             .ToListAsync();
+    }
+
+    public async Task<PayoutScheduleResult> GetPayoutSchedulesForSellerAsync(string sellerId, PayoutScheduleQuery query)
+    {
+        var normalizedPage = query.Page < 1 ? 1 : query.Page;
+        var normalizedPageSize = query.PageSize < 1 ? 10 : query.PageSize > 50 ? 50 : query.PageSize;
+
+        var statusFilters = (query.Statuses ?? new List<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.Trim().ToLowerInvariant())
+            .ToList();
+
+        var filtered = _context.PayoutSchedules
+            .AsNoTracking()
+            .Where(p => p.SellerId == sellerId);
+
+        if (query.ScheduledFrom.HasValue)
+        {
+            filtered = filtered.Where(p => p.ScheduledFor >= query.ScheduledFrom.Value);
+        }
+
+        if (query.ScheduledTo.HasValue)
+        {
+            filtered = filtered.Where(p => p.ScheduledFor <= query.ScheduledTo.Value);
+        }
+
+        if (statusFilters.Count > 0)
+        {
+            filtered = filtered.Where(p => statusFilters.Contains(p.Status));
+        }
+
+        var totalCount = await filtered.CountAsync();
+        var totalPages = totalCount == 0
+            ? 1
+            : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
+        var currentPage = normalizedPage > totalPages ? totalPages : normalizedPage;
+        var skip = (currentPage - 1) * normalizedPageSize;
+
+        var schedules = await filtered
+            .OrderByDescending(p => p.ScheduledAt)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .ToListAsync();
+
+        return new PayoutScheduleResult
+        {
+            Schedules = schedules,
+            TotalCount = totalCount,
+            Page = currentPage,
+            PageSize = normalizedPageSize
+        };
     }
 
     public async Task ClearCartItemsAsync(string buyerId)

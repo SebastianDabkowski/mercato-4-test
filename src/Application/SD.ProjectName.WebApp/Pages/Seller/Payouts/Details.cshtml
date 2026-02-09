@@ -1,0 +1,82 @@
+@page "/seller/payouts/{scheduleId:int}"
+@model SD.ProjectName.WebApp.Pages.Seller.Payouts.DetailsModel
+@{
+    ViewData["Title"] = "Payout details";
+}
+
+<a class="btn btn-link mb-2" asp-page="/Seller/Payouts/Index">&larr; Back to history</a>
+<h1 class="mb-3" data-testid="payout-details-heading">Payout details</h1>
+
+@if (Model.Schedule is not null)
+{
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div class="text-muted">Status</div>
+                    <div class="fw-semibold">@Model.StatusLabel(Model.Schedule.Status)</div>
+                    @if (Model.Schedule.Status == SD.ProjectName.Modules.Cart.Domain.PayoutStatus.Failed && !string.IsNullOrWhiteSpace(Model.Schedule.ErrorReference))
+                    {
+                        <div class="text-danger small" data-testid="payout-error">Failure reason: @Model.Schedule.ErrorReference</div>
+                    }
+                </div>
+                <div class="text-end">
+                    <div class="text-muted">Total amount</div>
+                    <div class="fs-4" data-testid="payout-total">@Model.Schedule.TotalAmount.ToString("C")</div>
+                </div>
+            </div>
+            <dl class="row mt-3">
+                <dt class="col-sm-3">Scheduled for</dt>
+                <dd class="col-sm-9">@Model.Schedule.ScheduledFor.ToString("yyyy-MM-dd")</dd>
+
+                <dt class="col-sm-3">Period</dt>
+                <dd class="col-sm-9">@Model.Schedule.PeriodStart.ToString("yyyy-MM-dd") – @Model.Schedule.PeriodEnd.ToString("yyyy-MM-dd")</dd>
+
+                <dt class="col-sm-3">Scheduled at</dt>
+                <dd class="col-sm-9">@Model.Schedule.ScheduledAt.ToString("yyyy-MM-dd HH:mm")</dd>
+
+                <dt class="col-sm-3">Processing started</dt>
+                <dd class="col-sm-9">@Model.Schedule.ProcessingStartedAt?.ToString("yyyy-MM-dd HH:mm") ?? "Pending"</dd>
+
+                <dt class="col-sm-3">Paid at</dt>
+                <dd class="col-sm-9">@Model.Schedule.PaidAt?.ToString("yyyy-MM-dd HH:mm") ?? "Pending"</dd>
+            </dl>
+        </div>
+    </div>
+
+    <h5 class="mt-4">Order breakdown</h5>
+    @if (!Model.Breakdown.Any())
+    {
+        <div class="alert alert-info" data-testid="payout-breakdown-empty">No orders linked to this payout.</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table align-middle" data-testid="payout-breakdown">
+                <thead>
+                    <tr>
+                        <th scope="col">Seller order</th>
+                        <th scope="col">Order</th>
+                        <th scope="col">Held</th>
+                        <th scope="col">Commission</th>
+                        <th scope="col">Payout</th>
+                        <th scope="col">Eligible at</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in Model.Breakdown)
+                {
+                    <tr data-testid="payout-breakdown-row">
+                        <td>#@item.SellerOrderId</td>
+                        <td>#@item.OrderId</td>
+                        <td>@item.HeldAmount.ToString("C")</td>
+                        <td>@item.CommissionAmount.ToString("C")</td>
+                        <td>@item.PayoutAmount.ToString("C")</td>
+                        <td>@item.PayoutEligibleAt.ToString("yyyy-MM-dd")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+}

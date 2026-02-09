@@ -1,0 +1,97 @@
+@page "/seller/payouts"
+@model SD.ProjectName.WebApp.Pages.Seller.Payouts.IndexModel
+@{
+    ViewData["Title"] = "Payout history";
+}
+
+<h1 class="mb-3" data-testid="payout-history-heading">Payout history</h1>
+<p class="text-muted">Review past and scheduled payouts with filters for status and date.</p>
+
+<form method="get" class="row g-3 mb-3">
+    <div class="col-md-3">
+        <label asp-for="ScheduledFrom" class="form-label">Scheduled from</label>
+        <input asp-for="ScheduledFrom" type="date" class="form-control" data-testid="filter-from" />
+    </div>
+    <div class="col-md-3">
+        <label asp-for="ScheduledTo" class="form-label">Scheduled to</label>
+        <input asp-for="ScheduledTo" type="date" class="form-control" data-testid="filter-to" />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Status</label>
+        <select asp-for="Statuses" class="form-select" multiple data-testid="filter-status">
+            @foreach (var status in Model.StatusOptions)
+            {
+                var isSelected = Model.Statuses.Any(s => string.Equals(s, status, StringComparison.OrdinalIgnoreCase));
+                <option value="@status" selected="@(isSelected)">@Model.StatusLabel(status)</option>
+            }
+        </select>
+        <div class="form-text">Hold Ctrl/Cmd to select multiple statuses.</div>
+    </div>
+    <div class="col-md-2 d-flex align-items-end gap-2">
+        <button type="submit" class="btn btn-primary" data-testid="apply-filters">Apply</button>
+        <a class="btn btn-link" asp-page="/Seller/Payouts/Index">Clear</a>
+    </div>
+</form>
+
+@if (!Model.Payouts.Any())
+{
+    <div class="alert alert-info" data-testid="payout-empty">
+        No payouts found for the selected filters.
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle" data-testid="payout-table">
+            <thead>
+                <tr>
+                    <th scope="col">Scheduled for</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Total</th>
+                    <th scope="col">Period</th>
+                    <th scope="col">Paid at</th>
+                    <th scope="col"></th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var payout in Model.Payouts)
+            {
+                <tr data-testid="payout-row">
+                    <td>@payout.ScheduledFor.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        <span class="badge @(payout.Status == SD.ProjectName.Modules.Cart.Domain.PayoutStatus.Failed ? "bg-danger" : "bg-secondary")">
+                            @Model.StatusLabel(payout.Status)
+                        </span>
+                        @if (payout.Status == SD.ProjectName.Modules.Cart.Domain.PayoutStatus.Failed && !string.IsNullOrWhiteSpace(payout.ErrorReference))
+                        {
+                            <div class="small text-danger" data-testid="payout-error">@payout.ErrorReference</div>
+                        }
+                    </td>
+                    <td>@payout.TotalAmount.ToString("C")</td>
+                    <td>@payout.PeriodStart.ToString("yyyy-MM-dd") – @payout.PeriodEnd.ToString("yyyy-MM-dd")</td>
+                    <td>@(payout.PaidAt?.ToString("yyyy-MM-dd HH:mm") ?? "Pending")</td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-outline-secondary" asp-page="/Seller/Payouts/Details" asp-route-scheduleId="@payout.Id" data-testid="payout-details-link">View</a>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <nav aria-label="Payout pagination" class="d-flex justify-content-between align-items-center">
+        <div class="text-muted small">Page @Model.Page of @Model.TotalPages (@Model.TotalCount total)</div>
+        <div class="btn-group" role="group">
+            <a class="btn btn-outline-secondary @(Model.HasPreviousPage ? string.Empty : "disabled")"
+               href="@(Model.HasPreviousPage ? Model.BuildPageUrl(Model.Page - 1) : "#")"
+               aria-disabled="@(Model.HasPreviousPage ? "false" : "true")">
+                Previous
+            </a>
+            <a class="btn btn-outline-secondary @(Model.HasNextPage ? string.Empty : "disabled")"
+               href="@(Model.HasNextPage ? Model.BuildPageUrl(Model.Page + 1) : "#")"
+               aria-disabled="@(Model.HasNextPage ? "false" : "true")">
+                Next
+            </a>
+        </div>
+    </nav>
+}
