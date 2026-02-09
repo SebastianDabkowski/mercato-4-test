@@ -18,6 +18,7 @@ public class CartDbContext : DbContext
     public DbSet<PaymentSelectionModel> PaymentSelections { get; set; }
     public DbSet<OrderModel> Orders { get; set; }
     public DbSet<OrderItemModel> OrderItems { get; set; }
+    public DbSet<OrderShippingSelectionModel> OrderShippingSelections { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -81,6 +82,14 @@ public class CartDbContext : DbContext
             entity.HasIndex(o => o.BuyerId);
             entity.Property(o => o.PaymentMethod).HasMaxLength(100);
             entity.Property(o => o.Status).HasMaxLength(50);
+            entity.Property(o => o.DeliveryRecipientName).HasMaxLength(200);
+            entity.Property(o => o.DeliveryLine1).HasMaxLength(300);
+            entity.Property(o => o.DeliveryLine2).HasMaxLength(300);
+            entity.Property(o => o.DeliveryCity).HasMaxLength(150);
+            entity.Property(o => o.DeliveryRegion).HasMaxLength(150);
+            entity.Property(o => o.DeliveryPostalCode).HasMaxLength(50);
+            entity.Property(o => o.DeliveryCountryCode).HasMaxLength(3);
+            entity.Property(o => o.DeliveryPhoneNumber).HasMaxLength(50);
         });
 
         modelBuilder.Entity<OrderItemModel>(entity =>
@@ -95,6 +104,20 @@ public class CartDbContext : DbContext
                 .HasOne<OrderModel>()
                 .WithMany(o => o.Items)
                 .HasForeignKey(oi => oi.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OrderShippingSelectionModel>(entity =>
+        {
+            entity.ToTable("OrderShippingSelection");
+            entity.HasIndex(os => os.OrderId);
+            entity.Property(os => os.SellerId).HasMaxLength(100);
+            entity.Property(os => os.SellerName).HasMaxLength(200);
+            entity.Property(os => os.ShippingMethod).HasMaxLength(100);
+            entity
+                .HasOne<OrderModel>()
+                .WithMany(o => o.ShippingSelections)
+                .HasForeignKey(os => os.OrderId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }

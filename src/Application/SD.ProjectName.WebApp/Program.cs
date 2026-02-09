@@ -106,6 +106,7 @@ builder.Services.AddDataProtection()
     .PersistKeysToDbContext<ApplicationDbContext>()
     .SetApplicationName("SD.ProjectName");
 
+builder.Services.AddLocalization();
 builder.Services.Configure<FeatureFlags>(builder.Configuration.GetSection("Features"));
 builder.Services.AddHttpContextAccessor();
 
@@ -265,6 +266,7 @@ builder.Services.AddScoped<IProductSnapshotService, ProductSnapshotService>();
 builder.Services.AddScoped<ICheckoutValidationService, CheckoutValidationService>();
 builder.Services.AddScoped<PlaceOrder>();
 builder.Services.AddScoped<ICartIdentityService, CartIdentityService>();
+builder.Services.AddScoped<OrderConfirmationEmailService>();
 
 builder.Services.AddRazorPages(options =>
 {

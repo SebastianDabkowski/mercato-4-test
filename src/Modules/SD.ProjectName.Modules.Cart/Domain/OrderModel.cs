@@ -5,11 +5,20 @@ public class OrderModel
     public int Id { get; set; }
     public string BuyerId { get; set; } = string.Empty;
     public string PaymentMethod { get; set; } = string.Empty;
+    public string DeliveryRecipientName { get; set; } = string.Empty;
+    public string DeliveryLine1 { get; set; } = string.Empty;
+    public string? DeliveryLine2 { get; set; }
+    public string DeliveryCity { get; set; } = string.Empty;
+    public string DeliveryRegion { get; set; } = string.Empty;
+    public string DeliveryPostalCode { get; set; } = string.Empty;
+    public string DeliveryCountryCode { get; set; } = string.Empty;
+    public string? DeliveryPhoneNumber { get; set; }
     public decimal ItemsSubtotal { get; set; }
     public decimal ShippingTotal { get; set; }
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = OrderStatus.Pending;
     public DateTimeOffset CreatedAt { get; set; }
+    public List<OrderShippingSelectionModel> ShippingSelections { get; set; } = new();
     public List<OrderItemModel> Items { get; set; } = new();
 }
 
@@ -26,7 +35,19 @@ public class OrderItemModel
     public int Quantity { get; set; }
 }
 
+public class OrderShippingSelectionModel
+{
+    public int Id { get; set; }
+    public int OrderId { get; set; }
+    public string SellerId { get; set; } = string.Empty;
+    public string SellerName { get; set; } = string.Empty;
+    public string ShippingMethod { get; set; } = string.Empty;
+    public decimal Cost { get; set; }
+    public DateTimeOffset? EstimatedDeliveryDate { get; set; }
+}
+
 public static class OrderStatus
 {
     public const string Pending = "pending";
+    public const string Confirmed = "confirmed";
 }

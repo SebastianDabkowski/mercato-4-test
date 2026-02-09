@@ -1,11 +1,13 @@
 using System;
 using System.Linq;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
+using SD.ProjectName.WebApp.Data;
 using SD.ProjectName.WebApp.Services;
 using CartDomainModel = SD.ProjectName.Modules.Cart.Domain.CartModel;
 
@@ -19,19 +21,25 @@ public class ConfirmationModel : PageModel
     private readonly ICartRepository _cartRepository;
     private readonly CartCalculationService _cartCalculationService;
     private readonly PlaceOrder _placeOrder;
+    private readonly OrderConfirmationEmailService _orderConfirmationEmailService;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public ConfirmationModel(
         ICartIdentityService cartIdentityService,
         GetCartItems getCartItems,
         ICartRepository cartRepository,
         CartCalculationService cartCalculationService,
-        PlaceOrder placeOrder)
+        PlaceOrder placeOrder,
+        OrderConfirmationEmailService orderConfirmationEmailService,
+        UserManager<ApplicationUser> userManager)
     {
         _cartIdentityService = cartIdentityService;
         _getCartItems = getCartItems;
         _cartRepository = cartRepository;
         _cartCalculationService = cartCalculationService;
         _placeOrder = placeOrder;
+        _orderConfirmationEmailService = orderConfirmationEmailService;
+        _userManager = userManager;
     }
 
     public CartTotals Totals { get; private set; } = new();
@@ -56,19 +64,15 @@ public class ConfirmationModel : PageModel
             return await LoadCheckoutStateAsync();
         }
 
-        CreatedOrder = result.Order;
+        var order = result.Order!;
+        CreatedOrder = order;
         PaymentSelection = result.PaymentSelection;
         SelectedAddress = result.DeliveryAddress;
-        ShippingSelections = result.ShippingSelections;
-        Totals = new CartTotals
-        {
-            ItemsSubtotal = result.Order!.ItemsSubtotal,
-            ShippingTotal = result.Order.ShippingTotal,
-            TotalAmount = result.Order.TotalAmount
-        };
 
-        TempData["OrderSuccess"] = $"Order {result.Order.Id} placed successfully.";
-        return Page();
+        TempData["OrderSuccess"] = $"Order {order.Id} placed successfully.";
+        await SendConfirmationEmailAsync(buyerId, order);
+
+        return RedirectToPage("/Buyer/Orders/Details", new { orderId = order.Id });
     }
 
     private async Task<IActionResult> LoadCheckoutStateAsync()
@@ -105,6 +109,17 @@ public class ConfirmationModel : PageModel
         Totals = BuildTotals(cartItems, shippingRules, ShippingSelections);
 
         return Page();
+    }
+
+    private async Task SendConfirmationEmailAsync(string buyerId, OrderModel order)
+    {
+        var user = await _userManager.FindByIdAsync(buyerId);
+        if (user?.Email is null)
+        {
+            return;
+        }
+
+        await _orderConfirmationEmailService.SendAsync(user.Email, order);
     }
 
     private CartTotals BuildTotals(

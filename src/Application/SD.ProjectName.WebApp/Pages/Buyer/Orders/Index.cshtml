@@ -1,0 +1,42 @@
+@page "/buyer/orders"
+@model SD.ProjectName.WebApp.Pages.Buyer.Orders.IndexModel
+@{
+    ViewData["Title"] = "Order history";
+}
+
+<h1 class="mb-3">Order history</h1>
+
+@if (!Model.Orders.Any())
+{
+    <div class="alert alert-info">You have not placed any orders yet.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Total</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model.Orders)
+                {
+                    <tr>
+                        <td>#@order.Id</td>
+                        <td>@order.CreatedAt.ToLocalTime().ToString("g")</td>
+                        <td class="text-capitalize">@order.Status</td>
+                        <td>@order.TotalAmount.ToString("C")</td>
+                        <td>
+                            <a class="btn btn-link btn-sm" asp-page="/Buyer/Orders/Details" asp-route-orderId="@order.Id">View</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
