@@ -115,47 +115,50 @@ else
                             }
                         </td>
                         <td>
-                            @{
-                                var nextStatuses = OrderStatusFlow.NextStatuses(order.Status);
-                            }
-                            @if (nextStatuses.Any())
-                            {
-                                <form method="post" asp-page-handler="UpdateStatus" class="d-flex flex-wrap gap-2 align-items-center">
-                                    <input type="hidden" name="sellerOrderId" value="@order.Id" />
-                                    <input type="hidden" name="Page" value="@Model.Page" />
-                                    @foreach (var status in Model.Statuses)
-                                    {
-                                        <input type="hidden" name="Statuses" value="@status" />
-                                    }
-                                    @if (Model.CreatedFrom.HasValue)
-                                    {
-                                        <input type="hidden" name="CreatedFrom" value="@Model.CreatedFrom?.ToString("yyyy-MM-dd")" />
-                                    }
-                                    @if (Model.CreatedTo.HasValue)
-                                    {
-                                        <input type="hidden" name="CreatedTo" value="@Model.CreatedTo?.ToString("yyyy-MM-dd")" />
-                                    }
-                                    @if (!string.IsNullOrWhiteSpace(Model.BuyerId))
-                                    {
-                                        <input type="hidden" name="BuyerId" value="@Model.BuyerId" />
-                                    }
-                                    <select name="status" class="form-select form-select-sm w-auto">
-                                        @foreach (var status in nextStatuses)
+                            <div class="d-flex flex-column gap-2">
+                                <a class="btn btn-sm btn-outline-secondary" asp-page="/Seller/Orders/Details" asp-route-sellerOrderId="@order.Id">View</a>
+                                @{
+                                    var nextStatuses = OrderStatusFlow.NextStatuses(order.Status);
+                                }
+                                @if (nextStatuses.Any())
+                                {
+                                    <form method="post" asp-page-handler="UpdateStatus" class="d-flex flex-wrap gap-2 align-items-center">
+                                        <input type="hidden" name="sellerOrderId" value="@order.Id" />
+                                        <input type="hidden" name="Page" value="@Model.Page" />
+                                        @foreach (var status in Model.Statuses)
                                         {
-                                            <option value="@status">@status</option>
+                                            <input type="hidden" name="Statuses" value="@status" />
                                         }
-                                    </select>
-                                    @if (nextStatuses.Contains(OrderStatus.Shipped))
-                                    {
-                                        <input type="text" name="trackingNumber" class="form-control form-control-sm" placeholder="Tracking (optional)" />
-                                    }
-                                    <button type="submit" class="btn btn-sm btn-primary">Update</button>
-                                </form>
-                            }
-                            else
-                            {
-                                <span class="text-muted small">No actions</span>
-                            }
+                                        @if (Model.CreatedFrom.HasValue)
+                                        {
+                                            <input type="hidden" name="CreatedFrom" value="@Model.CreatedFrom?.ToString("yyyy-MM-dd")" />
+                                        }
+                                        @if (Model.CreatedTo.HasValue)
+                                        {
+                                            <input type="hidden" name="CreatedTo" value="@Model.CreatedTo?.ToString("yyyy-MM-dd")" />
+                                        }
+                                        @if (!string.IsNullOrWhiteSpace(Model.BuyerId))
+                                        {
+                                            <input type="hidden" name="BuyerId" value="@Model.BuyerId" />
+                                        }
+                                        <select name="status" class="form-select form-select-sm w-auto">
+                                            @foreach (var status in nextStatuses)
+                                            {
+                                                <option value="@status">@status</option>
+                                            }
+                                        </select>
+                                        @if (nextStatuses.Contains(OrderStatus.Shipped))
+                                        {
+                                            <input type="text" name="trackingNumber" class="form-control form-control-sm" placeholder="Tracking (optional)" />
+                                        }
+                                        <button type="submit" class="btn btn-sm btn-primary">Update</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">No actions</span>
+                                }
+                            </div>
                         </td>
                     </tr>
                     <tr>
