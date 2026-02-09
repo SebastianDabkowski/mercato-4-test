@@ -126,6 +126,8 @@ public class CartDbContext : DbContext
         {
             entity.ToTable("Order");
             entity.HasIndex(o => o.BuyerId);
+            entity.HasIndex(o => o.CreatedAt);
+            entity.HasIndex(o => o.Status);
             entity.Property(o => o.PaymentMethod).HasMaxLength(100);
             entity.Property(o => o.Status).HasMaxLength(50);
             entity.Property(o => o.RefundedAmount);

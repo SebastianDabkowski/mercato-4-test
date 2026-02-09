@@ -7,12 +7,59 @@
 
 <h1 class="mb-3">Order history</h1>
 
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-12">
+                <label class="form-label mb-2">Status</label>
+                <div class="d-flex flex-wrap gap-3">
+                    @foreach (var status in Model.StatusOptions)
+                    {
+                        var isChecked = Model.Statuses.Any(s => s.Equals(status, StringComparison.OrdinalIgnoreCase));
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" name="Statuses" value="@status" id="status-@status" @(isChecked ? "checked" : string.Empty) />
+                            <label class="form-check-label text-capitalize" for="status-@status">@OrderStatusFlow.NormalizeStatus(status)</label>
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="CreatedFrom" class="form-label">From</label>
+                <input asp-for="CreatedFrom" class="form-control" type="date" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="CreatedTo" class="form-label">To</label>
+                <input asp-for="CreatedTo" class="form-control" type="date" />
+            </div>
+            <div class="col-md-3">
+                <label asp-for="SellerId" class="form-label">Seller</label>
+                <input asp-for="SellerId" class="form-control" list="seller-options" />
+                <datalist id="seller-options">
+                    @foreach (var seller in Model.SellerOptions)
+                    {
+                        <option value="@seller.SellerId">@seller.SellerName (@seller.SellerId)</option>
+                    }
+                </datalist>
+                <div class="form-text">Show orders that include this seller.</div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Apply filters</button>
+                <a class="btn btn-link" asp-page="/Buyer/Orders/Index">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
 @if (!Model.Orders.Any())
 {
     <div class="alert alert-info">You have not placed any orders yet.</div>
 }
 else
 {
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="text-muted">Showing @Model.TotalCount order(s)</div>
+        <div class="text-muted">Page @Model.Page of @Model.TotalPages</div>
+    </div>
     <div class="table-responsive">
         <table class="table">
             <thead>
@@ -20,6 +67,7 @@ else
                     <th>Order</th>
                     <th>Date</th>
                     <th>Status</th>
+                    <th>Sellers</th>
                     <th>Total</th>
                     <th></th>
                 </tr>
@@ -27,10 +75,27 @@ else
             <tbody>
                 @foreach (var order in Model.Orders)
                 {
-                    <tr>
+                    var sellerMatch = Model.HasSellerFilter && order.SubOrders.Any(s => s.SellerId.Equals(Model.SellerId, StringComparison.OrdinalIgnoreCase));
+                    <tr class="@(sellerMatch ? "table-info" : string.Empty)">
                         <td>#@order.Id</td>
                         <td>@order.CreatedAt.ToLocalTime().ToString("g")</td>
                         <td class="text-capitalize">@OrderStatusFlow.NormalizeStatus(order.Status)</td>
+                        <td>
+                            @if (order.SubOrders.Any())
+                            {
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var seller in order.SubOrders)
+                                    {
+                                        var isSelectedSeller = Model.HasSellerFilter && seller.SellerId.Equals(Model.SellerId, StringComparison.OrdinalIgnoreCase);
+                                        <span class="badge @(isSelectedSeller ? "bg-primary" : "bg-secondary")">@seller.SellerName</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <span class="text-muted">N/A</span>
+                            }
+                        </td>
                         <td>@order.TotalAmount.ToString("C")</td>
                         <td>
                             <a class="btn btn-link btn-sm" asp-page="/Buyer/Orders/Details" asp-route-orderId="@order.Id">View</a>
@@ -40,4 +105,35 @@ else
             </tbody>
         </table>
     </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav aria-label="Orders pagination">
+            <ul class="pagination">
+                <li class="page-item @(Model.HasPreviousPage ? string.Empty : "disabled")">
+                    @if (Model.HasPreviousPage)
+                    {
+                        <a class="page-link" href="@Model.BuildPageUrl(Model.Page - 1)">Previous</a>
+                    }
+                    else
+                    {
+                        <span class="page-link">Previous</span>
+                    }
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">Page @Model.Page of @Model.TotalPages</span>
+                </li>
+                <li class="page-item @(Model.HasNextPage ? string.Empty : "disabled")">
+                    @if (Model.HasNextPage)
+                    {
+                        <a class="page-link" href="@Model.BuildPageUrl(Model.Page + 1)">Next</a>
+                    }
+                    else
+                    {
+                        <span class="page-link">Next</span>
+                    }
+                </li>
+            </ul>
+        </nav>
+    }
 }
