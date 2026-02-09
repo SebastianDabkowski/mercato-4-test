@@ -10,17 +10,20 @@ public class PlaceOrder
     private readonly ICheckoutValidationService _checkoutValidationService;
     private readonly ICartRepository _cartRepository;
     private readonly CartCalculationService _cartCalculationService;
+    private readonly PromoService _promoService;
     private readonly TimeProvider _timeProvider;
 
     public PlaceOrder(
         ICheckoutValidationService checkoutValidationService,
         ICartRepository cartRepository,
         CartCalculationService cartCalculationService,
+        PromoService promoService,
         TimeProvider timeProvider)
     {
         _checkoutValidationService = checkoutValidationService;
         _cartRepository = cartRepository;
         _cartCalculationService = cartCalculationService;
+        _promoService = promoService;
         _timeProvider = timeProvider;
     }
 
@@ -45,6 +48,17 @@ public class PlaceOrder
             cart,
             shippingRules,
             selectedShippingMethods: shippingSelectionMap);
+
+        var promoTotals = await _promoService.ApplyExistingAsync(buyerId, totals);
+        if (promoTotals.ErrorMessage is not null && promoTotals.HasPromo)
+        {
+            return PlaceOrderResult.Failed(new List<CheckoutValidationIssue>
+            {
+                CheckoutValidationIssue.ForCart("promo-invalid", promoTotals.ErrorMessage)
+            });
+        }
+
+        totals = promoTotals.Totals;
 
         var itemsBySeller = validation.CartItems
             .GroupBy(i => i.SellerId, StringComparer.OrdinalIgnoreCase)
@@ -72,7 +86,9 @@ public class PlaceOrder
             DeliveryPhoneNumber = validation.DeliveryAddress?.PhoneNumber,
             ItemsSubtotal = totals.ItemsSubtotal,
             ShippingTotal = totals.ShippingTotal,
+            DiscountTotal = totals.DiscountTotal,
             TotalAmount = totals.TotalAmount,
+            PromoCode = promoTotals.AppliedPromoCode,
             CreatedAt = _timeProvider.GetUtcNow(),
             Status = OrderStatus.Confirmed,
             Items = validation.CartItems.Select(item => new OrderItemModel
@@ -92,6 +108,7 @@ public class PlaceOrder
         await _cartRepository.ClearCartItemsAsync(buyerId);
         await _cartRepository.ClearShippingSelectionsAsync(buyerId);
         await _cartRepository.ClearPaymentSelectionAsync(buyerId);
+        await _cartRepository.ClearPromoSelectionAsync(buyerId);
 
         scope.Complete();
         return PlaceOrderResult.Completed(order, validation.PaymentSelection, orderShippingSelections, validation.DeliveryAddress);

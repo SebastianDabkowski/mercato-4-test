@@ -72,12 +72,14 @@ public class PlaceOrderTests
         repo.Setup(r => r.ClearCartItemsAsync(buyerId)).Returns(Task.CompletedTask);
         repo.Setup(r => r.ClearShippingSelectionsAsync(buyerId)).Returns(Task.CompletedTask);
         repo.Setup(r => r.ClearPaymentSelectionAsync(buyerId)).Returns(Task.CompletedTask);
+        repo.Setup(r => r.GetPromoSelectionAsync(It.IsAny<string>())).ReturnsAsync((PromoSelectionModel?)null);
 
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(2)).ReturnsAsync(new ProductSnapshot(2, 15m, 10));
 
         var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), TimeProvider.System);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
+        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
 
         var result = await handler.ExecuteAsync(buyerId);
 
@@ -116,12 +118,14 @@ public class PlaceOrderTests
             .ReturnsAsync(new DeliveryAddressModel { BuyerId = buyerId, RecipientName = "Sam Buyer" });
         repo.Setup(r => r.GetShippingSelectionsAsync(buyerId))
             .ReturnsAsync(new List<ShippingSelectionModel> { new() { BuyerId = buyerId, SellerId = "seller-3", ShippingMethod = "Standard" } });
+        repo.Setup(r => r.GetPromoSelectionAsync(It.IsAny<string>())).ReturnsAsync((PromoSelectionModel?)null);
 
         var snapshotService = new Mock<IProductSnapshotService>();
         snapshotService.Setup(s => s.GetSnapshotAsync(3)).ReturnsAsync(new ProductSnapshot(3, 8m, 1));
 
         var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
-        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), TimeProvider.System);
+        var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
+        var handler = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
 
         var result = await handler.ExecuteAsync(buyerId);
 

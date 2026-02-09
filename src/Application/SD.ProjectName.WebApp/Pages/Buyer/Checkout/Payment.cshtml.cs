@@ -18,17 +18,20 @@ public class PaymentModel : PageModel
     private readonly GetCartItems _getCartItems;
     private readonly ICartRepository _cartRepository;
     private readonly CartCalculationService _cartCalculationService;
+    private readonly PromoService _promoService;
 
     public PaymentModel(
         ICartIdentityService cartIdentityService,
         GetCartItems getCartItems,
         ICartRepository cartRepository,
-        CartCalculationService cartCalculationService)
+        CartCalculationService cartCalculationService,
+        PromoService promoService)
     {
         _cartIdentityService = cartIdentityService;
         _getCartItems = getCartItems;
         _cartRepository = cartRepository;
         _cartCalculationService = cartCalculationService;
+        _promoService = promoService;
     }
 
     [BindProperty]
@@ -38,15 +41,21 @@ public class PaymentModel : PageModel
     public DeliveryAddressModel? SelectedAddress { get; private set; }
     public PaymentSelectionModel? CurrentPaymentSelection { get; private set; }
     public List<ShippingSelectionModel> ShippingSelections { get; private set; } = new();
+    public string? PromoError { get; private set; }
+    public string? PromoSuccess { get; private set; }
     public IEnumerable<string> AvailablePaymentMethods => PaymentMethods.Supported;
 
     public async Task<IActionResult> OnGetAsync()
     {
+        PromoError = TempData["PromoError"] as string;
+        PromoSuccess = TempData["PromoSuccess"] as string;
         return await LoadCheckoutStateAsync(setSelectedPaymentMethodFromExisting: true);
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
+        PromoError = TempData["PromoError"] as string;
+        PromoSuccess = TempData["PromoSuccess"] as string;
         var loadResult = await LoadCheckoutStateAsync(setSelectedPaymentMethodFromExisting: false);
         if (loadResult is RedirectToPageResult)
         {
@@ -78,6 +87,37 @@ public class PaymentModel : PageModel
         return RedirectToPage("/Buyer/Checkout/Confirmation");
     }
 
+    public async Task<IActionResult> OnPostApplyPromoAsync(string promoCode)
+    {
+        var loadResult = await LoadCheckoutStateAsync(setSelectedPaymentMethodFromExisting: true);
+        if (loadResult is RedirectToPageResult)
+        {
+            return loadResult;
+        }
+
+        var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+        var selectionMap = ShippingSelections.ToDictionary(s => s.SellerId, s => s.ShippingMethod, StringComparer.OrdinalIgnoreCase);
+        var result = await _promoService.ApplyAsync(buyerId, promoCode, selectionMap);
+        if (result.Success)
+        {
+            TempData["PromoSuccess"] = $"Promo code {result.AppliedPromoCode} applied.";
+        }
+        else
+        {
+            TempData["PromoError"] = result.ErrorMessage ?? "Unable to apply promo code.";
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostClearPromoAsync()
+    {
+        var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+        await _promoService.ClearAsync(buyerId);
+        TempData["PromoSuccess"] = "Promo code removed.";
+        return RedirectToPage();
+    }
+
     private async Task<IActionResult> LoadCheckoutStateAsync(bool setSelectedPaymentMethodFromExisting)
     {
         var buyerId = _cartIdentityService.GetOrCreateBuyerId();
@@ -104,6 +144,13 @@ public class PaymentModel : PageModel
         }
 
         Totals = BuildTotals(cartItems, shippingRules, ShippingSelections);
+        var promoTotals = await _promoService.ApplyExistingAsync(buyerId, Totals);
+        if (!promoTotals.HasPromo && promoTotals.ErrorMessage is not null)
+        {
+            PromoError ??= promoTotals.ErrorMessage;
+        }
+
+        Totals = promoTotals.Totals;
 
         CurrentPaymentSelection = await _cartRepository.GetPaymentSelectionAsync(buyerId);
         if (setSelectedPaymentMethodFromExisting)

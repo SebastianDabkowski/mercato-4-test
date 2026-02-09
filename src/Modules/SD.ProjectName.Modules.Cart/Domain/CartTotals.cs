@@ -4,7 +4,9 @@ public class CartTotals
 {
     public decimal ItemsSubtotal { get; set; }
     public decimal ShippingTotal { get; set; }
+    public decimal DiscountTotal { get; set; }
     public decimal TotalAmount { get; set; }
+    public string? PromoCode { get; set; }
     public List<SellerCartTotals> SellerBreakdown { get; set; } = new();
 }
 

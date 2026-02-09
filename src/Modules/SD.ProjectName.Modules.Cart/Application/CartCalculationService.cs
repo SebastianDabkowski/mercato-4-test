@@ -56,6 +56,69 @@ public class CartCalculationService
         };
     }
 
+    public PromoDiscountEvaluation EvaluatePromo(CartTotals totals, PromoCodeModel promoCode, DateTimeOffset now)
+    {
+        if (!promoCode.IsActive)
+        {
+            return PromoDiscountEvaluation.Failed("This promo code is not active.");
+        }
+
+        if (promoCode.ValidFrom.HasValue && now < promoCode.ValidFrom.Value)
+        {
+            return PromoDiscountEvaluation.Failed("This promo code is not active yet.");
+        }
+
+        if (promoCode.ValidUntil.HasValue && now > promoCode.ValidUntil.Value)
+        {
+            return PromoDiscountEvaluation.Failed("This promo code has expired.");
+        }
+
+        var eligibleSubtotal = string.IsNullOrWhiteSpace(promoCode.SellerId)
+            ? totals.ItemsSubtotal
+            : totals.SellerBreakdown
+                .Where(b => string.Equals(b.SellerId, promoCode.SellerId, StringComparison.OrdinalIgnoreCase))
+                .Sum(b => b.ItemsSubtotal);
+
+        if (eligibleSubtotal <= 0)
+        {
+            return PromoDiscountEvaluation.Failed("This promo code does not apply to your cart.");
+        }
+
+        if (promoCode.MinimumSubtotal.HasValue && eligibleSubtotal < promoCode.MinimumSubtotal.Value)
+        {
+            return PromoDiscountEvaluation.Failed($"This promo requires a minimum subtotal of {promoCode.MinimumSubtotal.Value:C}.");
+        }
+
+        var rawDiscount = promoCode.DiscountType switch
+        {
+            PromoDiscountType.Percentage => Math.Round(eligibleSubtotal * promoCode.DiscountValue, 2, MidpointRounding.ToEven),
+            PromoDiscountType.FixedAmount => promoCode.DiscountValue,
+            _ => 0
+        };
+
+        var cappedDiscount = Math.Min(rawDiscount, totals.ItemsSubtotal + totals.ShippingTotal);
+        if (cappedDiscount <= 0)
+        {
+            return PromoDiscountEvaluation.Failed("This promo code does not apply to your cart.");
+        }
+
+        return PromoDiscountEvaluation.Success(cappedDiscount);
+    }
+
+    public CartTotals ApplyPromo(CartTotals totals, PromoCodeModel promoCode, DateTimeOffset now, PromoDiscountEvaluation? evaluation = null)
+    {
+        var result = evaluation ?? EvaluatePromo(totals, promoCode, now);
+        if (!result.IsEligible)
+        {
+            return totals;
+        }
+
+        totals.DiscountTotal = result.DiscountAmount;
+        totals.TotalAmount = totals.ItemsSubtotal + totals.ShippingTotal - totals.DiscountTotal;
+        totals.PromoCode = promoCode.Code;
+        return totals;
+    }
+
     public decimal CalculateShippingCost(decimal subtotal, decimal totalWeightKg, ShippingRuleModel? shippingRule)
     {
         if (shippingRule == null)

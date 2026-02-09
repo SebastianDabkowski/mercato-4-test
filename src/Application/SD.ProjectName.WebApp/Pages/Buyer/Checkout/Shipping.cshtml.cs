@@ -18,33 +18,42 @@ public class ShippingModel : PageModel
     private readonly GetCartItems _getCartItems;
     private readonly ICartRepository _cartRepository;
     private readonly CartCalculationService _cartCalculationService;
+    private readonly PromoService _promoService;
 
     public ShippingModel(
         ICartIdentityService cartIdentityService,
         GetCartItems getCartItems,
         ICartRepository cartRepository,
-        CartCalculationService cartCalculationService)
+        CartCalculationService cartCalculationService,
+        PromoService promoService)
     {
         _cartIdentityService = cartIdentityService;
         _getCartItems = getCartItems;
         _cartRepository = cartRepository;
         _cartCalculationService = cartCalculationService;
+        _promoService = promoService;
     }
 
     public List<SellerShippingOptionsViewModel> SellerOptions { get; private set; } = new();
     public CartTotals Totals { get; private set; } = new();
     public DeliveryAddressModel? SelectedAddress { get; private set; }
+    public string? PromoError { get; private set; }
+    public string? PromoSuccess { get; private set; }
 
     [BindProperty]
     public List<SellerShippingSelectionInput> Selections { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync()
     {
+        PromoError = TempData["PromoError"] as string;
+        PromoSuccess = TempData["PromoSuccess"] as string;
         return await LoadAsync();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
+        PromoError = TempData["PromoError"] as string;
+        PromoSuccess = TempData["PromoSuccess"] as string;
         var result = await LoadAsync();
         if (result is RedirectToPageResult)
         {
@@ -89,6 +98,37 @@ public class ShippingModel : PageModel
         return RedirectToPage("/Buyer/Checkout/Payment");
     }
 
+    public async Task<IActionResult> OnPostApplyPromoAsync(string promoCode)
+    {
+        var loadResult = await LoadAsync();
+        if (loadResult is RedirectToPageResult)
+        {
+            return loadResult;
+        }
+
+        var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+        var selectionMap = GetSelectionMap();
+        var result = await _promoService.ApplyAsync(buyerId, promoCode, selectionMap);
+        if (result.Success)
+        {
+            TempData["PromoSuccess"] = $"Promo code {result.AppliedPromoCode} applied.";
+        }
+        else
+        {
+            TempData["PromoError"] = result.ErrorMessage ?? "Unable to apply promo code.";
+        }
+
+        return RedirectToPage();
+    }
+
+    public async Task<IActionResult> OnPostClearPromoAsync()
+    {
+        var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+        await _promoService.ClearAsync(buyerId);
+        TempData["PromoSuccess"] = "Promo code removed.";
+        return RedirectToPage();
+    }
+
     private async Task<IActionResult> LoadAsync()
     {
         var buyerId = _cartIdentityService.GetOrCreateBuyerId();
@@ -117,6 +157,13 @@ public class ShippingModel : PageModel
             .ToList();
 
         Totals = BuildTotals(cartItems, shippingRules, SellerOptions);
+        var promoTotals = await _promoService.ApplyExistingAsync(buyerId, Totals);
+        if (!promoTotals.HasPromo && promoTotals.ErrorMessage is not null)
+        {
+            PromoError ??= promoTotals.ErrorMessage;
+        }
+
+        Totals = promoTotals.Totals;
         return Page();
     }
 
@@ -176,6 +223,13 @@ public class ShippingModel : PageModel
             cart,
             shippingRules,
             selectedShippingMethods: selectionMap);
+    }
+
+    private Dictionary<string, string> GetSelectionMap()
+    {
+        return SellerOptions
+            .Where(o => !string.IsNullOrWhiteSpace(o.SelectedShippingMethod))
+            .ToDictionary(o => o.SellerId, o => o.SelectedShippingMethod!, StringComparer.OrdinalIgnoreCase);
     }
 }
 

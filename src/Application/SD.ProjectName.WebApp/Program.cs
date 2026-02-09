@@ -258,6 +258,7 @@ builder.Services.AddScoped<GetCartItems>();
 builder.Services.AddScoped<RemoveFromCart>();
 builder.Services.AddScoped<UpdateCartItemQuantity>();
 builder.Services.AddScoped<CartCalculationService>();
+builder.Services.AddScoped<PromoService>();
 builder.Services.AddScoped<CartMergeService>();
 builder.Services.AddScoped<GetDeliveryAddresses>();
 builder.Services.AddScoped<SetDeliveryAddressForCheckout>();

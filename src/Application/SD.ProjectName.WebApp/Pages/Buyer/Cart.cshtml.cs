@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.WebApp.Services;
+using CartDomainModel = SD.ProjectName.Modules.Cart.Domain.CartModel;
 
 namespace SD.ProjectName.WebApp.Pages.Buyer
 {
@@ -13,27 +14,39 @@ namespace SD.ProjectName.WebApp.Pages.Buyer
         private readonly UpdateCartItemQuantity _updateQuantity;
         private readonly IProductAvailabilityService _productAvailabilityService;
         private readonly ICartIdentityService _cartIdentityService;
+        private readonly CartCalculationService _cartCalculationService;
+        private readonly PromoService _promoService;
 
         public CartModel(
             GetCartItems getCartItems,
             RemoveFromCart removeFromCart,
             UpdateCartItemQuantity updateQuantity,
             IProductAvailabilityService productAvailabilityService,
-            ICartIdentityService cartIdentityService)
+            ICartIdentityService cartIdentityService,
+            CartCalculationService cartCalculationService,
+            PromoService promoService)
         {
             _getCartItems = getCartItems;
             _removeFromCart = removeFromCart;
             _updateQuantity = updateQuantity;
             _productAvailabilityService = productAvailabilityService;
             _cartIdentityService = cartIdentityService;
+            _cartCalculationService = cartCalculationService;
+            _promoService = promoService;
         }
 
         public List<SellerGroup> SellerGroups { get; set; } = new();
         public decimal CartTotal { get; set; }
+        public CartTotals Totals { get; private set; } = new();
         public Dictionary<int, CartItemAvailability> ItemAvailability { get; private set; } = new();
+        public string? PromoError { get; private set; }
+        public string? PromoSuccess { get; private set; }
 
         public async Task OnGetAsync()
         {
+            PromoError = TempData["PromoError"] as string;
+            PromoSuccess = TempData["PromoSuccess"] as string;
+
             var buyerId = _cartIdentityService.GetOrCreateBuyerId();
             var items = await _getCartItems.ExecuteAsync(buyerId);
 
@@ -42,7 +55,16 @@ namespace SD.ProjectName.WebApp.Pages.Buyer
                 .GroupBy(i => new { i.SellerId, i.SellerName })
                 .Select(g => new SellerGroup(g.Key.SellerId, g.Key.SellerName, g.ToList()))
                 .ToList();
-            CartTotal = items.Sum(i => i.UnitPrice * GetDisplayQuantity(i.Id, i.Quantity));
+
+            Totals = BuildTotals(items);
+            var promoTotals = await _promoService.ApplyExistingAsync(buyerId, Totals);
+            if (!promoTotals.HasPromo && promoTotals.ErrorMessage is not null)
+            {
+                PromoError ??= promoTotals.ErrorMessage;
+            }
+
+            Totals = promoTotals.Totals;
+            CartTotal = Totals.TotalAmount;
         }
 
         public async Task<IActionResult> OnPostRemoveAsync(int itemId)
@@ -57,6 +79,36 @@ namespace SD.ProjectName.WebApp.Pages.Buyer
             var buyerId = _cartIdentityService.GetOrCreateBuyerId();
             await _updateQuantity.ExecuteAsync(itemId, quantity, buyerId);
             return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostApplyPromoAsync(string promoCode)
+        {
+            var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+            var result = await _promoService.ApplyAsync(buyerId, promoCode);
+            if (result.Success)
+            {
+                TempData["PromoSuccess"] = $"Promo code {result.AppliedPromoCode} applied.";
+            }
+            else
+            {
+                TempData["PromoError"] = result.ErrorMessage ?? "Unable to apply promo code.";
+            }
+
+            return RedirectToPage();
+        }
+
+        public async Task<IActionResult> OnPostClearPromoAsync()
+        {
+            var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+            await _promoService.ClearAsync(buyerId);
+            TempData["PromoSuccess"] = "Promo code removed.";
+            return RedirectToPage();
+        }
+
+        private CartTotals BuildTotals(List<CartItemModel> items)
+        {
+            var cart = new CartDomainModel { Items = items };
+            return _cartCalculationService.CalculateTotals(cart, new List<ShippingRuleModel>());
         }
 
         private async Task<Dictionary<int, CartItemAvailability>> BuildAvailabilityAsync(List<CartItemModel> items)

@@ -259,6 +259,49 @@ public class CartRepository : ICartRepository
         return existing ?? selection;
     }
 
+    public async Task<PromoSelectionModel?> GetPromoSelectionAsync(string buyerId)
+    {
+        return await _context.PromoSelections.FirstOrDefaultAsync(p => p.BuyerId == buyerId);
+    }
+
+    public async Task<PromoSelectionModel> UpsertPromoSelectionAsync(PromoSelectionModel selection)
+    {
+        var normalizedCode = selection.PromoCode.Trim().ToUpperInvariant();
+        var existing = await _context.PromoSelections.FirstOrDefaultAsync(p => p.BuyerId == selection.BuyerId);
+
+        if (existing is null)
+        {
+            selection.PromoCode = normalizedCode;
+            _context.PromoSelections.Add(selection);
+        }
+        else
+        {
+            existing.PromoCode = normalizedCode;
+            existing.AppliedAt = selection.AppliedAt;
+        }
+
+        await _context.SaveChangesAsync();
+        return existing ?? selection;
+    }
+
+    public async Task ClearPromoSelectionAsync(string buyerId)
+    {
+        var existing = await _context.PromoSelections.FirstOrDefaultAsync(p => p.BuyerId == buyerId);
+        if (existing is null)
+        {
+            return;
+        }
+
+        _context.PromoSelections.Remove(existing);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<PromoCodeModel?> GetPromoCodeAsync(string code)
+    {
+        var normalized = code.Trim().ToUpperInvariant();
+        return await _context.PromoCodes.FirstOrDefaultAsync(p => p.Code == normalized);
+    }
+
     public async Task ClearPaymentSelectionAsync(string buyerId)
     {
         var existing = await _context.PaymentSelections.FirstOrDefaultAsync(p => p.BuyerId == buyerId);

@@ -15,7 +15,9 @@ public class OrderModel
     public string? DeliveryPhoneNumber { get; set; }
     public decimal ItemsSubtotal { get; set; }
     public decimal ShippingTotal { get; set; }
+    public decimal DiscountTotal { get; set; }
     public decimal TotalAmount { get; set; }
+    public string? PromoCode { get; set; }
     public string Status { get; set; } = OrderStatus.Pending;
     public DateTimeOffset CreatedAt { get; set; }
     public List<OrderShippingSelectionModel> ShippingSelections { get; set; } = new();
