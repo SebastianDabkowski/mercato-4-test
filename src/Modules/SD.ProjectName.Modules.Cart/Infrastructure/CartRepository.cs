@@ -371,10 +371,30 @@ public class CartRepository : ICartRepository
 
     public async Task<DeliveryAddressModel?> GetSelectedAddressAsync(string buyerId)
     {
-        return await _context.DeliveryAddresses
+        var selected = await _context.DeliveryAddresses
             .Where(a => a.BuyerId == buyerId && a.IsSelectedForCheckout)
             .OrderByDescending(a => a.UpdatedAt)
             .FirstOrDefaultAsync();
+
+        if (selected is not null)
+        {
+            return selected;
+        }
+
+        var fallback = await _context.DeliveryAddresses
+            .Where(a => a.BuyerId == buyerId)
+            .OrderByDescending(a => a.UpdatedAt)
+            .FirstOrDefaultAsync();
+
+        if (fallback is null)
+        {
+            return null;
+        }
+
+        fallback.IsSelectedForCheckout = true;
+        fallback.UpdatedAt = DateTimeOffset.UtcNow;
+        await _context.SaveChangesAsync();
+        return fallback;
     }
 
     public async Task<List<ShippingSelectionModel>> GetShippingSelectionsAsync(string buyerId)

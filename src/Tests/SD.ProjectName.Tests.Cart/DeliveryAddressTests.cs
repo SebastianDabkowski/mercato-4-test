@@ -1,7 +1,9 @@
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
+using SD.ProjectName.Modules.Cart.Infrastructure;
 
 namespace SD.ProjectName.Tests.Cart
 {
@@ -64,6 +66,57 @@ namespace SD.ProjectName.Tests.Cart
             Assert.True(existing.IsSelectedForCheckout);
             repository.Verify(r => r.ClearSelectedAddressAsync("buyer-1"), Times.Once);
             repository.Verify(r => r.AddOrUpdateAddressAsync(existing), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetSelectedAddressAsync_SelectsMostRecent_WhenNoneMarked()
+        {
+            var options = new DbContextOptionsBuilder<CartDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
+
+            await using var context = new CartDbContext(options);
+            var repo = new CartRepository(context);
+
+            var older = new DeliveryAddressModel
+            {
+                BuyerId = "buyer-2",
+                RecipientName = "Older",
+                Line1 = "Line 1",
+                City = "City",
+                Region = "Region",
+                PostalCode = "00-001",
+                CountryCode = "PL",
+                CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
+                UpdatedAt = DateTimeOffset.UtcNow.AddMinutes(-10)
+            };
+
+            var newer = new DeliveryAddressModel
+            {
+                BuyerId = "buyer-2",
+                RecipientName = "Newer",
+                Line1 = "Line 2",
+                City = "City 2",
+                Region = "Region 2",
+                PostalCode = "00-002",
+                CountryCode = "PL",
+                CreatedAt = DateTimeOffset.UtcNow,
+                UpdatedAt = DateTimeOffset.UtcNow
+            };
+
+            context.DeliveryAddresses.AddRange(older, newer);
+            await context.SaveChangesAsync();
+
+            var selected = await repo.GetSelectedAddressAsync("buyer-2");
+
+            Assert.NotNull(selected);
+            Assert.Equal("Newer", selected!.RecipientName);
+            Assert.True(selected.IsSelectedForCheckout);
+
+            var selectedCount = await context.DeliveryAddresses
+                .CountAsync(a => a.BuyerId == "buyer-2" && a.IsSelectedForCheckout);
+
+            Assert.Equal(1, selectedCount);
         }
     }
 }
