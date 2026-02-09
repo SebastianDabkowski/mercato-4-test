@@ -3,7 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using Microsoft.EntityFrameworkCore.Migrations;
 using SD.ProjectName.Modules.Cart.Infrastructure;
 
 #nullable disable
@@ -11,9 +11,10 @@ using SD.ProjectName.Modules.Cart.Infrastructure;
 namespace SD.ProjectName.Modules.Cart.Migrations
 {
     [DbContext(typeof(CartDbContext))]
-    partial class CartDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260209060000_AddShippingAndPaymentSelections")]
+    partial class AddShippingAndPaymentSelections
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

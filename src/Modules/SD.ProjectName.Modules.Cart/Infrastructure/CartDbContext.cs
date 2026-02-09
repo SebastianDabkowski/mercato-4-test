@@ -14,6 +14,8 @@ public class CartDbContext : DbContext
     public DbSet<CartItemModel> CartItems { get; set; }
     public DbSet<ShippingRuleModel> ShippingRules { get; set; }
     public DbSet<DeliveryAddressModel> DeliveryAddresses { get; set; }
+    public DbSet<ShippingSelectionModel> ShippingSelections { get; set; }
+    public DbSet<PaymentSelectionModel> PaymentSelections { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -54,6 +56,21 @@ public class CartDbContext : DbContext
             entity.Property(a => a.PostalCode).HasMaxLength(50);
             entity.Property(a => a.CountryCode).HasMaxLength(3);
             entity.Property(a => a.PhoneNumber).HasMaxLength(50);
+        });
+
+        modelBuilder.Entity<ShippingSelectionModel>(entity =>
+        {
+            entity.ToTable("ShippingSelection");
+            entity.HasIndex(s => new { s.BuyerId, s.SellerId }).IsUnique();
+            entity.Property(s => s.ShippingMethod).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<PaymentSelectionModel>(entity =>
+        {
+            entity.ToTable("PaymentSelection");
+            entity.HasIndex(p => p.BuyerId).IsUnique();
+            entity.Property(p => p.PaymentMethod).HasMaxLength(100);
+            entity.Property(p => p.Status).HasConversion<int>();
         });
     }
 }

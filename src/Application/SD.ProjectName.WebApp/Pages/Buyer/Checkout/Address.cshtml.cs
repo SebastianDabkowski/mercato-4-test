@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
+using SD.ProjectName.Modules.Cart.Domain.Interfaces;
 using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Buyer.Checkout;
@@ -14,15 +15,18 @@ public class AddressModel : PageModel
     private readonly ICartIdentityService _cartIdentityService;
     private readonly GetDeliveryAddresses _getDeliveryAddresses;
     private readonly SetDeliveryAddressForCheckout _setDeliveryAddressForCheckout;
+    private readonly ICartRepository _cartRepository;
 
     public AddressModel(
         ICartIdentityService cartIdentityService,
         GetDeliveryAddresses getDeliveryAddresses,
-        SetDeliveryAddressForCheckout setDeliveryAddressForCheckout)
+        SetDeliveryAddressForCheckout setDeliveryAddressForCheckout,
+        ICartRepository cartRepository)
     {
         _cartIdentityService = cartIdentityService;
         _getDeliveryAddresses = getDeliveryAddresses;
         _setDeliveryAddressForCheckout = setDeliveryAddressForCheckout;
+        _cartRepository = cartRepository;
     }
 
     public List<DeliveryAddressModel> SavedAddresses { get; private set; } = new();
@@ -64,8 +68,9 @@ public class AddressModel : PageModel
                 return Page();
             }
 
+            await ResetShippingAndPaymentAsync(buyerId);
             TempData["AddressSaved"] = "Delivery address selected for checkout.";
-            return RedirectToPage();
+            return RedirectToPage("/Buyer/Checkout/Shipping");
         }
 
         if (!ModelState.IsValid)
@@ -86,21 +91,28 @@ public class AddressModel : PageModel
                 ModelState.AddModelError(string.Empty, error);
             }
 
-            await LoadAddressesAsync();
-            return Page();
+                await LoadAddressesAsync();
+                return Page();
+            }
+
+            await ResetShippingAndPaymentAsync(buyerId);
+            TempData["AddressSaved"] = "Delivery address saved for this checkout.";
+            return RedirectToPage("/Buyer/Checkout/Shipping");
         }
 
-        TempData["AddressSaved"] = "Delivery address saved for this checkout.";
-        return RedirectToPage();
-    }
+        private async Task LoadAddressesAsync()
+        {
+            var buyerId = _cartIdentityService.GetOrCreateBuyerId();
+            SavedAddresses = await _getDeliveryAddresses.ExecuteAsync(buyerId);
+            SelectedAddress = SavedAddresses.FirstOrDefault(a => a.IsSelectedForCheckout);
+        }
 
-    private async Task LoadAddressesAsync()
-    {
-        var buyerId = _cartIdentityService.GetOrCreateBuyerId();
-        SavedAddresses = await _getDeliveryAddresses.ExecuteAsync(buyerId);
-        SelectedAddress = SavedAddresses.FirstOrDefault(a => a.IsSelectedForCheckout);
+        private async Task ResetShippingAndPaymentAsync(string buyerId)
+        {
+            await _cartRepository.ClearShippingSelectionsAsync(buyerId);
+            await _cartRepository.ClearPaymentSelectionAsync(buyerId);
+        }
     }
-}
 
 public class DeliveryAddressForm
 {

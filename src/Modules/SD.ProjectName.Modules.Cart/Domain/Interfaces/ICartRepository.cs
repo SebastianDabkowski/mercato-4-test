@@ -15,6 +15,12 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task SetSelectedAddressAsync(string buyerId, int addressId);
         Task ClearSelectedAddressAsync(string buyerId);
         Task<DeliveryAddressModel?> GetSelectedAddressAsync(string buyerId);
+        Task<List<ShippingSelectionModel>> GetShippingSelectionsAsync(string buyerId);
+        Task SetShippingSelectionAsync(string buyerId, string sellerId, string shippingMethod, decimal cost);
+        Task ClearShippingSelectionsAsync(string buyerId);
+        Task<PaymentSelectionModel?> GetPaymentSelectionAsync(string buyerId);
+        Task<PaymentSelectionModel> UpsertPaymentSelectionAsync(PaymentSelectionModel selection);
+        Task ClearPaymentSelectionAsync(string buyerId);
       
         Task<CartItemModel> AddAsync(CartItemModel item);
         Task<CartModel> CreateAsync(string userId);

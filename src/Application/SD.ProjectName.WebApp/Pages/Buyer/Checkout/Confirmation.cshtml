@@ -1,0 +1,51 @@
+@page "/buyer/checkout/confirmation"
+@model SD.ProjectName.WebApp.Pages.Buyer.Checkout.ConfirmationModel
+@{
+    ViewData["Title"] = "Order confirmation";
+}
+
+<h1 data-testid="checkout-confirmation">Order confirmation</h1>
+
+@if (Model.PaymentSelection is not null)
+{
+    <div class="alert alert-success">
+        Payment confirmed using @Model.PaymentSelection.PaymentMethod.
+    </div>
+}
+
+<div class="card mb-3">
+    <div class="card-header">Order summary</div>
+    <div class="card-body">
+        <div class="d-flex justify-content-between">
+            <span>Items subtotal</span>
+            <span>@Model.Totals.ItemsSubtotal.ToString("C")</span>
+        </div>
+        <div class="d-flex justify-content-between">
+            <span>Shipping</span>
+            <span>@Model.Totals.ShippingTotal.ToString("C")</span>
+        </div>
+        <div class="d-flex justify-content-between fw-bold mt-2">
+            <span>Total paid</span>
+            <span>@Model.Totals.TotalAmount.ToString("C")</span>
+        </div>
+    </div>
+</div>
+
+@if (Model.SelectedAddress is not null)
+{
+    <div class="card mb-3">
+        <div class="card-header">Delivery address</div>
+        <div class="card-body">
+            <div>@Model.SelectedAddress.RecipientName</div>
+            <div>@Model.SelectedAddress.Line1</div>
+            @if (!string.IsNullOrWhiteSpace(Model.SelectedAddress.Line2))
+            {
+                <div>@Model.SelectedAddress.Line2</div>
+            }
+            <div>@Model.SelectedAddress.PostalCode @Model.SelectedAddress.City</div>
+            <div>@Model.SelectedAddress.Region, @Model.SelectedAddress.CountryCode</div>
+        </div>
+    </div>
+}
+
+<a class="btn btn-primary" asp-page="/Products/List">Continue shopping</a>

@@ -1,12 +1,17 @@
 namespace SD.ProjectName.Modules.Cart.Application;
 
+using System;
 using SD.ProjectName.Modules.Cart.Domain;
 
 public class CartCalculationService
 {
     private const decimal DefaultCommissionRate = 0.01m;
 
-    public CartTotals CalculateTotals(CartModel cart, List<ShippingRuleModel> shippingRules, decimal commissionRate = DefaultCommissionRate)
+    public CartTotals CalculateTotals(
+        CartModel cart,
+        List<ShippingRuleModel> shippingRules,
+        decimal commissionRate = DefaultCommissionRate,
+        IReadOnlyDictionary<string, string>? selectedShippingMethods = null)
     {
         var sellerGroups = cart.Items.GroupBy(item => item.SellerId);
         var sellerBreakdown = new List<SellerCartTotals>();
@@ -21,7 +26,7 @@ public class CartCalculationService
             var sellerSubtotal = sellerItems.Sum(item => item.UnitPrice * item.Quantity);
             var totalWeightKg = sellerItems.Sum(item => item.WeightKg * item.Quantity);
 
-            var shippingRule = shippingRules.FirstOrDefault(r => r.SellerId == sellerId && r.IsActive);
+            var shippingRule = ResolveShippingRule(shippingRules, sellerId, selectedShippingMethods);
             var shippingCost = CalculateShippingCost(sellerSubtotal, totalWeightKg, shippingRule);
 
             var totalBeforeCommission = sellerSubtotal + shippingCost;
@@ -51,7 +56,7 @@ public class CartCalculationService
         };
     }
 
-    private decimal CalculateShippingCost(decimal subtotal, decimal totalWeightKg, ShippingRuleModel? shippingRule)
+    public decimal CalculateShippingCost(decimal subtotal, decimal totalWeightKg, ShippingRuleModel? shippingRule)
     {
         if (shippingRule == null)
         {
@@ -71,5 +76,33 @@ public class CartCalculationService
         }
 
         return shippingCost;
+    }
+
+    private ShippingRuleModel? ResolveShippingRule(
+        List<ShippingRuleModel> shippingRules,
+        string sellerId,
+        IReadOnlyDictionary<string, string>? selectedShippingMethods)
+    {
+        var sellerRules = shippingRules
+            .Where(r => r.SellerId == sellerId && r.IsActive)
+            .ToList();
+
+        if (sellerRules.Count == 0)
+        {
+            return null;
+        }
+
+        if (selectedShippingMethods != null && selectedShippingMethods.TryGetValue(sellerId, out var selectedMethod))
+        {
+            var matched = sellerRules.FirstOrDefault(r =>
+                string.Equals(r.ShippingMethod, selectedMethod, StringComparison.OrdinalIgnoreCase));
+
+            if (matched != null)
+            {
+                return matched;
+            }
+        }
+
+        return sellerRules.First();
     }
 }

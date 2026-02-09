@@ -161,4 +161,88 @@ public class CartRepository : ICartRepository
             .OrderByDescending(a => a.UpdatedAt)
             .FirstOrDefaultAsync();
     }
+
+    public async Task<List<ShippingSelectionModel>> GetShippingSelectionsAsync(string buyerId)
+    {
+        return await _context.ShippingSelections
+            .Where(s => s.BuyerId == buyerId)
+            .ToListAsync();
+    }
+
+    public async Task SetShippingSelectionAsync(string buyerId, string sellerId, string shippingMethod, decimal cost)
+    {
+        var existing = await _context.ShippingSelections
+            .FirstOrDefaultAsync(s => s.BuyerId == buyerId && s.SellerId == sellerId);
+
+        if (existing is null)
+        {
+            _context.ShippingSelections.Add(new ShippingSelectionModel
+            {
+                BuyerId = buyerId,
+                SellerId = sellerId,
+                ShippingMethod = shippingMethod,
+                Cost = cost,
+                SelectedAt = DateTimeOffset.UtcNow
+            });
+        }
+        else
+        {
+            existing.ShippingMethod = shippingMethod;
+            existing.Cost = cost;
+            existing.SelectedAt = DateTimeOffset.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task ClearShippingSelectionsAsync(string buyerId)
+    {
+        var selections = await _context.ShippingSelections
+            .Where(s => s.BuyerId == buyerId)
+            .ToListAsync();
+
+        if (selections.Count == 0)
+        {
+            return;
+        }
+
+        _context.ShippingSelections.RemoveRange(selections);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<PaymentSelectionModel?> GetPaymentSelectionAsync(string buyerId)
+    {
+        return await _context.PaymentSelections.FirstOrDefaultAsync(p => p.BuyerId == buyerId);
+    }
+
+    public async Task<PaymentSelectionModel> UpsertPaymentSelectionAsync(PaymentSelectionModel selection)
+    {
+        var existing = await _context.PaymentSelections.FirstOrDefaultAsync(p => p.BuyerId == selection.BuyerId);
+
+        if (existing is null)
+        {
+            _context.PaymentSelections.Add(selection);
+        }
+        else
+        {
+            existing.PaymentMethod = selection.PaymentMethod;
+            existing.Status = selection.Status;
+            existing.UpdatedAt = selection.UpdatedAt;
+        }
+
+        await _context.SaveChangesAsync();
+        return existing ?? selection;
+    }
+
+    public async Task ClearPaymentSelectionAsync(string buyerId)
+    {
+        var existing = await _context.PaymentSelections.FirstOrDefaultAsync(p => p.BuyerId == buyerId);
+        if (existing is null)
+        {
+            return;
+        }
+
+        _context.PaymentSelections.Remove(existing);
+        await _context.SaveChangesAsync();
+    }
 }
