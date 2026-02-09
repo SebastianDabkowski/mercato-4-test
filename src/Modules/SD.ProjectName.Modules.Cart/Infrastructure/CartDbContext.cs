@@ -24,6 +24,7 @@ public class CartDbContext : DbContext
     public DbSet<SellerOrderModel> SellerOrders { get; set; }
     public DbSet<ReturnRequestModel> ReturnRequests { get; set; }
     public DbSet<ReturnRequestItemModel> ReturnRequestItems { get; set; }
+    public DbSet<EscrowLedgerEntry> EscrowLedgerEntries { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -244,6 +245,17 @@ public class CartDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(i => i.OrderItemId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<EscrowLedgerEntry>(entity =>
+        {
+            entity.ToTable("EscrowLedger");
+            entity.HasIndex(e => e.OrderId);
+            entity.HasIndex(e => e.SellerOrderId).IsUnique();
+            entity.Property(e => e.BuyerId).HasMaxLength(200);
+            entity.Property(e => e.SellerId).HasMaxLength(200);
+            entity.Property(e => e.Status).HasMaxLength(50);
+            entity.Property(e => e.ReleaseReason).HasMaxLength(500);
         });
     }
 }

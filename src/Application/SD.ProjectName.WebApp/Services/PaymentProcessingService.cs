@@ -11,16 +11,19 @@ public class PaymentProcessingService
     private readonly PlaceOrder _placeOrder;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<PaymentProcessingService> _logger;
+    private readonly EscrowService _escrowService;
 
     public PaymentProcessingService(
         ICartRepository cartRepository,
         PlaceOrder placeOrder,
         TimeProvider timeProvider,
+        EscrowService escrowService,
         ILogger<PaymentProcessingService> logger)
     {
         _cartRepository = cartRepository;
         _placeOrder = placeOrder;
         _timeProvider = timeProvider;
+        _escrowService = escrowService;
         _logger = logger;
     }
 
@@ -41,6 +44,8 @@ public class PaymentProcessingService
         {
             if (selection.Status == PaymentStatus.Authorized && selection.OrderId.HasValue)
             {
+                var existingOrder = await _cartRepository.GetOrderWithSubOrdersAsync(selection.OrderId.Value);
+                await _escrowService.EnsureEscrowAsync(existingOrder);
                 return PaymentProcessingResult.CreateSuccess(selection.OrderId.Value, alreadyProcessed: true);
             }
 
@@ -50,6 +55,8 @@ public class PaymentProcessingService
 
             if (selection.OrderId.HasValue)
             {
+                var existingOrder = await _cartRepository.GetOrderWithSubOrdersAsync(selection.OrderId.Value);
+                await _escrowService.EnsureEscrowAsync(existingOrder);
                 return PaymentProcessingResult.CreateSuccess(selection.OrderId.Value, alreadyProcessed: true);
             }
 
@@ -68,6 +75,7 @@ public class PaymentProcessingService
             }
 
             selection.OrderId = orderResult.Order.Id;
+            await _escrowService.EnsureEscrowAsync(orderResult.Order);
             await _cartRepository.SaveChangesAsync();
             return PaymentProcessingResult.CreateSuccess(orderResult.Order.Id, alreadyProcessed: false);
         }

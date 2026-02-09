@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Infrastructure;
@@ -15,7 +16,7 @@ public class OrderStatusServiceTests
     {
         var repo = CreateRepository(nameof(UpdateSellerOrderStatusAsync_MovesPaidToPreparing));
         var order = await SeedOrderAsync(repo, OrderStatus.Paid);
-        var service = new OrderStatusService(repo);
+        var service = CreateService(repo);
 
         var result = await service.UpdateSellerOrderStatusAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId, OrderStatus.Preparing);
 
@@ -30,7 +31,7 @@ public class OrderStatusServiceTests
     {
         var repo = CreateRepository(nameof(UpdateSellerOrderStatusAsync_BlocksInvalidJump));
         var order = await SeedOrderAsync(repo, OrderStatus.Paid);
-        var service = new OrderStatusService(repo);
+        var service = CreateService(repo);
 
         var result = await service.UpdateSellerOrderStatusAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId, OrderStatus.Delivered);
 
@@ -43,7 +44,7 @@ public class OrderStatusServiceTests
     {
         var repo = CreateRepository(nameof(UpdateSellerOrderStatusAsync_SetsTrackingWhenShipped));
         var order = await SeedOrderAsync(repo, OrderStatus.Preparing);
-        var service = new OrderStatusService(repo);
+        var service = CreateService(repo);
 
         var result = await service.UpdateSellerOrderStatusAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId, OrderStatus.Shipped, trackingNumber: "TRACK-123");
 
@@ -58,7 +59,7 @@ public class OrderStatusServiceTests
     {
         var repo = CreateRepository(nameof(CancelOrderAsync_BlocksWhenShipmentStarted));
         var order = await SeedOrderAsync(repo, OrderStatus.Shipped);
-        var service = new OrderStatusService(repo);
+        var service = CreateService(repo);
 
         var result = await service.CancelOrderAsync(order.Id, order.BuyerId);
 
@@ -67,11 +68,42 @@ public class OrderStatusServiceTests
     }
 
     [Fact]
+    public async Task CancelOrderAsync_ReleasesEscrow()
+    {
+        var repo = CreateRepository(nameof(CancelOrderAsync_ReleasesEscrow));
+        var order = await SeedOrderAsync(repo, OrderStatus.Paid);
+        var escrow = new EscrowLedgerEntry
+        {
+            OrderId = order.Id,
+            SellerOrderId = order.SubOrders[0].Id,
+            BuyerId = order.BuyerId,
+            SellerId = order.SubOrders[0].SellerId,
+            HeldAmount = order.TotalAmount,
+            CommissionAmount = 0.15m,
+            SellerPayoutAmount = 14.85m,
+            Status = EscrowLedgerStatus.Held,
+            CreatedAt = DateTimeOffset.UtcNow,
+            PayoutEligibleAt = DateTimeOffset.UtcNow
+        };
+        await repo.AddEscrowEntriesAsync(new List<EscrowLedgerEntry> { escrow });
+        var service = CreateService(repo);
+
+        var result = await service.CancelOrderAsync(order.Id, order.BuyerId);
+
+        Assert.True(result.IsSuccess);
+        var ledger = await repo.GetEscrowEntriesForOrderAsync(order.Id);
+        Assert.Single(ledger);
+        Assert.Equal(EscrowLedgerStatus.ReleasedToBuyer, ledger[0].Status);
+        Assert.NotNull(ledger[0].ReleasedAt);
+        Assert.Equal("Order cancelled", ledger[0].ReleaseReason);
+    }
+
+    [Fact]
     public async Task MarkSubOrderDeliveredAsync_UpdatesOrderRollup()
     {
         var repo = CreateRepository(nameof(MarkSubOrderDeliveredAsync_UpdatesOrderRollup));
         var order = await SeedOrderAsync(repo, OrderStatus.Shipped);
-        var service = new OrderStatusService(repo);
+        var service = CreateService(repo);
 
         var result = await service.MarkSubOrderDeliveredAsync(order.Id, order.SubOrders[0].Id, order.BuyerId);
 
@@ -86,7 +118,7 @@ public class OrderStatusServiceTests
     {
         var repo = CreateRepository(nameof(UpdateItemStatusesAsync_AllowsPartialShipment));
         var order = await SeedOrderWithItemsAsync(repo);
-        var service = new OrderStatusService(repo);
+        var service = CreateService(repo);
 
         var firstItemId = order.SubOrders[0].Items[0].Id;
         var secondItemId = order.SubOrders[0].Items[1].Id;
@@ -111,7 +143,7 @@ public class OrderStatusServiceTests
     {
         var repo = CreateRepository(nameof(UpdateItemStatusesAsync_CancelsItemsAndCalculatesRefund));
         var order = await SeedOrderWithItemsAsync(repo);
-        var service = new OrderStatusService(repo);
+        var service = CreateService(repo);
 
         var cancelItemId = order.SubOrders[0].Items[0].Id;
 
@@ -134,7 +166,7 @@ public class OrderStatusServiceTests
     {
         var repo = CreateRepository(nameof(MarkSubOrderDeliveredAsync_SetsItemsDelivered));
         var order = await SeedOrderWithItemsAsync(repo, OrderStatus.Shipped, OrderStatus.Shipped);
-        var service = new OrderStatusService(repo);
+        var service = CreateService(repo);
 
         var result = await service.MarkSubOrderDeliveredAsync(order.Id, order.SubOrders[0].Id, order.BuyerId);
 
@@ -142,6 +174,12 @@ public class OrderStatusServiceTests
         var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
         Assert.All(updated!.Items, i => Assert.Equal(OrderStatus.Delivered, i.Status));
         Assert.Equal(OrderStatus.Delivered, updated.Status);
+    }
+
+    private static OrderStatusService CreateService(CartRepository repo)
+    {
+        var escrowService = new EscrowService(repo, TimeProvider.System, Options.Create(new EscrowOptions()));
+        return new OrderStatusService(repo, escrowService);
     }
 
     private static CartRepository CreateRepository(string dbName)

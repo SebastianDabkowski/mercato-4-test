@@ -10,10 +10,12 @@ namespace SD.ProjectName.Modules.Cart.Application;
 public class OrderStatusService
 {
     private readonly ICartRepository _cartRepository;
+    private readonly EscrowService _escrowService;
 
-    public OrderStatusService(ICartRepository cartRepository)
+    public OrderStatusService(ICartRepository cartRepository, EscrowService escrowService)
     {
         _cartRepository = cartRepository;
+        _escrowService = escrowService;
     }
 
     public async Task<OrderStatusResult> UpdateSellerOrderStatusAsync(
@@ -41,6 +43,13 @@ public class OrderStatusService
 
         RecalculateSellerOrderFromItems(sellerOrder, refundOverride);
         RollupOrderStatus(sellerOrder.Order);
+
+        if (string.Equals(targetStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
+        {
+            await _escrowService.ReleaseSellerOrderEscrowToBuyerAsync(
+                sellerOrder.Id,
+                "Sub-order cancelled");
+        }
 
         await _cartRepository.SaveChangesAsync();
         return OrderStatusResult.SuccessResult(sellerOrder.Status, sellerOrder.Order?.Status);
@@ -107,6 +116,13 @@ public class OrderStatusService
         RecalculateSellerOrderFromItems(sellerOrder);
         RollupOrderStatus(sellerOrder.Order);
 
+        if (string.Equals(sellerOrder.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
+        {
+            await _escrowService.ReleaseSellerOrderEscrowToBuyerAsync(
+                sellerOrder.Id,
+                "Sub-order cancelled");
+        }
+
         await _cartRepository.SaveChangesAsync();
         return OrderStatusResult.SuccessResult(sellerOrder.Status, sellerOrder.Order?.Status);
     }
@@ -142,6 +158,7 @@ public class OrderStatusService
 
         RollupOrderStatus(order);
 
+        await _escrowService.ReleaseEscrowToBuyerAsync(order, "Order cancelled");
         await _cartRepository.SaveChangesAsync();
         return OrderStatusResult.SuccessResult(order.Status, order.Status);
     }

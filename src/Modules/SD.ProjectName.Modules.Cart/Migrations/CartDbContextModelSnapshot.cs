@@ -390,6 +390,67 @@ namespace SD.ProjectName.Modules.Cart.Migrations
                     b.ToTable("OrderShippingSelection", (string)null);
                 });
 
+            modelBuilder.Entity("SD.ProjectName.Modules.Cart.Domain.EscrowLedgerEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BuyerId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("CommissionAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("HeldAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTimeOffset>("PayoutEligibleAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ReleaseReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("ReleasedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("SellerId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("SellerPayoutAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("SellerOrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("SellerOrderId")
+                        .IsUnique();
+
+                    b.ToTable("EscrowLedger", (string)null);
+                });
+
             modelBuilder.Entity("SD.ProjectName.Modules.Cart.Domain.PaymentSelectionModel", b =>
                 {
                     b.Property<int>("Id")
