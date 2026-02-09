@@ -3,27 +3,28 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.Modules.Cart.Domain.Interfaces;
-using SD.ProjectName.WebApp.Services;
+using SD.ProjectName.WebApp.Data;
+using SD.ProjectName.WebApp.Identity;
 
-namespace SD.ProjectName.WebApp.Pages.Buyer.Cases;
+namespace SD.ProjectName.WebApp.Pages.Seller.Cases;
 
-[Authorize]
+[Authorize(Roles = IdentityRoles.Seller)]
 public class IndexModel : PageModel
 {
-    private readonly ICartIdentityService _cartIdentityService;
+    private readonly UserManager<ApplicationUser> _userManager;
     private readonly ICartRepository _cartRepository;
+    private const int PageSize = 10;
 
-    public IndexModel(ICartIdentityService cartIdentityService, ICartRepository cartRepository)
+    public IndexModel(UserManager<ApplicationUser> userManager, ICartRepository cartRepository)
     {
-        _cartIdentityService = cartIdentityService;
+        _userManager = userManager;
         _cartRepository = cartRepository;
     }
-
-    private const int PageSize = 10;
 
     [BindProperty(SupportsGet = true)]
     public List<string> Statuses { get; set; } = new();
@@ -35,7 +36,7 @@ public class IndexModel : PageModel
     public DateTime? CreatedTo { get; set; }
 
     [BindProperty(SupportsGet = true)]
-    public int Page { get; set; } = 1;
+    public new int Page { get; set; } = 1;
 
     public List<ReturnRequestModel> Cases { get; private set; } = new();
     public int TotalCount { get; private set; }
@@ -55,6 +56,12 @@ public class IndexModel : PageModel
 
     public async Task<IActionResult> OnGetAsync()
     {
+        var seller = await _userManager.GetUserAsync(User);
+        if (seller is null)
+        {
+            return Challenge();
+        }
+
         Statuses ??= new List<string>();
         var normalizedPage = Page < 1 ? 1 : Page;
         Page = normalizedPage;
@@ -66,10 +73,9 @@ public class IndexModel : PageModel
             ? DateTime.SpecifyKind(CreatedTo.Value, DateTimeKind.Utc).Date.AddDays(1).AddTicks(-1)
             : (DateTime?)null;
 
-        var buyerId = _cartIdentityService.GetOrCreateBuyerId();
-        var result = await _cartRepository.GetReturnRequestsForBuyerAsync(
-            buyerId,
-            new BuyerReturnRequestsQuery
+        var result = await _cartRepository.GetReturnRequestsForSellerAsync(
+            seller.Id,
+            new SellerReturnRequestsQuery
             {
                 Statuses = Statuses,
                 CreatedFrom = fromDate.HasValue ? new DateTimeOffset(fromDate.Value) : null,
@@ -96,7 +102,7 @@ public class IndexModel : PageModel
             Statuses = Statuses.ToArray()
         };
 
-        return Url.Page("/Buyer/Cases/Index", routeValues) ?? string.Empty;
+        return Url.Page("/Seller/Cases/Index", routeValues) ?? string.Empty;
     }
 
     public string GetCaseStatusLabel(string status) =>
@@ -125,4 +131,15 @@ public class IndexModel : PageModel
         string.Equals(requestType, ReturnRequestType.Complaint, StringComparison.OrdinalIgnoreCase)
             ? "Complaint"
             : "Return";
+
+    public string GetBuyerAlias(ReturnRequestModel request)
+    {
+        var buyerId = request.Order?.BuyerId ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(buyerId))
+        {
+            return "Buyer";
+        }
+
+        return buyerId.Length > 6 ? $"Buyer {buyerId[^6..]}" : buyerId;
+    }
 }

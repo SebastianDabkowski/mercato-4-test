@@ -148,6 +148,93 @@ public class CartRepository : ICartRepository
             .FirstOrDefaultAsync(r => r.Id == requestId);
     }
 
+    public async Task<SellerReturnRequestsResult> GetReturnRequestsForSellerAsync(string sellerId, SellerReturnRequestsQuery query)
+    {
+        var normalizedPage = query.Page < 1 ? 1 : query.Page;
+        var normalizedPageSize = query.PageSize < 1 ? 10 : query.PageSize;
+        var statusFilter = (query.Statuses ?? Array.Empty<string>())
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.ToLowerInvariant())
+            .Distinct()
+            .ToList();
+
+        var filteredQuery = _context.ReturnRequests
+            .AsNoTracking()
+            .Where(r => r.SellerOrder != null && r.SellerOrder.SellerId == sellerId);
+
+        if (statusFilter.Count > 0)
+        {
+            filteredQuery = filteredQuery.Where(r => statusFilter.Contains(r.Status));
+        }
+
+        if (query.CreatedFrom.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(r => r.RequestedAt >= query.CreatedFrom.Value);
+        }
+
+        if (query.CreatedTo.HasValue)
+        {
+            filteredQuery = filteredQuery.Where(r => r.RequestedAt <= query.CreatedTo.Value);
+        }
+
+        var totalCount = await filteredQuery.CountAsync();
+        var totalPages = totalCount == 0
+            ? 1
+            : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
+        var currentPage = normalizedPage > totalPages ? totalPages : normalizedPage;
+        var skip = (currentPage - 1) * normalizedPageSize;
+
+        var requests = await filteredQuery
+            .Include(r => r.Order)
+            .Include(r => r.SellerOrder)
+                .ThenInclude(o => o!.ShippingSelection)
+            .Include(r => r.Items)
+                .ThenInclude(i => i.OrderItem)
+            .OrderByDescending(r => r.RequestedAt)
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .ToListAsync();
+
+        return new SellerReturnRequestsResult
+        {
+            Requests = requests,
+            TotalCount = totalCount,
+            Page = currentPage,
+            PageSize = normalizedPageSize
+        };
+    }
+
+    public async Task<ReturnRequestModel?> GetReturnRequestForSellerAsync(int requestId, string sellerId)
+    {
+        return await _context.ReturnRequests
+            .AsNoTracking()
+            .Include(r => r.Items)
+                .ThenInclude(i => i.OrderItem)
+            .Include(r => r.SellerOrder)
+                .ThenInclude(o => o!.Items)
+            .Include(r => r.SellerOrder)
+                .ThenInclude(o => o!.ShippingSelection)
+            .Include(r => r.Order)
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.SellerOrder != null && r.SellerOrder.SellerId == sellerId);
+    }
+
+    public async Task<ReturnRequestModel?> UpdateReturnRequestStatusAsync(int requestId, string sellerId, string status, DateTimeOffset updatedAt)
+    {
+        var request = await _context.ReturnRequests
+            .Include(r => r.SellerOrder)
+            .FirstOrDefaultAsync(r => r.Id == requestId && r.SellerOrder != null && r.SellerOrder.SellerId == sellerId);
+
+        if (request is null)
+        {
+            return null;
+        }
+
+        request.Status = status;
+        request.UpdatedAt = updatedAt;
+        await _context.SaveChangesAsync();
+        return request;
+    }
+
     public async Task<OrderModel?> GetOrderAsync(int orderId, string buyerId)
     {
         return await _context.Orders

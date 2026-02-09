@@ -1,0 +1,207 @@
+@page "/seller/cases/{caseId:int}"
+@model SD.ProjectName.WebApp.Pages.Seller.Cases.DetailsModel
+@using SD.ProjectName.Modules.Cart.Domain
+@{
+    ViewData["Title"] = "Case details";
+    var request = Model.Case!;
+    var sellerOrder = Model.SellerOrder;
+    var order = Model.Order;
+}
+
+<div class="d-flex align-items-center gap-3 mb-3">
+    <h1 class="mb-0">Case #@request.Id</h1>
+    <span class="badge @Model.GetCaseBadgeClass(request.Status) text-uppercase">@Model.GetCaseStatusLabel(request.Status)</span>
+</div>
+
+<div class="mb-3 d-flex gap-3 align-items-center">
+    <a class="btn btn-link p-0" asp-page="/Seller/Cases/Index">Back to cases</a>
+    @if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+    {
+        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">@Model.StatusMessage</span>
+    }
+    @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+    {
+        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">@Model.ErrorMessage</span>
+    }
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row gy-2">
+                    <div class="col-md-6">
+                        <div class="text-muted">Type</div>
+                        <div class="fw-semibold">@Model.GetCaseTypeLabel(request.RequestType)</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted">Created</div>
+                        <div class="fw-semibold">@request.RequestedAt.ToLocalTime().ToString("f")</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted">Order</div>
+                        <div>
+                            <a asp-page="/Seller/Orders/Details" asp-route-sellerOrderId="@request.SellerOrderId">Order #@request.OrderId</a>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted">Buyer</div>
+                        <div>@Model.GetBuyerAlias()</div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="text-muted">Current status</div>
+                        <div class="fw-semibold">@Model.GetCaseStatusLabel(request.Status)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Buyer request</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="text-muted">Reason</div>
+                    <div class="fw-semibold">@request.Reason</div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(request.Description))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted">Description</div>
+                        <div>@request.Description</div>
+                    </div>
+                }
+                <div class="mb-2">
+                    <div class="text-muted">Items</div>
+                    @if (request.Items?.Any() == true)
+                    {
+                        <ul class="mb-0">
+                            @foreach (var item in request.Items)
+                            {
+                                var itemName = item.OrderItem?.ProductName ?? $"Item #{item.OrderItemId}";
+                                <li>@itemName (x@item.Quantity)</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <div class="text-muted">No items recorded.</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Order &amp; shipping</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="text-muted small">Sub-order status</div>
+                    <div class="fw-semibold text-capitalize">@OrderStatusFlow.NormalizeStatus(sellerOrder?.Status ?? OrderStatus.New)</div>
+                </div>
+                @if (sellerOrder?.ShippingSelection is not null)
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Shipping method</div>
+                        <div>@sellerOrder.ShippingSelection.ShippingMethod (@sellerOrder.ShippingTotal.ToString("C"))</div>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(sellerOrder?.TrackingNumber))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Tracking</div>
+                        <div>
+                            @sellerOrder!.TrackingNumber
+                            @if (!string.IsNullOrWhiteSpace(sellerOrder.TrackingCarrier))
+                            {
+                                <span class="text-muted ms-1">(@sellerOrder.TrackingCarrier)</span>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(sellerOrder.TrackingUrl))
+                            {
+                                <a class="ms-2" href="@sellerOrder.TrackingUrl" target="_blank" rel="noopener noreferrer">Open</a>
+                            }
+                        </div>
+                    </div>
+                }
+                @if (order is not null)
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Delivery address</div>
+                        <div>@order.DeliveryRecipientName</div>
+                        <div>@order.DeliveryLine1</div>
+                        @if (!string.IsNullOrWhiteSpace(order.DeliveryLine2))
+                        {
+                            <div>@order.DeliveryLine2</div>
+                        }
+                        <div>@order.DeliveryPostalCode @order.DeliveryCity</div>
+                        <div>@order.DeliveryRegion, @order.DeliveryCountryCode</div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Case history</div>
+            <div class="list-group list-group-flush">
+                <div class="list-group-item">
+                    <div class="fw-semibold">Buyer</div>
+                    <div class="text-muted small">Submitted @request.RequestedAt.ToLocalTime().ToString("g")</div>
+                    @if (!string.IsNullOrWhiteSpace(request.Description))
+                    {
+                        <div>@request.Description</div>
+                    }
+                    else
+                    {
+                        <div class="text-muted">No additional details provided.</div>
+                    }
+                </div>
+                @if (!string.Equals(request.Status, ReturnRequestStatus.Requested, StringComparison.OrdinalIgnoreCase) && request.UpdatedAt.HasValue)
+                {
+                    <div class="list-group-item">
+                        <div class="fw-semibold">Seller</div>
+                        <div class="text-muted small">@request.UpdatedAt.Value.ToLocalTime().ToString("g")</div>
+                        <div>@Model.GetCaseStatusLabel(request.Status)</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="list-group-item text-muted">Awaiting your response.</div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header">Actions</div>
+            <div class="card-body">
+                @if (Model.CanTakeAction)
+                {
+                    <form method="post" asp-page-handler="Decide" class="d-flex flex-column gap-2">
+                        <input type="hidden" name="caseId" value="@request.Id" />
+                        <button type="submit" name="decision" value="@ReturnRequestWorkflow.SellerActionAcceptReturn" class="btn btn-sm btn-success">Accept return</button>
+                        <button type="submit" name="decision" value="@ReturnRequestWorkflow.SellerActionProposePartial" class="btn btn-sm btn-outline-primary">Propose partial solution</button>
+                        <button type="submit" name="decision" value="@ReturnRequestWorkflow.SellerActionRequestInfo" class="btn btn-sm btn-outline-secondary">Request more information</button>
+                        <button type="submit" name="decision" value="@ReturnRequestWorkflow.SellerActionReject" class="btn btn-sm btn-outline-danger">Reject request</button>
+                        <div class="text-muted small">Actions are recorded and buyer will be notified.</div>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-muted">No further actions available for this case.</div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Buyer context</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="text-muted small">Buyer alias</div>
+                    <div>@Model.GetBuyerAlias()</div>
+                </div>
+                <div class="mb-2">
+                    <div class="text-muted small">Payment method</div>
+                    <div>@(order?.PaymentMethod ?? "Not specified")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

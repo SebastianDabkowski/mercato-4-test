@@ -32,6 +32,8 @@ public static class ReturnRequestStatus
     public const string Requested = "requested";
     public const string Approved = "approved";
     public const string Rejected = "rejected";
+    public const string InfoRequested = "info_requested";
+    public const string PartialProposed = "partial_proposed";
     public const string Completed = "completed";
 }
 

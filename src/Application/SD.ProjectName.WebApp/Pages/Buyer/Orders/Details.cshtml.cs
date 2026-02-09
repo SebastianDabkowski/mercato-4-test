@@ -199,6 +199,8 @@ public class DetailsModel : PageModel
         {
             ReturnRequestStatus.Requested => "Pending seller review",
             ReturnRequestStatus.Approved => "Approved",
+            ReturnRequestStatus.PartialProposed => "Partial solution proposed",
+            ReturnRequestStatus.InfoRequested => "More information requested",
             ReturnRequestStatus.Rejected => "Rejected",
             ReturnRequestStatus.Completed => "Completed",
             _ => "Pending seller review"
@@ -210,6 +212,7 @@ public class DetailsModel : PageModel
             ReturnRequestStatus.Approved => "bg-success",
             ReturnRequestStatus.Rejected => "bg-danger",
             ReturnRequestStatus.Completed => "bg-secondary",
+            ReturnRequestStatus.PartialProposed => "bg-info text-dark",
             _ => "bg-warning text-dark"
         };
 

@@ -12,6 +12,13 @@ public class ReturnRequestService
     private readonly ICartRepository _cartRepository;
     private readonly TimeProvider _timeProvider;
     private static readonly TimeSpan ReturnWindow = TimeSpan.FromDays(14);
+    private static readonly HashSet<string> OpenStatuses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ReturnRequestStatus.Requested,
+        ReturnRequestStatus.Approved,
+        ReturnRequestStatus.InfoRequested,
+        ReturnRequestStatus.PartialProposed
+    };
     private static readonly HashSet<string> AllowedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
         ReturnRequestType.Return,
@@ -140,9 +147,7 @@ public class ReturnRequestService
     {
         var requests = subOrder.ReturnRequests ?? new List<ReturnRequestModel>();
         return requests
-            .Where(r =>
-                string.Equals(r.Status, ReturnRequestStatus.Requested, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(r.Status, ReturnRequestStatus.Approved, StringComparison.OrdinalIgnoreCase))
+            .Where(r => OpenStatuses.Contains(r.Status))
             .SelectMany(r => r.Items ?? new List<ReturnRequestItemModel>())
             .Select(i => i.OrderItemId)
             .ToHashSet();

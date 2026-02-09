@@ -1,3 +1,4 @@
+using System;
 using SD.ProjectName.Modules.Cart.Domain;
 
 namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
@@ -55,6 +56,9 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<BuyerReturnRequestsResult> GetReturnRequestsForBuyerAsync(string buyerId, BuyerReturnRequestsQuery query);
         Task<ReturnRequestModel?> GetReturnRequestAsync(int requestId, string buyerId);
         Task<ReturnRequestModel?> GetReturnRequestByIdAsync(int requestId);
+        Task<SellerReturnRequestsResult> GetReturnRequestsForSellerAsync(string sellerId, SellerReturnRequestsQuery query);
+        Task<ReturnRequestModel?> GetReturnRequestForSellerAsync(int requestId, string sellerId);
+        Task<ReturnRequestModel?> UpdateReturnRequestStatusAsync(int requestId, string sellerId, string status, DateTimeOffset updatedAt);
         Task<OrderModel?> GetOrderAsync(int orderId, string buyerId);
         Task<OrderModel?> GetOrderWithSubOrdersAsync(int orderId);
         Task<List<OrderModel>> GetOrdersForBuyerAsync(string buyerId);
