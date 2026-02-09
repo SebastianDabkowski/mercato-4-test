@@ -22,11 +22,16 @@ public class BuyerOrderDetailsModelTests
         var identity = new Mock<ICartIdentityService>();
         identity.Setup(s => s.GetOrCreateBuyerId()).Returns("buyer-123");
 
-        var escrowService = new EscrowService(cartRepository.Object, TimeProvider.System, Options.Create(new EscrowOptions()));
+        var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
+        var escrowService = new EscrowService(
+            cartRepository.Object,
+            TimeProvider.System,
+            commissionService,
+            Options.Create(new EscrowOptions()));
         var model = new DetailsModel(
             identity.Object,
             cartRepository.Object,
-            new OrderStatusService(cartRepository.Object, escrowService),
+            new OrderStatusService(cartRepository.Object, escrowService, commissionService),
             new ReturnRequestService(cartRepository.Object, TimeProvider.System));
 
         var result = await model.OnGetAsync(1);

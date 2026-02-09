@@ -11,11 +11,16 @@ public class OrderStatusService
 {
     private readonly ICartRepository _cartRepository;
     private readonly EscrowService _escrowService;
+    private readonly CommissionService _commissionService;
 
-    public OrderStatusService(ICartRepository cartRepository, EscrowService escrowService)
+    public OrderStatusService(
+        ICartRepository cartRepository,
+        EscrowService escrowService,
+        CommissionService commissionService)
     {
         _cartRepository = cartRepository;
         _escrowService = escrowService;
+        _commissionService = commissionService;
     }
 
     public async Task<OrderStatusResult> UpdateSellerOrderStatusAsync(
@@ -43,12 +48,17 @@ public class OrderStatusService
 
         RecalculateSellerOrderFromItems(sellerOrder, refundOverride);
         RollupOrderStatus(sellerOrder.Order);
+        _commissionService.RecalculateAfterRefund(sellerOrder);
 
         if (string.Equals(targetStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
             await _escrowService.ReleaseSellerOrderEscrowToBuyerAsync(
                 sellerOrder.Id,
                 "Sub-order cancelled");
+        }
+        else
+        {
+            await _escrowService.UpdateEscrowForSellerOrderAsync(sellerOrder);
         }
 
         await _cartRepository.SaveChangesAsync();
@@ -115,12 +125,17 @@ public class OrderStatusService
 
         RecalculateSellerOrderFromItems(sellerOrder);
         RollupOrderStatus(sellerOrder.Order);
+        _commissionService.RecalculateAfterRefund(sellerOrder);
 
         if (string.Equals(sellerOrder.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
         {
             await _escrowService.ReleaseSellerOrderEscrowToBuyerAsync(
                 sellerOrder.Id,
                 "Sub-order cancelled");
+        }
+        else
+        {
+            await _escrowService.UpdateEscrowForSellerOrderAsync(sellerOrder);
         }
 
         await _cartRepository.SaveChangesAsync();
@@ -154,6 +169,7 @@ public class OrderStatusService
             }
 
             RecalculateSellerOrderFromItems(sub);
+            _commissionService.RecalculateAfterRefund(sub);
         }
 
         RollupOrderStatus(order);

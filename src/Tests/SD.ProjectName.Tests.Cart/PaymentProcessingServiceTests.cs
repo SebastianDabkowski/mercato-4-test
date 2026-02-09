@@ -74,8 +74,15 @@ public class PaymentProcessingServiceTests
         var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
         var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
         var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
-        var escrowService = new EscrowService(repo.Object, TimeProvider.System, Options.Create(new EscrowOptions()));
-        var service = new PaymentProcessingService(repo.Object, placeOrder, TimeProvider.System, escrowService, Mock.Of<ILogger<PaymentProcessingService>>());
+        var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
+        var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var service = new PaymentProcessingService(
+            repo.Object,
+            placeOrder,
+            TimeProvider.System,
+            escrowService,
+            commissionService,
+            Mock.Of<ILogger<PaymentProcessingService>>());
 
         var first = await service.HandleCallbackAsync("ref-1", "success");
 
@@ -164,8 +171,15 @@ public class PaymentProcessingServiceTests
         var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
         var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
         var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
-        var escrowService = new EscrowService(repo.Object, TimeProvider.System, Options.Create(new EscrowOptions()));
-        var service = new PaymentProcessingService(repo.Object, placeOrder, TimeProvider.System, escrowService, Mock.Of<ILogger<PaymentProcessingService>>());
+        var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
+        var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var service = new PaymentProcessingService(
+            repo.Object,
+            placeOrder,
+            TimeProvider.System,
+            escrowService,
+            commissionService,
+            Mock.Of<ILogger<PaymentProcessingService>>());
 
         var result = await service.HandleCallbackAsync("ref-escrow", "success");
 
@@ -231,8 +245,15 @@ public class PaymentProcessingServiceTests
         var validationService = new CheckoutValidationService(new GetCartItems(repo.Object), repo.Object, snapshotService.Object);
         var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
         var placeOrder = new PlaceOrder(validationService, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
-        var escrowService = new EscrowService(repo.Object, TimeProvider.System, Options.Create(new EscrowOptions()));
-        var service = new PaymentProcessingService(repo.Object, placeOrder, TimeProvider.System, escrowService, Mock.Of<ILogger<PaymentProcessingService>>());
+        var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
+        var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var service = new PaymentProcessingService(
+            repo.Object,
+            placeOrder,
+            TimeProvider.System,
+            escrowService,
+            commissionService,
+            Mock.Of<ILogger<PaymentProcessingService>>());
 
         var result = await service.HandleCallbackAsync("ref-pending", "pending");
 
@@ -262,8 +283,15 @@ public class PaymentProcessingServiceTests
         var validationService = new Mock<ICheckoutValidationService>();
         var promoService = new PromoService(repo.Object, new GetCartItems(repo.Object), new CartCalculationService(), TimeProvider.System);
         var placeOrder = new PlaceOrder(validationService.Object, repo.Object, new CartCalculationService(), promoService, TimeProvider.System);
-        var escrowService = new EscrowService(repo.Object, TimeProvider.System, Options.Create(new EscrowOptions()));
-        var service = new PaymentProcessingService(repo.Object, placeOrder, TimeProvider.System, escrowService, Mock.Of<ILogger<PaymentProcessingService>>());
+        var commissionService = new CommissionService(Options.Create(new CommissionOptions()), TimeProvider.System);
+        var escrowService = new EscrowService(repo.Object, TimeProvider.System, commissionService, Options.Create(new EscrowOptions()));
+        var service = new PaymentProcessingService(
+            repo.Object,
+            placeOrder,
+            TimeProvider.System,
+            escrowService,
+            commissionService,
+            Mock.Of<ILogger<PaymentProcessingService>>());
 
         var result = await service.HandleCallbackAsync("ref-refund", "refunded");
 

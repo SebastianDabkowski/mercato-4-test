@@ -1,3 +1,4 @@
+using System.Transactions;
 using Microsoft.Extensions.Logging;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
@@ -12,18 +13,21 @@ public class PaymentProcessingService
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<PaymentProcessingService> _logger;
     private readonly EscrowService _escrowService;
+    private readonly CommissionService _commissionService;
 
     public PaymentProcessingService(
         ICartRepository cartRepository,
         PlaceOrder placeOrder,
         TimeProvider timeProvider,
         EscrowService escrowService,
+        CommissionService commissionService,
         ILogger<PaymentProcessingService> logger)
     {
         _cartRepository = cartRepository;
         _placeOrder = placeOrder;
         _timeProvider = timeProvider;
         _escrowService = escrowService;
+        _commissionService = commissionService;
         _logger = logger;
     }
 
@@ -51,10 +55,15 @@ public class PaymentProcessingService
 
     private async Task<PaymentProcessingResult> HandlePaidAsync(PaymentSelectionModel selection, string providerReference)
     {
+        using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
+
         if (selection.Status == PaymentStatus.Paid && selection.OrderId.HasValue)
         {
             var existingOrder = await _cartRepository.GetOrderWithSubOrdersAsync(selection.OrderId.Value);
+            _commissionService.EnsureCommissionCalculated(existingOrder);
             await _escrowService.EnsureEscrowAsync(existingOrder);
+            await _cartRepository.SaveChangesAsync();
+            scope.Complete();
             return PaymentProcessingResult.CreateSuccess(selection.OrderId.Value, alreadyProcessed: true);
         }
 
@@ -65,7 +74,10 @@ public class PaymentProcessingService
         if (selection.OrderId.HasValue)
         {
             var existingOrder = await _cartRepository.GetOrderWithSubOrdersAsync(selection.OrderId.Value);
+            _commissionService.EnsureCommissionCalculated(existingOrder);
             await _escrowService.EnsureEscrowAsync(existingOrder);
+            await _cartRepository.SaveChangesAsync();
+            scope.Complete();
             return PaymentProcessingResult.CreateSuccess(selection.OrderId.Value, alreadyProcessed: true);
         }
 
@@ -84,8 +96,10 @@ public class PaymentProcessingService
         }
 
         selection.OrderId = orderResult.Order.Id;
+        _commissionService.EnsureCommissionCalculated(orderResult.Order);
         await _escrowService.EnsureEscrowAsync(orderResult.Order);
         await _cartRepository.SaveChangesAsync();
+        scope.Complete();
         return PaymentProcessingResult.CreateSuccess(orderResult.Order.Id, alreadyProcessed: false);
     }
 

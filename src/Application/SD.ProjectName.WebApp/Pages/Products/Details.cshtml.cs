@@ -172,7 +172,14 @@ namespace SD.ProjectName.WebApp.Pages.Products
 
             var buyerId = _cartIdentityService.GetOrCreateBuyerId();
 
-            await _addToCart.ExecuteAsync(buyerId, product.Id, product.Name, product.Price, product.SellerId, sellerName);
+            await _addToCart.ExecuteAsync(
+                buyerId,
+                product.Id,
+                product.Name,
+                product.Category,
+                product.Price,
+                product.SellerId,
+                sellerName);
             return RedirectToPage("/Buyer/Cart");
         }
 

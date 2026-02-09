@@ -18,6 +18,7 @@ public class OrderModel
     public decimal DiscountTotal { get; set; }
     public decimal TotalAmount { get; set; }
     public decimal RefundedAmount { get; set; }
+    public decimal CommissionTotal { get; set; }
     public string? PromoCode { get; set; }
     public string Status { get; set; } = OrderStatus.New;
     public DateTimeOffset CreatedAt { get; set; }
@@ -34,6 +35,7 @@ public class OrderItemModel
     public int ProductId { get; set; }
     public string ProductSku { get; set; } = string.Empty;
     public string ProductName { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
     public string SellerId { get; set; } = string.Empty;
     public string SellerName { get; set; } = string.Empty;
     public string Status { get; set; } = OrderStatus.Preparing;
@@ -67,6 +69,9 @@ public class SellerOrderModel
     public decimal DiscountTotal { get; set; }
     public decimal TotalAmount { get; set; }
     public decimal RefundedAmount { get; set; }
+    public decimal CommissionRateApplied { get; set; }
+    public decimal CommissionAmount { get; set; }
+    public DateTimeOffset? CommissionCalculatedAt { get; set; }
     public string Status { get; set; } = OrderStatus.New;
     public string? TrackingNumber { get; set; }
     public DateTimeOffset? DeliveredAt { get; set; }
