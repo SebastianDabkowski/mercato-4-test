@@ -1,0 +1,155 @@
+@page "/buyer/addresses"
+@model SD.ProjectName.WebApp.Pages.Buyer.Addresses.IndexModel
+@{
+    ViewData["Title"] = "Shipping addresses";
+}
+
+<h1 class="mb-2">Shipping addresses</h1>
+<p class="text-muted mb-4">Manage saved delivery locations for faster checkout.</p>
+
+@if (!string.IsNullOrWhiteSpace(Model.StatusMessage))
+{
+    <div class="alert alert-success" data-testid="addresses-status">@Model.StatusMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger" data-testid="addresses-error">@Model.ErrorMessage</div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="text-muted small">Supported regions: @Model.AllowedRegionsLabel</div>
+            <a class="btn btn-link btn-sm" asp-page="/Buyer/Checkout/Address" data-testid="addresses-checkout-link">Go to checkout</a>
+        </div>
+
+        @if (!Model.Addresses.Any())
+        {
+            <div class="alert alert-info" data-testid="address-empty-state">
+                No saved addresses yet. Add your first shipping address to speed up checkout.
+            </div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-3" data-testid="address-list">
+                @foreach (var address in Model.Addresses)
+                {
+                    <div class="card shadow-sm" data-testid="address-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-semibold">@address.RecipientName</div>
+                                    <div>@address.Line1@if (!string.IsNullOrWhiteSpace(address.Line2))
+                                        {
+                                            <span>, @address.Line2</span>
+                                        }</div>
+                                    <div>@address.City, @address.Region @address.PostalCode</div>
+                                    <div>@address.CountryCode</div>
+                                    @if (!string.IsNullOrWhiteSpace(address.PhoneNumber))
+                                    {
+                                        <div class="text-muted small">@address.PhoneNumber</div>
+                                    }
+                                </div>
+                                <div class="text-end">
+                                    @if (address.IsSelectedForCheckout)
+                                    {
+                                        <span class="badge bg-success" data-testid="address-default">Default</span>
+                                    }
+                                    <div class="text-muted small">Updated @address.UpdatedAt.ToLocalTime().ToString("g")</div>
+                                </div>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mt-3">
+                                <form method="post" asp-page-handler="MakeDefault" asp-route-addressId="@address.Id">
+                                    <button type="submit" class="btn btn-outline-primary btn-sm" @(address.IsSelectedForCheckout ? "disabled" : "") data-testid="address-make-default">Set as default</button>
+                                </form>
+                                <a class="btn btn-link btn-sm" asp-page="/Buyer/Addresses/Index" asp-route-AddressId="@address.Id" data-testid="address-edit">Edit</a>
+                                <form method="post" asp-page-handler="Delete" asp-route-addressId="@address.Id" class="ms-auto">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" data-testid="address-delete" onclick="return confirm('Delete this address?')">Delete</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+    <div class="col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h2 class="h5 mb-3">@Model.FormTitle</h2>
+                <form method="post" asp-page-handler="Save">
+                    <div asp-validation-summary="All" class="text-danger"></div>
+                    <input type="hidden" asp-for="AddressId" />
+
+                    <div class="mb-3">
+                        <label asp-for="Input.RecipientName" class="form-label">Full name</label>
+                        <input asp-for="Input.RecipientName" class="form-control" data-testid="form-recipient" />
+                        <span asp-validation-for="Input.RecipientName" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Line1" class="form-label">Address line 1</label>
+                        <input asp-for="Input.Line1" class="form-control" data-testid="form-line1" />
+                        <span asp-validation-for="Input.Line1" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Line2" class="form-label">Address line 2</label>
+                        <input asp-for="Input.Line2" class="form-control" data-testid="form-line2" />
+                        <span asp-validation-for="Input.Line2" class="text-danger"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.City" class="form-label">City</label>
+                            <input asp-for="Input.City" class="form-control" data-testid="form-city" />
+                            <span asp-validation-for="Input.City" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.Region" class="form-label">State/Region</label>
+                            <input asp-for="Input.Region" class="form-control" data-testid="form-region" />
+                            <span asp-validation-for="Input.Region" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.PostalCode" class="form-label">Postal code</label>
+                            <input asp-for="Input.PostalCode" class="form-control" data-testid="form-postalcode" />
+                            <span asp-validation-for="Input.PostalCode" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label asp-for="Input.CountryCode" class="form-label">Country (ISO code)</label>
+                            <input asp-for="Input.CountryCode" class="form-control" data-testid="form-country" />
+                            <span asp-validation-for="Input.CountryCode" class="text-danger"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.PhoneNumber" class="form-label">Phone number</label>
+                        <input asp-for="Input.PhoneNumber" class="form-control" data-testid="form-phone" />
+                        <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input asp-for="SetAsDefault" class="form-check-input" data-testid="form-set-default" />
+                        <label asp-for="SetAsDefault" class="form-check-label">Set as default for checkout</label>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" data-testid="form-submit">
+                            @(Model.IsEditing ? "Save changes" : "Add address")
+                        </button>
+                        @if (Model.IsEditing)
+                        {
+                            <a class="btn btn-link" asp-page="/Buyer/Addresses/Index" data-testid="form-cancel">Cancel</a>
+                        }
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<partial name="_ValidationScriptsPartial" />

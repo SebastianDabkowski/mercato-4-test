@@ -334,6 +334,52 @@ public class CartRepository : ICartRepository
         return address;
     }
 
+    public async Task DeleteAddressAsync(int addressId)
+    {
+        var existing = await _context.DeliveryAddresses.FindAsync(addressId);
+        if (existing is null)
+        {
+            return;
+        }
+
+        _context.DeliveryAddresses.Remove(existing);
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<bool> IsAddressUsedInActiveOrderAsync(string buyerId, DeliveryAddressModel address)
+    {
+        var activeStatuses = new[]
+        {
+            OrderStatus.Pending,
+            OrderStatus.Confirmed,
+            OrderStatus.New,
+            OrderStatus.Paid,
+            OrderStatus.Preparing,
+            OrderStatus.Shipped
+        };
+
+        var normalizedRecipient = address.RecipientName.Trim().ToUpperInvariant();
+        var normalizedLine1 = address.Line1.Trim().ToUpperInvariant();
+        var normalizedLine2 = (address.Line2 ?? string.Empty).Trim().ToUpperInvariant();
+        var normalizedCity = address.City.Trim().ToUpperInvariant();
+        var normalizedRegion = address.Region.Trim().ToUpperInvariant();
+        var normalizedPostal = address.PostalCode.Trim().ToUpperInvariant();
+        var normalizedCountry = address.CountryCode.Trim().ToUpperInvariant();
+        var normalizedPhone = (address.PhoneNumber ?? string.Empty).Trim().ToUpperInvariant();
+
+        return await _context.Orders.AnyAsync(o =>
+            o.BuyerId == buyerId &&
+            activeStatuses.Contains(o.Status) &&
+            (o.DeliveryRecipientName ?? string.Empty).ToUpper() == normalizedRecipient &&
+            (o.DeliveryLine1 ?? string.Empty).ToUpper() == normalizedLine1 &&
+            (o.DeliveryLine2 ?? string.Empty).ToUpper() == normalizedLine2 &&
+            (o.DeliveryCity ?? string.Empty).ToUpper() == normalizedCity &&
+            (o.DeliveryRegion ?? string.Empty).ToUpper() == normalizedRegion &&
+            (o.DeliveryPostalCode ?? string.Empty).ToUpper() == normalizedPostal &&
+            (o.DeliveryCountryCode ?? string.Empty).ToUpper() == normalizedCountry &&
+            (o.DeliveryPhoneNumber ?? string.Empty).ToUpper() == normalizedPhone);
+    }
+
     public async Task SetSelectedAddressAsync(string buyerId, int addressId)
     {
         await ClearSelectedAddressAsync(buyerId);

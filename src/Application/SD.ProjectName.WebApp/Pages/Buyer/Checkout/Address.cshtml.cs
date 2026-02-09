@@ -146,6 +146,19 @@ public class DeliveryAddressForm
     [StringLength(50)]
     public string? PhoneNumber { get; set; }
 
+    public static DeliveryAddressForm FromAddress(DeliveryAddressModel address) =>
+        new()
+        {
+            RecipientName = address.RecipientName,
+            Line1 = address.Line1,
+            Line2 = address.Line2,
+            City = address.City,
+            Region = address.Region,
+            PostalCode = address.PostalCode,
+            CountryCode = address.CountryCode,
+            PhoneNumber = address.PhoneNumber
+        };
+
     public DeliveryAddressInput ToInput() =>
         new(RecipientName, Line1, Line2, City, Region, PostalCode, CountryCode, PhoneNumber);
 }

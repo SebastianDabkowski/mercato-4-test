@@ -272,6 +272,7 @@ builder.Services.AddScoped<CartCalculationService>();
 builder.Services.AddScoped<PromoService>();
 builder.Services.AddScoped<CartMergeService>();
 builder.Services.AddScoped<GetDeliveryAddresses>();
+builder.Services.AddScoped<DeliveryAddressBook>();
 builder.Services.AddScoped<SetDeliveryAddressForCheckout>();
 builder.Services.AddScoped<IProductAvailabilityService, ProductAvailabilityService>();
 builder.Services.AddScoped<IProductSnapshotService, ProductSnapshotService>();
