@@ -1,0 +1,62 @@
+@page "/seller/orders"
+@model SD.ProjectName.WebApp.Pages.Seller.Orders.IndexModel
+@{
+    ViewData["Title"] = "Seller orders";
+}
+
+<h1 class="mb-3">Orders</h1>
+
+@if (!Model.Orders.Any())
+{
+    <div class="alert alert-info">You have no orders yet.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table align-middle">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>Date</th>
+                    <th>Status</th>
+                    <th>Shipping</th>
+                    <th class="text-end">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in Model.Orders)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">#@order.OrderId</div>
+                            <div class="text-muted small">Sub-order #@order.Id</div>
+                        </td>
+                        <td>@order.Order?.CreatedAt.ToLocalTime().ToString("g")</td>
+                        <td class="text-capitalize">@order.Status</td>
+                        <td>
+                            @(order.ShippingSelection?.ShippingMethod ?? "Not selected")
+                            <div class="text-muted small">@order.ShippingTotal.ToString("C")</div>
+                        </td>
+                        <td class="text-end">@order.TotalAmount.ToString("C")</td>
+                    </tr>
+                    <tr>
+                        <td colspan="5" class="pb-3">
+                            <div class="px-2">
+                                <div class="fw-semibold mb-2">Items</div>
+                                <ul class="list-unstyled mb-0">
+                                    @foreach (var item in order.Items)
+                                    {
+                                        <li class="d-flex justify-content-between">
+                                            <span>@item.ProductName</span>
+                                            <span class="text-muted">@item.Quantity x @item.UnitPrice.ToString("C")</span>
+                                        </li>
+                                    }
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

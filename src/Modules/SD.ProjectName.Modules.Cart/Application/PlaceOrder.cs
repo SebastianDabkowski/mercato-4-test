@@ -60,17 +60,106 @@ public class PlaceOrder
 
         totals = promoTotals.Totals;
 
-        var itemsBySeller = validation.CartItems
+        var sellerGroups = validation.CartItems
             .GroupBy(i => i.SellerId, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(g => g.Key, g => g.First().SellerName, StringComparer.OrdinalIgnoreCase);
+            .Select(g => new
+            {
+                SellerId = g.Key,
+                SellerName = g.First().SellerName,
+                Items = g.ToList()
+            })
+            .ToList();
+
+        var selectionBySeller = validation.ShippingSelections
+            .ToDictionary(s => s.SellerId, s => s, StringComparer.OrdinalIgnoreCase);
 
         var orderShippingSelections = validation.ShippingSelections.Select(selection => new OrderShippingSelectionModel
         {
             SellerId = selection.SellerId,
-            SellerName = itemsBySeller.GetValueOrDefault(selection.SellerId, string.Empty),
+            SellerName = sellerGroups.FirstOrDefault(g => g.SellerId.Equals(selection.SellerId, StringComparison.OrdinalIgnoreCase))?.SellerName ?? string.Empty,
             ShippingMethod = selection.ShippingMethod,
             Cost = selection.Cost
         }).ToList();
+
+        var totalItemsSubtotal = sellerGroups.Sum(g => g.Items.Sum(i => i.UnitPrice * i.Quantity));
+        decimal remainingDiscount = totals.DiscountTotal;
+        var subOrders = new List<SellerOrderModel>();
+        var orderItems = new List<OrderItemModel>();
+
+        for (var index = 0; index < sellerGroups.Count; index++)
+        {
+            var group = sellerGroups[index];
+            var itemsSubtotal = group.Items.Sum(i => i.UnitPrice * i.Quantity);
+            var selection = selectionBySeller.GetValueOrDefault(group.SellerId);
+            var shippingCost = selection?.Cost ?? 0m;
+
+            var discountShare = 0m;
+            if (totals.DiscountTotal > 0 && totalItemsSubtotal > 0)
+            {
+                var proportional = totals.DiscountTotal * (itemsSubtotal / totalItemsSubtotal);
+                discountShare = Math.Round(proportional, 2, MidpointRounding.AwayFromZero);
+                var isLastSeller = index == sellerGroups.Count - 1;
+                if (isLastSeller)
+                {
+                    discountShare = remainingDiscount;
+                }
+
+                remainingDiscount -= discountShare;
+            }
+
+            var sellerOrder = new SellerOrderModel
+            {
+                SellerId = group.SellerId,
+                SellerName = group.SellerName,
+                ItemsSubtotal = itemsSubtotal,
+                ShippingTotal = shippingCost,
+                DiscountTotal = discountShare,
+                TotalAmount = Math.Max(0m, itemsSubtotal + shippingCost - discountShare),
+                Status = OrderStatus.Confirmed
+            };
+
+            var selectionModel = orderShippingSelections.FirstOrDefault(s =>
+                s.SellerId.Equals(group.SellerId, StringComparison.OrdinalIgnoreCase));
+            if (selectionModel is null && selection is not null)
+            {
+                selectionModel = new OrderShippingSelectionModel
+                {
+                    SellerId = selection.SellerId,
+                    SellerName = group.SellerName,
+                    ShippingMethod = selection.ShippingMethod,
+                    Cost = selection.Cost
+                };
+                orderShippingSelections.Add(selectionModel);
+            }
+
+            var sellerOrderItems = new List<OrderItemModel>();
+            foreach (var item in group.Items)
+            {
+                var orderItem = new OrderItemModel
+                {
+                    ProductId = item.ProductId,
+                    ProductSku = item.ProductSku,
+                    ProductName = item.ProductName,
+                    SellerId = item.SellerId,
+                    SellerName = item.SellerName,
+                    UnitPrice = item.UnitPrice,
+                    Quantity = item.Quantity,
+                    SellerOrder = sellerOrder
+                };
+
+                orderItems.Add(orderItem);
+                sellerOrderItems.Add(orderItem);
+            }
+
+            if (selectionModel is not null)
+            {
+                selectionModel.SellerOrder = sellerOrder;
+                sellerOrder.ShippingSelection = selectionModel;
+            }
+
+            sellerOrder.Items = sellerOrderItems;
+            subOrders.Add(sellerOrder);
+        }
 
         var order = new OrderModel
         {
@@ -91,17 +180,9 @@ public class PlaceOrder
             PromoCode = promoTotals.AppliedPromoCode,
             CreatedAt = _timeProvider.GetUtcNow(),
             Status = OrderStatus.Confirmed,
-            Items = validation.CartItems.Select(item => new OrderItemModel
-            {
-                ProductId = item.ProductId,
-                ProductSku = item.ProductSku,
-                ProductName = item.ProductName,
-                SellerId = item.SellerId,
-                SellerName = item.SellerName,
-                UnitPrice = item.UnitPrice,
-                Quantity = item.Quantity
-            }).ToList(),
-            ShippingSelections = orderShippingSelections
+            Items = orderItems,
+            ShippingSelections = orderShippingSelections,
+            SubOrders = subOrders
         };
 
         await _cartRepository.AddOrderAsync(order);

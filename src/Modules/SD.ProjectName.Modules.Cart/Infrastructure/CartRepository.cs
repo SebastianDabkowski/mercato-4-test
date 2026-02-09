@@ -73,6 +73,10 @@ public class CartRepository : ICartRepository
         return await _context.Orders
             .Include(o => o.Items)
             .Include(o => o.ShippingSelections)
+            .Include(o => o.SubOrders)
+                .ThenInclude(o => o.Items)
+            .Include(o => o.SubOrders)
+                .ThenInclude(o => o.ShippingSelection)
             .FirstOrDefaultAsync(o => o.Id == orderId && o.BuyerId == buyerId);
     }
 
@@ -81,8 +85,20 @@ public class CartRepository : ICartRepository
         return await _context.Orders
             .Include(o => o.Items)
             .Include(o => o.ShippingSelections)
+            .Include(o => o.SubOrders)
             .Where(o => o.BuyerId == buyerId)
             .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<List<SellerOrderModel>> GetSellerOrdersAsync(string sellerId)
+    {
+        return await _context.SellerOrders
+            .Include(o => o.Items)
+            .Include(o => o.ShippingSelection)
+            .Include(o => o.Order)
+            .Where(o => o.SellerId == sellerId)
+            .OrderByDescending(o => o.Order!.CreatedAt)
             .ToListAsync();
     }
 
