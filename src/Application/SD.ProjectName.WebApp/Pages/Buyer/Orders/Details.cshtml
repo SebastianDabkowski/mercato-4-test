@@ -31,10 +31,22 @@
             {
                 Model.ReturnInfo.TryGetValue(sub.Id, out var returnInfo);
                 returnInfo ??= new SD.ProjectName.WebApp.Pages.Buyer.Orders.DetailsModel.ReturnRequestInfo(ReturnEligibility.NotAllowed("Return request is not available."), null);
+                var itemStatuses = sub.Items.Select(i => OrderStatusFlow.NormalizeStatus(i.Status)).ToList();
+                var isPartiallyShipped = itemStatuses.Any(s =>
+                        string.Equals(s, OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(s, OrderStatus.Delivered, StringComparison.OrdinalIgnoreCase)) &&
+                    itemStatuses.Any(s =>
+                        string.Equals(s, OrderStatus.Preparing, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(s, OrderStatus.New, StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(s, OrderStatus.Paid, StringComparison.OrdinalIgnoreCase));
                 <div class="card mb-3">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span>Seller: @(string.IsNullOrWhiteSpace(sub.SellerName) ? sub.SellerId : sub.SellerName)</span>
                         <span class="badge bg-secondary text-uppercase">@OrderStatusFlow.NormalizeStatus(sub.Status)</span>
+                        @if (isPartiallyShipped)
+                        {
+                            <span class="badge bg-info text-dark text-uppercase">Partially shipped</span>
+                        }
                     </div>
                     <div class="card-body">
                         @if (string.Equals(sub.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
@@ -67,6 +79,7 @@
                                 <thead>
                                     <tr>
                                         <th>Product</th>
+                                        <th class="text-start">Status</th>
                                         <th class="text-end">Quantity</th>
                                         <th class="text-end">Price</th>
                                         <th class="text-end">Line total</th>
@@ -75,8 +88,17 @@
                                 <tbody>
                                     @foreach (var item in sub.Items)
                                     {
+                                        var normalizedStatus = OrderStatusFlow.NormalizeStatus(item.Status);
+                                        var badgeClass = normalizedStatus.ToLowerInvariant() switch
+                                        {
+                                            "shipped" => "bg-info text-dark",
+                                            "delivered" => "bg-success",
+                                            "cancelled" => "bg-warning text-dark",
+                                            _ => "bg-secondary"
+                                        };
                                         <tr>
                                             <td>@item.ProductName</td>
+                                            <td><span class="badge @badgeClass text-uppercase">@normalizedStatus</span></td>
                                             <td class="text-end">@item.Quantity</td>
                                             <td class="text-end">@item.UnitPrice.ToString("C")</td>
                                             <td class="text-end">@((item.UnitPrice * item.Quantity).ToString("C"))</td>
@@ -133,6 +155,9 @@
                         }
                         else if (returnInfo.Eligibility.IsAllowed)
                         {
+                            var returnableItems = sub.Items
+                                .Where(i => !string.Equals(OrderStatusFlow.NormalizeStatus(i.Status), OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
+                                .ToList();
                             <div class="mt-3 border rounded p-3 bg-light">
                                 <div class="fw-semibold mb-2">Request a return</div>
                                 <form method="post" asp-page-handler="RequestReturn">
@@ -140,14 +165,21 @@
                                     <input type="hidden" name="subOrderId" value="@sub.Id" />
                                     <div class="mb-3">
                                         <div class="text-muted small mb-2">Select items to return. Leave all selected to return the full sub-order.</div>
-                                        @foreach (var item in sub.Items)
+                                        @if (returnableItems.Any())
                                         {
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="itemIds" value="@item.Id" id="return-item-@item.Id-@sub.Id" checked />
-                                                <label class="form-check-label" for="return-item-@item.Id-@sub.Id">
-                                                    @item.ProductName (@item.Quantity x @item.UnitPrice.ToString("C"))
-                                                </label>
-                                            </div>
+                                            @foreach (var item in returnableItems)
+                                            {
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" name="itemIds" value="@item.Id" id="return-item-@item.Id-@sub.Id" checked />
+                                                    <label class="form-check-label" for="return-item-@item.Id-@sub.Id">
+                                                        @item.ProductName (@item.Quantity x @item.UnitPrice.ToString("C"))
+                                                    </label>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <div class="text-muted small">No items available for return.</div>
                                         }
                                     </div>
                                     <div class="mb-3">

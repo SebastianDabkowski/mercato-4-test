@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using SD.ProjectName.Modules.Cart.Application;
 using SD.ProjectName.Modules.Cart.Domain;
@@ -78,6 +81,69 @@ public class OrderStatusServiceTests
         Assert.Equal(OrderStatus.Delivered, updatedOrder.Status);
     }
 
+    [Fact]
+    public async Task UpdateItemStatusesAsync_AllowsPartialShipment()
+    {
+        var repo = CreateRepository(nameof(UpdateItemStatusesAsync_AllowsPartialShipment));
+        var order = await SeedOrderWithItemsAsync(repo);
+        var service = new OrderStatusService(repo);
+
+        var firstItemId = order.SubOrders[0].Items[0].Id;
+        var secondItemId = order.SubOrders[0].Items[1].Id;
+
+        var result = await service.UpdateItemStatusesAsync(
+            order.SubOrders[0].Id,
+            order.SubOrders[0].SellerId,
+            new[] { firstItemId },
+            Array.Empty<int>(),
+            "TRACK-PARTIAL");
+
+        Assert.True(result.IsSuccess);
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        Assert.Equal(OrderStatus.Shipped, updated!.Items.First(i => i.Id == firstItemId).Status);
+        Assert.Equal(OrderStatus.Preparing, updated.Items.First(i => i.Id == secondItemId).Status);
+        Assert.Equal(OrderStatus.Preparing, updated.Status);
+        Assert.Equal("TRACK-PARTIAL", updated.TrackingNumber);
+    }
+
+    [Fact]
+    public async Task UpdateItemStatusesAsync_CancelsItemsAndCalculatesRefund()
+    {
+        var repo = CreateRepository(nameof(UpdateItemStatusesAsync_CancelsItemsAndCalculatesRefund));
+        var order = await SeedOrderWithItemsAsync(repo);
+        var service = new OrderStatusService(repo);
+
+        var cancelItemId = order.SubOrders[0].Items[0].Id;
+
+        var result = await service.UpdateItemStatusesAsync(
+            order.SubOrders[0].Id,
+            order.SubOrders[0].SellerId,
+            Array.Empty<int>(),
+            new[] { cancelItemId },
+            null);
+
+        Assert.True(result.IsSuccess);
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        Assert.Equal(OrderStatus.Cancelled, updated!.Items.First(i => i.Id == cancelItemId).Status);
+        Assert.Equal(16m, updated.RefundedAmount);
+        Assert.Equal(16m, updated.Order!.RefundedAmount);
+    }
+
+    [Fact]
+    public async Task MarkSubOrderDeliveredAsync_SetsItemsDelivered()
+    {
+        var repo = CreateRepository(nameof(MarkSubOrderDeliveredAsync_SetsItemsDelivered));
+        var order = await SeedOrderWithItemsAsync(repo, OrderStatus.Shipped, OrderStatus.Shipped);
+        var service = new OrderStatusService(repo);
+
+        var result = await service.MarkSubOrderDeliveredAsync(order.Id, order.SubOrders[0].Id, order.BuyerId);
+
+        Assert.True(result.IsSuccess);
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        Assert.All(updated!.Items, i => Assert.Equal(OrderStatus.Delivered, i.Status));
+        Assert.Equal(OrderStatus.Delivered, updated.Status);
+    }
+
     private static CartRepository CreateRepository(string dbName)
     {
         var options = new DbContextOptionsBuilder<CartDbContext>()
@@ -116,6 +182,74 @@ public class OrderStatusServiceTests
                     Status = subOrderStatus
                 }
             }
+        };
+
+        await repo.AddOrderAsync(order);
+        return order;
+    }
+
+    private static async Task<OrderModel> SeedOrderWithItemsAsync(
+        CartRepository repo,
+        string subOrderStatus = OrderStatus.Preparing,
+        string itemStatus = OrderStatus.Preparing)
+    {
+        var item1 = new OrderItemModel
+        {
+            ProductId = 1,
+            ProductSku = "SKU-1",
+            ProductName = "First",
+            SellerId = "seller-1",
+            SellerName = "Seller",
+            UnitPrice = 20m,
+            Quantity = 1,
+            Status = itemStatus
+        };
+
+        var item2 = new OrderItemModel
+        {
+            ProductId = 2,
+            ProductSku = "SKU-2",
+            ProductName = "Second",
+            SellerId = "seller-1",
+            SellerName = "Seller",
+            UnitPrice = 10m,
+            Quantity = 1,
+            Status = itemStatus
+        };
+
+        var subOrder = new SellerOrderModel
+        {
+            SellerId = "seller-1",
+            SellerName = "Seller",
+            ItemsSubtotal = 30m,
+            ShippingTotal = 5m,
+            DiscountTotal = 6m,
+            TotalAmount = 29m,
+            Status = subOrderStatus,
+            Items = new List<OrderItemModel> { item1, item2 }
+        };
+
+        item1.SellerOrder = subOrder;
+        item2.SellerOrder = subOrder;
+
+        var order = new OrderModel
+        {
+            BuyerId = "buyer-1",
+            PaymentMethod = "Card",
+            DeliveryRecipientName = "Buyer",
+            DeliveryLine1 = "123 Street",
+            DeliveryCity = "Town",
+            DeliveryRegion = "Region",
+            DeliveryPostalCode = "12345",
+            DeliveryCountryCode = "US",
+            ItemsSubtotal = 30m,
+            ShippingTotal = 5m,
+            DiscountTotal = 6m,
+            TotalAmount = 29m,
+            CreatedAt = DateTimeOffset.UtcNow,
+            Status = OrderStatus.Paid,
+            Items = new List<OrderItemModel> { item1, item2 },
+            SubOrders = new List<SellerOrderModel> { subOrder }
         };
 
         await repo.AddOrderAsync(order);

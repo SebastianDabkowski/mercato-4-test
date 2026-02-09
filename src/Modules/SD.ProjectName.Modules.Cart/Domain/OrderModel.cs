@@ -36,6 +36,7 @@ public class OrderItemModel
     public string ProductName { get; set; } = string.Empty;
     public string SellerId { get; set; } = string.Empty;
     public string SellerName { get; set; } = string.Empty;
+    public string Status { get; set; } = OrderStatus.Preparing;
     public decimal UnitPrice { get; set; }
     public int Quantity { get; set; }
     public SellerOrderModel? SellerOrder { get; set; }
