@@ -33,7 +33,9 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task AddPayoutScheduleAsync(PayoutSchedule schedule);
         Task<PayoutSchedule?> GetPayoutScheduleAsync(int scheduleId);
         Task<PayoutSchedule?> GetPayoutScheduleWithItemsAsync(int scheduleId);
+        Task<PayoutSchedule?> GetPayoutScheduleDetailsAsync(int scheduleId, string sellerId);
         Task<List<PayoutSchedule>> GetPayoutSchedulesForSellerAsync(string sellerId, int take = 5);
+        Task<PayoutScheduleResult> GetPayoutSchedulesForSellerAsync(string sellerId, PayoutScheduleQuery query);
         Task<List<EscrowLedgerEntry>> GetEscrowEntriesForOrderAsync(int orderId);
         Task<EscrowLedgerEntry?> GetEscrowEntryForSellerOrderAsync(int sellerOrderId);
       
