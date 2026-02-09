@@ -220,6 +220,18 @@ public class CartRepository : ICartRepository
             .FirstOrDefaultAsync(o => o.Id == sellerOrderId);
     }
 
+    public async Task<SellerOrderModel?> GetSellerOrderByTrackingAsync(string trackingNumber)
+    {
+        return await _context.SellerOrders
+            .Include(o => o.Items)
+            .Include(o => o.ShippingSelection)
+            .Include(o => o.Order)
+            .Include(o => o.ShippingHistory)
+            .Include(o => o.ReturnRequests)
+                .ThenInclude(r => r.Items)
+            .FirstOrDefaultAsync(o => o.TrackingNumber == trackingNumber);
+    }
+
     public async Task<SellerOrdersResult> GetSellerOrdersAsync(string sellerId, SellerOrdersQuery query)
     {
         var normalizedPage = query.Page < 1 ? 1 : query.Page;
@@ -315,6 +327,31 @@ public class CartRepository : ICartRepository
         return await _context.ShippingRules
             .Where(sr => sr.IsActive)
             .ToListAsync();
+    }
+
+    public async Task<ShippingRuleModel> UpsertShippingRuleAsync(ShippingRuleModel rule)
+    {
+        var existing = await _context.ShippingRules
+            .FirstOrDefaultAsync(r => r.SellerId == rule.SellerId && r.ShippingMethod == rule.ShippingMethod);
+
+        if (existing is null)
+        {
+            _context.ShippingRules.Add(rule);
+        }
+        else
+        {
+            existing.BasePrice = rule.BasePrice;
+            existing.DeliveryEstimate = rule.DeliveryEstimate;
+            existing.AllowedRegions = rule.AllowedRegions;
+            existing.AllowedCountryCodes = rule.AllowedCountryCodes;
+            existing.FreeShippingThreshold = rule.FreeShippingThreshold;
+            existing.PricePerKg = rule.PricePerKg;
+            existing.MaxWeightKg = rule.MaxWeightKg;
+            existing.IsActive = rule.IsActive;
+        }
+
+        await _context.SaveChangesAsync();
+        return existing ?? rule;
     }
 
     public async Task<List<DeliveryAddressModel>> GetAddressesAsync(string buyerId)

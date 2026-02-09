@@ -23,6 +23,7 @@ public class IndexModel : PageModel
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly ICartRepository _cartRepository;
     private readonly OrderStatusService _orderStatusService;
+    private readonly ShippingIntegrationService _shippingIntegrationService;
     private readonly ShippingNotificationEmailService _shippingNotificationEmailService;
     private const int PageSize = 10;
     private const int ExportRowLimit = 5000;
@@ -31,11 +32,13 @@ public class IndexModel : PageModel
         UserManager<ApplicationUser> userManager,
         ICartRepository cartRepository,
         OrderStatusService orderStatusService,
+        ShippingIntegrationService shippingIntegrationService,
         ShippingNotificationEmailService shippingNotificationEmailService)
     {
         _userManager = userManager;
         _cartRepository = cartRepository;
         _orderStatusService = orderStatusService;
+        _shippingIntegrationService = shippingIntegrationService;
         _shippingNotificationEmailService = shippingNotificationEmailService;
     }
 
@@ -152,6 +155,36 @@ public class IndexModel : PageModel
         }
 
         var previousStatus = OrderStatusFlow.NormalizeStatus(sellerOrder.Status);
+        var shouldUseProvider = string.Equals(status, OrderStatus.Shipped, StringComparison.OrdinalIgnoreCase) &&
+                                string.IsNullOrWhiteSpace(trackingNumber) &&
+                                _shippingIntegrationService.UsesIntegratedProvider(sellerOrder);
+
+        if (shouldUseProvider)
+        {
+            var itemIds = sellerOrder.Items.Select(i => i.Id).ToArray();
+            var shipment = await _shippingIntegrationService.CreateShipmentAsync(sellerOrderId, user.Id, itemIds);
+            if (shipment.IsProviderIntegrated)
+            {
+                if (!shipment.IsSuccess)
+                {
+                    ErrorMessage = shipment.IsRetryable && !string.IsNullOrWhiteSpace(shipment.Error)
+                        ? $"{shipment.Error} Please retry."
+                        : shipment.Error;
+                }
+                else
+                {
+                    StatusMessage = "Shipment created and tracking assigned.";
+                    if (shipment.StatusResult is not null && IsNewlyShipped(previousStatus, shipment.StatusResult))
+                    {
+                        await SendShippingNotificationAsync(sellerOrder);
+                    }
+                }
+
+                await LoadOrders(user.Id);
+                return Page();
+            }
+        }
+
         var result = await _orderStatusService.UpdateSellerOrderStatusAsync(
             sellerOrderId,
             user.Id,
