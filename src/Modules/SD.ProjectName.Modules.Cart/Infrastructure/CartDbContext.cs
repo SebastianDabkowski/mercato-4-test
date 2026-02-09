@@ -13,6 +13,7 @@ public class CartDbContext : DbContext
     public DbSet<CartModel> Carts { get; set; }
     public DbSet<CartItemModel> CartItems { get; set; }
     public DbSet<ShippingRuleModel> ShippingRules { get; set; }
+    public DbSet<DeliveryAddressModel> DeliveryAddresses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -38,6 +39,21 @@ public class CartDbContext : DbContext
             entity.ToTable("ShippingRule");
             entity.HasIndex(sr => sr.SellerId);
             entity.Property(sr => sr.ShippingMethod).HasMaxLength(100);
+        });
+
+        modelBuilder.Entity<DeliveryAddressModel>(entity =>
+        {
+            entity.ToTable("DeliveryAddress");
+            entity.HasIndex(a => a.BuyerId);
+            entity.HasIndex(a => a.IsSelectedForCheckout);
+            entity.Property(a => a.RecipientName).HasMaxLength(200);
+            entity.Property(a => a.Line1).HasMaxLength(300);
+            entity.Property(a => a.Line2).HasMaxLength(300);
+            entity.Property(a => a.City).HasMaxLength(150);
+            entity.Property(a => a.Region).HasMaxLength(150);
+            entity.Property(a => a.PostalCode).HasMaxLength(50);
+            entity.Property(a => a.CountryCode).HasMaxLength(3);
+            entity.Property(a => a.PhoneNumber).HasMaxLength(50);
         });
     }
 }

@@ -89,4 +89,76 @@ public class CartRepository : ICartRepository
             .Where(sr => sr.IsActive)
             .ToListAsync();
     }
+
+    public async Task<List<DeliveryAddressModel>> GetAddressesAsync(string buyerId)
+    {
+        return await _context.DeliveryAddresses
+            .Where(a => a.BuyerId == buyerId)
+            .OrderByDescending(a => a.IsSelectedForCheckout)
+            .ThenByDescending(a => a.UpdatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<DeliveryAddressModel?> GetAddressAsync(int addressId)
+    {
+        return await _context.DeliveryAddresses.FindAsync(addressId);
+    }
+
+    public async Task<DeliveryAddressModel> AddOrUpdateAddressAsync(DeliveryAddressModel address)
+    {
+        if (address.Id == 0)
+        {
+            _context.DeliveryAddresses.Add(address);
+        }
+        else
+        {
+            _context.DeliveryAddresses.Update(address);
+        }
+
+        await _context.SaveChangesAsync();
+        return address;
+    }
+
+    public async Task SetSelectedAddressAsync(string buyerId, int addressId)
+    {
+        await ClearSelectedAddressAsync(buyerId);
+
+        var existing = await _context.DeliveryAddresses.FirstOrDefaultAsync(a => a.Id == addressId && a.BuyerId == buyerId);
+        if (existing is null)
+        {
+            return;
+        }
+
+        existing.IsSelectedForCheckout = true;
+        existing.UpdatedAt = DateTimeOffset.UtcNow;
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task ClearSelectedAddressAsync(string buyerId)
+    {
+        var selected = await _context.DeliveryAddresses
+            .Where(a => a.BuyerId == buyerId && a.IsSelectedForCheckout)
+            .ToListAsync();
+
+        if (selected.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var address in selected)
+        {
+            address.IsSelectedForCheckout = false;
+            address.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<DeliveryAddressModel?> GetSelectedAddressAsync(string buyerId)
+    {
+        return await _context.DeliveryAddresses
+            .Where(a => a.BuyerId == buyerId && a.IsSelectedForCheckout)
+            .OrderByDescending(a => a.UpdatedAt)
+            .FirstOrDefaultAsync();
+    }
 }

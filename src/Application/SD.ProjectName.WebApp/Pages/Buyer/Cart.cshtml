@@ -75,4 +75,7 @@ else
     <div class="text-end" data-testid="cart-total">
         <h4>Total: @Model.CartTotal.ToString("C")</h4>
     </div>
+    <div class="text-end mt-3">
+        <a class="btn btn-primary" asp-page="/Buyer/Checkout/Address" data-testid="proceed-checkout">Proceed to checkout</a>
+    </div>
 }
