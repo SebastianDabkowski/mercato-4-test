@@ -58,7 +58,16 @@ namespace SD.ProjectName.Modules.Cart.Domain.Interfaces
         Task<ReturnRequestModel?> GetReturnRequestByIdAsync(int requestId);
         Task<SellerReturnRequestsResult> GetReturnRequestsForSellerAsync(string sellerId, SellerReturnRequestsQuery query);
         Task<ReturnRequestModel?> GetReturnRequestForSellerAsync(int requestId, string sellerId);
-        Task<ReturnRequestModel?> UpdateReturnRequestStatusAsync(int requestId, string sellerId, string status, DateTimeOffset updatedAt);
+        Task<ReturnRequestModel?> UpdateReturnRequestStatusAsync(
+            int requestId,
+            string sellerId,
+            string status,
+            DateTimeOffset updatedAt,
+            string? resolution = null,
+            decimal? refundAmount = null,
+            string? refundStatus = null,
+            string? refundReference = null,
+            string? resolutionNote = null);
         Task<ReturnRequestMessageModel?> AddBuyerReturnRequestMessageAsync(int requestId, string buyerId, string body, DateTimeOffset createdAt);
         Task<ReturnRequestMessageModel?> AddSellerReturnRequestMessageAsync(int requestId, string sellerId, string body, DateTimeOffset createdAt);
         Task<bool> MarkBuyerMessagesReadAsync(int requestId, string buyerId);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -76,9 +77,11 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { caseId });
     }
 
-    public string GetCaseStatusLabel(string status) =>
+    public string GetCaseStatusLabel(string status, string? resolution = null) =>
         status?.ToLowerInvariant() switch
         {
+            ReturnRequestStatus.Completed when !string.IsNullOrWhiteSpace(resolution) =>
+                $"Resolved: {ReturnRequestWorkflow.GetResolutionLabel(resolution)}",
             ReturnRequestStatus.Requested => "Pending seller review",
             ReturnRequestStatus.Approved => "Approved",
             ReturnRequestStatus.PartialProposed => "Partial solution proposed",
@@ -103,16 +106,72 @@ public class DetailsModel : PageModel
             ? "Complaint"
             : "Return";
 
-    public string GetResolutionSummary(string status) =>
-        status?.ToLowerInvariant() switch
+    public string GetResolutionSummary(ReturnRequestModel request)
+    {
+        if (request is null)
         {
+            return "Awaiting seller decision.";
+        }
+
+        var resolutionLabel = ReturnRequestWorkflow.GetResolutionLabel(request.Resolution);
+        return request.Status?.ToLowerInvariant() switch
+        {
+            ReturnRequestStatus.Completed when !string.IsNullOrWhiteSpace(request.Resolution) =>
+                request.Resolution?.ToLowerInvariant() switch
+                {
+                    ReturnRequestResolution.FullRefund => $"Seller approved a full refund{GetRefundDetails(request)}.",
+                    ReturnRequestResolution.PartialRefund => $"Seller approved a partial refund{GetRefundDetails(request)}.",
+                    ReturnRequestResolution.Replacement => "Seller will provide a replacement item.",
+                    ReturnRequestResolution.Repair => "Seller will arrange a repair.",
+                    ReturnRequestResolution.NoRefund => !string.IsNullOrWhiteSpace(request.ResolutionNote)
+                        ? $"Seller rejected the refund: {request.ResolutionNote}"
+                        : "Seller rejected the refund.",
+                    _ => $"Seller marked this case as resolved ({resolutionLabel})."
+                },
+            ReturnRequestStatus.Rejected => !string.IsNullOrWhiteSpace(request.ResolutionNote)
+                ? $"Seller rejected this request: {request.ResolutionNote}"
+                : "Seller rejected this request.",
             ReturnRequestStatus.Approved => "Seller approved this request.",
-            ReturnRequestStatus.Rejected => "Seller rejected this request.",
             ReturnRequestStatus.PartialProposed => "Seller proposed a partial solution.",
             ReturnRequestStatus.InfoRequested => "Seller requested more information.",
             ReturnRequestStatus.Completed => "Case marked as completed.",
             _ => "Awaiting seller decision."
         };
+    }
+
+    public string GetResolutionLabel(ReturnRequestModel request) =>
+        ReturnRequestWorkflow.GetResolutionLabel(request.Resolution);
+
+    public string GetRefundStatusLabel(ReturnRequestModel request) =>
+        request.RefundStatus?.ToLowerInvariant() switch
+        {
+            ReturnRequestRefundStatus.Completed => "Refund completed",
+            ReturnRequestRefundStatus.Linked => "Refund linked",
+            ReturnRequestRefundStatus.Pending => "Refund pending",
+            ReturnRequestRefundStatus.Failed => "Refund failed",
+            _ => "Refund not required"
+        };
+
+    private string GetRefundDetails(ReturnRequestModel request)
+    {
+        var parts = new List<string>();
+        if (request.RefundAmount.HasValue)
+        {
+            parts.Add($"amount {request.RefundAmount.Value:C}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.RefundStatus))
+        {
+            parts.Add(GetRefundStatusLabel(request).ToLowerInvariant());
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.RefundReference))
+        {
+            parts.Add($"reference {request.RefundReference}");
+        }
+
+        return parts.Count > 0 ? $" ({string.Join(", ", parts)})" : string.Empty;
+    }
 
     public string GetSenderLabel(ReturnRequestMessageModel message)
     {

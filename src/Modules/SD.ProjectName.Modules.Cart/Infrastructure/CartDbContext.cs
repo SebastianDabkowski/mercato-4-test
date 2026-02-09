@@ -264,6 +264,11 @@ public class CartDbContext : DbContext
             entity.Property(r => r.Status).HasMaxLength(50);
             entity.Property(r => r.Reason).HasMaxLength(2000);
             entity.Property(r => r.Description).HasMaxLength(4000).HasDefaultValue(string.Empty);
+            entity.Property(r => r.Resolution).HasMaxLength(100);
+            entity.Property(r => r.ResolutionNote).HasMaxLength(2000);
+            entity.Property(r => r.RefundStatus).HasMaxLength(50).HasDefaultValue(ReturnRequestRefundStatus.NotRequired);
+            entity.Property(r => r.RefundReference).HasMaxLength(200);
+            entity.Property(r => r.RefundAmount).HasColumnType("decimal(18,2)");
             entity.Property(r => r.RequestedAt);
             entity.Property(r => r.UpdatedAt);
             entity.Property(r => r.BuyerUnreadCount).HasDefaultValue(0);

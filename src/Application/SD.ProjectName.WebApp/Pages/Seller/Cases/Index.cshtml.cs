@@ -105,9 +105,11 @@ public class IndexModel : PageModel
         return Url.Page("/Seller/Cases/Index", routeValues) ?? string.Empty;
     }
 
-    public string GetCaseStatusLabel(string status) =>
+    public string GetCaseStatusLabel(string status, string? resolution = null) =>
         status?.ToLowerInvariant() switch
         {
+            ReturnRequestStatus.Completed when !string.IsNullOrWhiteSpace(resolution) =>
+                $"Resolved: {ReturnRequestWorkflow.GetResolutionLabel(resolution)}",
             ReturnRequestStatus.Requested => "Pending seller review",
             ReturnRequestStatus.Approved => "Approved",
             ReturnRequestStatus.PartialProposed => "Partial solution proposed",

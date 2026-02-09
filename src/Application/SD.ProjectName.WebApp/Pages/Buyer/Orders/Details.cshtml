@@ -175,7 +175,7 @@
                                 <div class="list-group" data-testid="return-status">
                                     @foreach (var request in sub.ReturnRequests.OrderByDescending(r => r.RequestedAt))
                                     {
-                                        var statusText = Model.GetCaseStatusLabel(request.Status);
+                                        var statusText = Model.GetCaseStatusLabel(request.Status, request.Resolution);
                                         var badgeClass = Model.GetCaseBadgeClass(request.Status);
                                         var typeLabel = Model.GetCaseTypeLabel(request.RequestType);
                                         var itemLabels = request.Items?

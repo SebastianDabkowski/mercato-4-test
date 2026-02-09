@@ -41,7 +41,7 @@ public class DetailsModel : PageModel
     public OrderModel? Order => Case?.Order;
     public bool CanTakeAction =>
         Case is not null &&
-        string.Equals(Case.Status, ReturnRequestStatus.Requested, StringComparison.OrdinalIgnoreCase);
+        !ReturnRequestWorkflow.IsFinalStatus(Case.Status);
     public List<ReturnRequestMessageModel> Thread { get; private set; } = new();
 
     [TempData]
@@ -51,6 +51,16 @@ public class DetailsModel : PageModel
 
     [BindProperty]
     public string MessageBody { get; set; } = string.Empty;
+    [BindProperty]
+    public string ResolutionOption { get; set; } = ReturnRequestResolution.FullRefund;
+    [BindProperty]
+    public decimal? ResolutionRefundAmount { get; set; }
+    [BindProperty]
+    public bool LinkExistingRefund { get; set; }
+    [BindProperty]
+    public string RefundReference { get; set; } = string.Empty;
+    [BindProperty]
+    public string ResolutionNote { get; set; } = string.Empty;
 
     public async Task<IActionResult> OnGetAsync(int caseId)
     {
@@ -70,7 +80,7 @@ public class DetailsModel : PageModel
         return Page();
     }
 
-    public async Task<IActionResult> OnPostDecideAsync(int caseId, string decision)
+    public async Task<IActionResult> OnPostDecideAsync(int caseId)
     {
         var seller = await _userManager.GetUserAsync(User);
         if (seller is null)
@@ -78,7 +88,14 @@ public class DetailsModel : PageModel
             return Challenge();
         }
 
-        var decisionResult = await _returnRequestReviewService.ApplySellerDecisionAsync(caseId, seller.Id, decision);
+        var command = new SellerResolutionCommand(
+            ResolutionOption,
+            ResolutionRefundAmount,
+            LinkExistingRefund,
+            RefundReference,
+            ResolutionNote);
+
+        var decisionResult = await _returnRequestReviewService.ApplySellerResolutionAsync(caseId, seller.Id, command);
         if (!decisionResult.IsSuccess)
         {
             if (decisionResult.IsForbidden)
@@ -97,7 +114,7 @@ public class DetailsModel : PageModel
             return loadResult;
         }
 
-        StatusMessage = $"Case updated to {GetCaseStatusLabel(Case!.Status)}.";
+        StatusMessage = $"Case resolved: {GetCaseStatusLabel(Case!.Status, Case.Resolution)}.";
         await NotifyBuyerAsync(Case!);
 
         return RedirectToPage(new { caseId });
@@ -190,13 +207,15 @@ public class DetailsModel : PageModel
             ? request.SellerOrder!.SellerName
             : request.SellerOrder?.SellerId ?? "Seller";
 
-        var statusLabel = GetCaseStatusLabel(request.Status);
+        var statusLabel = GetCaseStatusLabel(request.Status, request.Resolution);
         await _returnRequestNotificationEmailService.SendSellerDecisionAsync(buyer.Email, request, sellerName, statusLabel);
     }
 
-    public string GetCaseStatusLabel(string status) =>
+    public string GetCaseStatusLabel(string status, string? resolution = null) =>
         status?.ToLowerInvariant() switch
         {
+            ReturnRequestStatus.Completed when !string.IsNullOrWhiteSpace(resolution) =>
+                $"Resolved: {ReturnRequestWorkflow.GetResolutionLabel(resolution)}",
             ReturnRequestStatus.Requested => "Pending seller review",
             ReturnRequestStatus.Approved => "Approved",
             ReturnRequestStatus.PartialProposed => "Partial solution proposed",
@@ -214,6 +233,19 @@ public class DetailsModel : PageModel
             ReturnRequestStatus.Completed => "bg-secondary",
             ReturnRequestStatus.PartialProposed => "bg-info text-dark",
             _ => "bg-warning text-dark"
+        };
+
+    public string GetResolutionLabel(ReturnRequestModel request) =>
+        ReturnRequestWorkflow.GetResolutionLabel(request.Resolution);
+
+    public string GetRefundStatusLabel(ReturnRequestModel request) =>
+        request.RefundStatus?.ToLowerInvariant() switch
+        {
+            ReturnRequestRefundStatus.Completed => "Refund completed",
+            ReturnRequestRefundStatus.Linked => "Refund linked",
+            ReturnRequestRefundStatus.Pending => "Refund pending",
+            ReturnRequestRefundStatus.Failed => "Refund failed",
+            _ => "Refund not required"
         };
 
     public string GetCaseTypeLabel(string requestType) =>
