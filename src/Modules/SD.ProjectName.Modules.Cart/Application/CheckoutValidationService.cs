@@ -39,7 +39,9 @@ public class CheckoutValidationService : ICheckoutValidationService
         {
             issues.Add(CheckoutValidationIssue.ForCart("payment-required", "Payment authorization is required before placing the order."));
         }
-        else if (requirePaymentAuthorized && paymentSelection.Status != PaymentStatus.Authorized)
+        else if (requirePaymentAuthorized &&
+                 paymentSelection.Status != PaymentStatus.Authorized &&
+                 paymentSelection.Status != PaymentStatus.Paid)
         {
             issues.Add(CheckoutValidationIssue.ForCart("payment-required", "Payment authorization is required before placing the order."));
         }

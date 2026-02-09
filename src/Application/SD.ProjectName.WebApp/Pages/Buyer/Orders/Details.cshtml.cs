@@ -34,6 +34,8 @@ public class DetailsModel : PageModel
     public OrderModel? Order { get; private set; }
     public string EstimatedDeliveryText { get; private set; } = string.Empty;
     public string OverallStatus { get; private set; } = string.Empty;
+    public string PaymentStatusText { get; private set; } = string.Empty;
+    public bool IsPaymentFailed { get; private set; }
     public bool CanCancel { get; private set; }
     public Dictionary<int, ReturnRequestInfo> ReturnInfo { get; } = new();
 
@@ -53,6 +55,9 @@ public class DetailsModel : PageModel
         }
 
         OverallStatus = OrderStatusFlow.NormalizeStatus(OrderStatusFlow.CalculateOverallStatus(Order));
+        var paymentSelection = await _cartRepository.GetPaymentSelectionByOrderIdAsync(orderId);
+        PaymentStatusText = ResolvePaymentStatus(Order, paymentSelection);
+        IsPaymentFailed = string.Equals(PaymentStatusText, "Failed", StringComparison.OrdinalIgnoreCase);
         CanCancel = Order.SubOrders.All(o => OrderStatusFlow.CanCancel(o.Status)) &&
                     !string.Equals(OverallStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(OverallStatus, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase) &&
@@ -86,6 +91,41 @@ public class DetailsModel : PageModel
 
         return RedirectToPage(new { orderId });
     }
+
+    private static string ResolvePaymentStatus(OrderModel order, PaymentSelectionModel? paymentSelection)
+    {
+        if (paymentSelection is not null)
+        {
+            var normalized = NormalizePaymentStatus(paymentSelection.Status);
+            return normalized switch
+            {
+                PaymentStatus.Paid => "Paid",
+                PaymentStatus.Pending => "Pending",
+                PaymentStatus.Failed => "Failed",
+                PaymentStatus.Refunded => "Refunded",
+                _ => "Pending"
+            };
+        }
+
+        var normalizedOrderStatus = OrderStatusFlow.NormalizeStatus(order.Status);
+        return normalizedOrderStatus switch
+        {
+            OrderStatus.Refunded => "Refunded",
+            OrderStatus.Failed => "Failed",
+            OrderStatus.Paid => "Paid",
+            OrderStatus.New => "Pending",
+            OrderStatus.Pending => "Pending",
+            _ => "Paid"
+        };
+    }
+
+    private static PaymentStatus NormalizePaymentStatus(PaymentStatus status) =>
+        status switch
+        {
+            PaymentStatus.Authorized => PaymentStatus.Paid,
+            PaymentStatus.Cancelled => PaymentStatus.Failed,
+            _ => status
+        };
 
     public async Task<IActionResult> OnPostMarkDeliveredAsync(int orderId, int subOrderId)
     {

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using SD.ProjectName.Modules.Cart.Domain;
 using SD.ProjectName.WebApp.Services;
 
 namespace SD.ProjectName.WebApp.Pages.Buyer.Checkout;
@@ -30,6 +31,18 @@ public class PaymentCallbackModel : PageModel
             return RedirectToPage("/Buyer/Checkout/Payment");
         }
 
+        if (result.Status == PaymentStatus.Pending && result.OrderId.HasValue)
+        {
+            TempData["PaymentStatus"] = "Payment is pending confirmation.";
+            return RedirectToPage("/Buyer/Orders/Details", new { orderId = result.OrderId.Value });
+        }
+
+        if (result.Status == PaymentStatus.Refunded && result.OrderId.HasValue)
+        {
+            TempData["PaymentStatus"] = "Payment refunded.";
+            return RedirectToPage("/Buyer/Orders/Details", new { orderId = result.OrderId.Value });
+        }
+
         if (result.Success && result.OrderId.HasValue)
         {
             TempData["PaymentStatus"] = "Payment completed successfully.";
@@ -38,9 +51,11 @@ public class PaymentCallbackModel : PageModel
 
         if (result.Failure)
         {
-            TempData["PaymentError"] = "Payment failed. Please try again.";
+            const string error = "Payment failed. Please try again.";
+            TempData["PaymentError"] = error;
             if (result.OrderId.HasValue)
             {
+                TempData["OrderError"] = error;
                 return RedirectToPage("/Buyer/Orders/Details", new { orderId = result.OrderId.Value });
             }
 

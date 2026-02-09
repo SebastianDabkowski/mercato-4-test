@@ -21,6 +21,10 @@
 {
     <div class="alert alert-danger">@orderError</div>
 }
+@if (Model.IsPaymentFailed)
+{
+    <div class="alert alert-warning">Payment failed. Please try the payment again or contact support if this persists.</div>
+}
 
 <div class="row">
     <div class="col-lg-8">
@@ -270,6 +274,10 @@
                 <div class="d-flex justify-content-between">
                     <span>Placed</span>
                     <span>@order.CreatedAt.ToLocalTime().ToString("f")</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Payment status</span>
+                    <span class="text-capitalize">@Model.PaymentStatusText</span>
                 </div>
                 <div class="d-flex justify-content-between">
                     <span>Payment</span>

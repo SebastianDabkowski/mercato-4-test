@@ -89,7 +89,8 @@ public class ConfirmationModel : PageModel
         }
 
         PaymentSelection = await _cartRepository.GetPaymentSelectionAsync(buyerId);
-        if (PaymentSelection is null || PaymentSelection.Status != PaymentStatus.Authorized)
+        if (PaymentSelection is null ||
+            (PaymentSelection.Status != PaymentStatus.Authorized && PaymentSelection.Status != PaymentStatus.Paid))
         {
             TempData["CheckoutError"] = "Complete payment before viewing the confirmation page.";
             return RedirectToPage("/Buyer/Checkout/Payment");

@@ -36,7 +36,8 @@ public class PlaceOrder
         using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
 
         var requirePaymentAuthorized = paymentStatusOverride is null ||
-                                       paymentStatusOverride == PaymentStatus.Authorized;
+                                       paymentStatusOverride == PaymentStatus.Authorized ||
+                                       paymentStatusOverride == PaymentStatus.Paid;
         var validation = await _checkoutValidationService.ValidateAsync(buyerId, requirePaymentAuthorized);
         if (!validation.IsValid)
         {
@@ -48,6 +49,7 @@ public class PlaceOrder
         {
             PaymentStatus.Authorized => OrderStatus.Paid,
             PaymentStatus.Failed => OrderStatus.Failed,
+            PaymentStatus.Refunded => OrderStatus.Refunded,
             _ => OrderStatus.Pending
         };
 

@@ -430,6 +430,11 @@ public class CartRepository : ICartRepository
         return await _context.PaymentSelections.FirstOrDefaultAsync(p => p.BuyerId == buyerId);
     }
 
+    public async Task<PaymentSelectionModel?> GetPaymentSelectionByOrderIdAsync(int orderId)
+    {
+        return await _context.PaymentSelections.FirstOrDefaultAsync(p => p.OrderId == orderId);
+    }
+
     public async Task<bool> HasEscrowEntriesAsync(int orderId)
     {
         return await _context.EscrowLedgerEntries.AnyAsync(e => e.OrderId == orderId);
