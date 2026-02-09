@@ -55,6 +55,9 @@ public class CartDbContext : DbContext
             entity.ToTable("ShippingRule");
             entity.HasIndex(sr => sr.SellerId);
             entity.Property(sr => sr.ShippingMethod).HasMaxLength(100);
+            entity.Property(sr => sr.DeliveryEstimate).HasMaxLength(200);
+            entity.Property(sr => sr.AllowedRegions).HasMaxLength(500);
+            entity.Property(sr => sr.AllowedCountryCodes).HasMaxLength(200);
         });
 
         modelBuilder.Entity<DeliveryAddressModel>(entity =>
@@ -77,6 +80,7 @@ public class CartDbContext : DbContext
             entity.ToTable("ShippingSelection");
             entity.HasIndex(s => new { s.BuyerId, s.SellerId }).IsUnique();
             entity.Property(s => s.ShippingMethod).HasMaxLength(100);
+            entity.Property(s => s.DeliveryEstimate).HasMaxLength(200);
         });
 
         modelBuilder.Entity<PaymentSelectionModel>(entity =>
@@ -184,6 +188,7 @@ public class CartDbContext : DbContext
             entity.Property(os => os.SellerId).HasMaxLength(100);
             entity.Property(os => os.SellerName).HasMaxLength(200);
             entity.Property(os => os.ShippingMethod).HasMaxLength(100);
+            entity.Property(os => os.DeliveryEstimate).HasMaxLength(200);
             entity
                 .HasOne<OrderModel>()
                 .WithMany(o => o.ShippingSelections)

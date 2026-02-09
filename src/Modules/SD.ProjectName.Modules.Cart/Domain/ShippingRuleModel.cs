@@ -6,6 +6,9 @@ public class ShippingRuleModel
     public string SellerId { get; set; } = string.Empty;
     public string ShippingMethod { get; set; } = string.Empty;
     public decimal BasePrice { get; set; }
+    public string? DeliveryEstimate { get; set; }
+    public string? AllowedRegions { get; set; }
+    public string? AllowedCountryCodes { get; set; }
     public decimal? FreeShippingThreshold { get; set; }
     public decimal? PricePerKg { get; set; }
     public decimal? MaxWeightKg { get; set; }

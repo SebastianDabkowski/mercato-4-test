@@ -221,7 +221,14 @@
                     <div>@(subOrder.ShippingSelection?.ShippingMethod ?? "Not selected")</div>
                     <div class="text-muted small">Cost @subOrder.ShippingTotal.ToString("C")</div>
                 </div>
-                @if (subOrder.ShippingSelection?.EstimatedDeliveryDate is { } eta)
+                @if (!string.IsNullOrWhiteSpace(subOrder.ShippingSelection?.DeliveryEstimate))
+                {
+                    <div class="mb-2">
+                        <div class="text-muted small">Estimated delivery</div>
+                        <div>@subOrder.ShippingSelection?.DeliveryEstimate</div>
+                    </div>
+                }
+                else if (subOrder.ShippingSelection?.EstimatedDeliveryDate is { } eta)
                 {
                     <div class="mb-2">
                         <div class="text-muted small">Estimated delivery</div>

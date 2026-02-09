@@ -64,6 +64,9 @@
                             <input class="form-check-input" type="radio" name="@fieldName" value="@option.ShippingMethod" id="@($"{seller.SellerId}-{option.ShippingMethod}")" @(isChecked ? "checked" : "") data-testid="shipping-option" />
                             <label class="form-check-label" for="@($"{seller.SellerId}-{option.ShippingMethod}")">
                                 @option.ShippingMethod - @option.Cost.ToString("C")
+                                <div class="text-muted small">
+                                    Estimated delivery: @(string.IsNullOrWhiteSpace(option.DeliveryEstimate) ? "Not provided" : option.DeliveryEstimate)
+                                </div>
                             </label>
                         </div>
                     }
