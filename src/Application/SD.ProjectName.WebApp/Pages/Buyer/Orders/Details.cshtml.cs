@@ -38,10 +38,16 @@ public class DetailsModel : PageModel
         Order = await _cartRepository.GetOrderAsync(orderId, buyerId);
         if (Order is null)
         {
+            var existingOrder = await _cartRepository.GetOrderWithSubOrdersAsync(orderId);
+            if (existingOrder is not null)
+            {
+                return Forbid();
+            }
+
             return NotFound();
         }
 
-        OverallStatus = OrderStatusFlow.CalculateOverallStatus(Order);
+        OverallStatus = OrderStatusFlow.NormalizeStatus(OrderStatusFlow.CalculateOverallStatus(Order));
         CanCancel = Order.SubOrders.All(o => OrderStatusFlow.CanCancel(o.Status)) &&
                     !string.Equals(OverallStatus, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase) &&
                     !string.Equals(OverallStatus, OrderStatus.Refunded, StringComparison.OrdinalIgnoreCase) &&

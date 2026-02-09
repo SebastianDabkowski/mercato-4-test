@@ -1,5 +1,6 @@
 @page "/buyer/orders/{orderId:int}"
 @model SD.ProjectName.WebApp.Pages.Buyer.Orders.DetailsModel
+@using System
 @using SD.ProjectName.Modules.Cart.Domain
 @{
     ViewData["Title"] = "Order confirmation";
@@ -24,21 +25,38 @@
     <div class="col-lg-8">
         @if (order.SubOrders.Any())
         {
+            <div class="alert alert-info">Each seller may ship separately, so statuses and delivery dates can differ.</div>
             foreach (var sub in order.SubOrders)
             {
                 <div class="card mb-3">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <span>Seller: @(string.IsNullOrWhiteSpace(sub.SellerName) ? sub.SellerId : sub.SellerName)</span>
                         <span class="badge bg-secondary text-uppercase">@OrderStatusFlow.NormalizeStatus(sub.Status)</span>
                     </div>
                     <div class="card-body">
+                        @if (string.Equals(sub.Status, OrderStatus.Cancelled, StringComparison.OrdinalIgnoreCase))
+                        {
+                            <div class="text-warning small mb-2">This sub-order was cancelled; items below will not be shipped (value: @sub.TotalAmount.ToString("C")).</div>
+                        }
+                        @if (sub.RefundedAmount > 0)
+                        {
+                            <div class="text-success small mb-2">Refunded amount for this sub-order: @sub.RefundedAmount.ToString("C").</div>
+                        }
                         <p class="mb-2">
                             <strong>Shipping:</strong>
                             @(sub.ShippingSelection?.ShippingMethod ?? "Not selected")
                             (<span class="text-muted">@sub.ShippingTotal.ToString("C")</span>)
                             @if (!string.IsNullOrWhiteSpace(sub.TrackingNumber))
                             {
-                                <span class="badge bg-light text-dark ms-2">Tracking: @sub.TrackingNumber</span>
+                                var trackingNumber = sub.TrackingNumber;
+                                if (Uri.TryCreate(trackingNumber, UriKind.Absolute, out var trackingUri))
+                                {
+                                    <a class="badge bg-light text-dark ms-2" href="@trackingUri" target="_blank" rel="noopener noreferrer">Tracking: @trackingNumber</a>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-light text-dark ms-2" data-testid="tracking-number">Tracking: @trackingNumber</span>
+                                }
                             }
                         </p>
                         <div class="table-responsive">
@@ -84,7 +102,7 @@
                                 @if (sub.RefundedAmount > 0)
                                 {
                                     <div class="d-flex justify-content-between text-success">
-                                        <span>Refunded</span>
+                                        <span>Refunded amount</span>
                                         <span>@sub.RefundedAmount.ToString("C")</span>
                                     </div>
                                 }
@@ -197,7 +215,7 @@
                 @if (order.RefundedAmount > 0)
                 {
                     <div class="d-flex justify-content-between text-success">
-                        <span>Refunded</span>
+                        <span>Refunded amount</span>
                         <span>@order.RefundedAmount.ToString("C")</span>
                     </div>
                 }

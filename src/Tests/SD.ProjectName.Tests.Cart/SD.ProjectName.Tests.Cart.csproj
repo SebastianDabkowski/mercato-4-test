@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Modules\SD.ProjectName.Modules.Cart\SD.ProjectName.Modules.Cart.csproj" />
+    <ProjectReference Include="..\..\Application\SD.ProjectName.WebApp/SD.ProjectName.WebApp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
