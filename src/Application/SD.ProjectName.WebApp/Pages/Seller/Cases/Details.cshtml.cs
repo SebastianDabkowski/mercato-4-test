@@ -20,17 +20,20 @@ public class DetailsModel : PageModel
     private readonly ICartRepository _cartRepository;
     private readonly ReturnRequestReviewService _returnRequestReviewService;
     private readonly ReturnRequestNotificationEmailService _returnRequestNotificationEmailService;
+    private readonly TimeProvider _timeProvider;
 
     public DetailsModel(
         UserManager<ApplicationUser> userManager,
         ICartRepository cartRepository,
         ReturnRequestReviewService returnRequestReviewService,
-        ReturnRequestNotificationEmailService returnRequestNotificationEmailService)
+        ReturnRequestNotificationEmailService returnRequestNotificationEmailService,
+        TimeProvider timeProvider)
     {
         _userManager = userManager;
         _cartRepository = cartRepository;
         _returnRequestReviewService = returnRequestReviewService;
         _returnRequestNotificationEmailService = returnRequestNotificationEmailService;
+        _timeProvider = timeProvider;
     }
 
     public ReturnRequestModel? Case { get; private set; }
@@ -39,11 +42,15 @@ public class DetailsModel : PageModel
     public bool CanTakeAction =>
         Case is not null &&
         string.Equals(Case.Status, ReturnRequestStatus.Requested, StringComparison.OrdinalIgnoreCase);
+    public List<ReturnRequestMessageModel> Thread { get; private set; } = new();
 
     [TempData]
     public string? StatusMessage { get; set; }
     [TempData]
     public string? ErrorMessage { get; set; }
+
+    [BindProperty]
+    public string MessageBody { get; set; } = string.Empty;
 
     public async Task<IActionResult> OnGetAsync(int caseId)
     {
@@ -54,7 +61,13 @@ public class DetailsModel : PageModel
         }
 
         var result = await LoadCaseAsync(caseId, seller.Id);
-        return result ?? Page();
+        if (result is not null)
+        {
+            return result;
+        }
+
+        await _cartRepository.MarkSellerMessagesReadAsync(caseId, seller.Id);
+        return Page();
     }
 
     public async Task<IActionResult> OnPostDecideAsync(int caseId, string decision)
@@ -90,6 +103,42 @@ public class DetailsModel : PageModel
         return RedirectToPage(new { caseId });
     }
 
+    public async Task<IActionResult> OnPostMessageAsync(int caseId)
+    {
+        var seller = await _userManager.GetUserAsync(User);
+        if (seller is null)
+        {
+            return Challenge();
+        }
+
+        var trimmed = MessageBody?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            ModelState.AddModelError(nameof(MessageBody), "Please enter a message.");
+        }
+
+        var result = await LoadCaseAsync(caseId, seller.Id);
+        if (result is not null)
+        {
+            return result;
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return Page();
+        }
+
+        var created = await _cartRepository.AddSellerReturnRequestMessageAsync(caseId, seller.Id, trimmed, _timeProvider.GetUtcNow());
+        if (created is null)
+        {
+            return Forbid();
+        }
+
+        await _cartRepository.MarkSellerMessagesReadAsync(caseId, seller.Id);
+        StatusMessage = "Message sent.";
+        return RedirectToPage(new { caseId });
+    }
+
     private async Task<IActionResult?> LoadCaseAsync(int caseId, string sellerId)
     {
         Case = await _cartRepository.GetReturnRequestForSellerAsync(caseId, sellerId);
@@ -102,6 +151,22 @@ public class DetailsModel : PageModel
             }
 
             return NotFound();
+        }
+
+        Thread = (Case.Messages ?? new List<ReturnRequestMessageModel>())
+            .OrderBy(m => m.CreatedAt)
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(Case.Description))
+        {
+            Thread.Insert(0, new ReturnRequestMessageModel
+            {
+                ReturnRequestId = Case.Id,
+                SenderRole = ReturnRequestMessageSender.Buyer,
+                SenderId = Case.BuyerId,
+                Body = Case.Description,
+                CreatedAt = Case.RequestedAt
+            });
         }
 
         return null;
@@ -159,4 +224,14 @@ public class DetailsModel : PageModel
     public string GetBuyerAlias() => Order?.BuyerId?.Length > 6
         ? $"Buyer {Order.BuyerId[^6..]}"
         : Order?.BuyerId ?? "Buyer";
+
+    public string GetSenderLabel(ReturnRequestMessageModel message)
+    {
+        return message.SenderRole?.ToLowerInvariant() switch
+        {
+            ReturnRequestMessageSender.Seller => "You",
+            ReturnRequestMessageSender.Buyer => GetBuyerAlias(),
+            _ => "System"
+        };
+    }
 }

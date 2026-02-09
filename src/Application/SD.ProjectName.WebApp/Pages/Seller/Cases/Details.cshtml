@@ -139,32 +139,36 @@
         </div>
 
         <div class="card">
-            <div class="card-header">Case history</div>
+            <div class="card-header">Case messaging</div>
             <div class="list-group list-group-flush">
-                <div class="list-group-item">
-                    <div class="fw-semibold">Buyer</div>
-                    <div class="text-muted small">Submitted @request.RequestedAt.ToLocalTime().ToString("g")</div>
-                    @if (!string.IsNullOrWhiteSpace(request.Description))
-                    {
-                        <div>@request.Description</div>
-                    }
-                    else
-                    {
-                        <div class="text-muted">No additional details provided.</div>
-                    }
-                </div>
-                @if (!string.Equals(request.Status, ReturnRequestStatus.Requested, StringComparison.OrdinalIgnoreCase) && request.UpdatedAt.HasValue)
+                @if (Model.Thread.Any())
                 {
-                    <div class="list-group-item">
-                        <div class="fw-semibold">Seller</div>
-                        <div class="text-muted small">@request.UpdatedAt.Value.ToLocalTime().ToString("g")</div>
-                        <div>@Model.GetCaseStatusLabel(request.Status)</div>
-                    </div>
+                    @foreach (var message in Model.Thread)
+                    {
+                        <div class="list-group-item">
+                            <div class="fw-semibold">@Model.GetSenderLabel(message)</div>
+                            <div class="text-muted small">@message.CreatedAt.ToLocalTime().ToString("g")</div>
+                            <div>@message.Body</div>
+                        </div>
+                    }
                 }
                 else
                 {
-                    <div class="list-group-item text-muted">Awaiting your response.</div>
+                    <div class="list-group-item text-muted">No messages yet.</div>
                 }
+            </div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="Message" class="d-flex flex-column gap-2">
+                    <div>
+                        <label asp-for="MessageBody" class="form-label">New message to buyer</label>
+                        <textarea asp-for="MessageBody" class="form-control" rows="3" maxlength="4000"></textarea>
+                        <span asp-validation-for="MessageBody" class="text-danger"></span>
+                        <div class="form-text">Share updates or requests; avoid asking for personal contact details.</div>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary">Send message</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

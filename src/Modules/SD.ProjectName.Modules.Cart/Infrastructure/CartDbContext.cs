@@ -24,6 +24,7 @@ public class CartDbContext : DbContext
     public DbSet<SellerOrderModel> SellerOrders { get; set; }
     public DbSet<ReturnRequestModel> ReturnRequests { get; set; }
     public DbSet<ReturnRequestItemModel> ReturnRequestItems { get; set; }
+    public DbSet<ReturnRequestMessageModel> ReturnRequestMessages { get; set; }
     public DbSet<ShippingStatusHistory> ShippingStatusHistory { get; set; }
     public DbSet<EscrowLedgerEntry> EscrowLedgerEntries { get; set; }
     public DbSet<PayoutSchedule> PayoutSchedules { get; set; }
@@ -265,6 +266,8 @@ public class CartDbContext : DbContext
             entity.Property(r => r.Description).HasMaxLength(4000).HasDefaultValue(string.Empty);
             entity.Property(r => r.RequestedAt);
             entity.Property(r => r.UpdatedAt);
+            entity.Property(r => r.BuyerUnreadCount).HasDefaultValue(0);
+            entity.Property(r => r.SellerUnreadCount).HasDefaultValue(0);
             entity
                 .HasOne(r => r.Order)
                 .WithMany()
@@ -287,6 +290,22 @@ public class CartDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(i => i.OrderItemId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ReturnRequestMessageModel>(entity =>
+        {
+            entity.ToTable("ReturnRequestMessage");
+            entity.HasIndex(m => m.ReturnRequestId);
+            entity.HasIndex(m => m.CreatedAt);
+            entity.Property(m => m.SenderRole).HasMaxLength(50);
+            entity.Property(m => m.SenderId).HasMaxLength(200);
+            entity.Property(m => m.Body).HasMaxLength(4000);
+            entity.Property(m => m.CreatedAt);
+            entity
+                .HasOne(m => m.ReturnRequest)
+                .WithMany(r => r.Messages)
+                .HasForeignKey(m => m.ReturnRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<EscrowLedgerEntry>(entity =>
