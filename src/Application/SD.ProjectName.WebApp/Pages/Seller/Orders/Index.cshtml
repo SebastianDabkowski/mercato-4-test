@@ -115,7 +115,20 @@ else
                             <div class="text-muted small">@order.ShippingTotal.ToString("C")</div>
                             @if (!string.IsNullOrWhiteSpace(order.TrackingNumber))
                             {
-                                <div class="small mt-1">Tracking: @order.TrackingNumber</div>
+                                var trackingUrl = !string.IsNullOrWhiteSpace(order.TrackingUrl)
+                                    ? order.TrackingUrl
+                                    : (Uri.TryCreate(order.TrackingNumber, UriKind.Absolute, out var trackingUri) ? trackingUri.ToString() : null);
+                                <div class="small mt-1">
+                                    <span>Tracking: @order.TrackingNumber</span>
+                                    @if (!string.IsNullOrWhiteSpace(order.TrackingCarrier))
+                                    {
+                                        <span class="text-muted ms-1">(@order.TrackingCarrier)</span>
+                                    }
+                                    @if (!string.IsNullOrWhiteSpace(trackingUrl))
+                                    {
+                                        <a class="ms-2" href="@trackingUrl" target="_blank" rel="noopener noreferrer">Open</a>
+                                    }
+                                </div>
                             }
                         </td>
                         <td class="text-end">
@@ -160,7 +173,9 @@ else
                                         </select>
                                         @if (nextStatuses.Contains(OrderStatus.Shipped))
                                         {
-                                            <input type="text" name="trackingNumber" class="form-control form-control-sm" placeholder="Tracking (optional)" />
+                                            <input type="text" name="trackingNumber" class="form-control form-control-sm" placeholder="Tracking number" />
+                                            <input type="text" name="trackingCarrier" class="form-control form-control-sm" placeholder="Carrier" />
+                                            <input type="text" name="trackingUrl" class="form-control form-control-sm" placeholder="Tracking URL (optional)" />
                                         }
                                         <button type="submit" class="btn btn-sm btn-primary">Update</button>
                                     </form>

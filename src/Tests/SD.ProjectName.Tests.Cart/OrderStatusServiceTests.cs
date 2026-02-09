@@ -46,12 +46,46 @@ public class OrderStatusServiceTests
         var order = await SeedOrderAsync(repo, OrderStatus.Preparing);
         var service = CreateService(repo);
 
-        var result = await service.UpdateSellerOrderStatusAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId, OrderStatus.Shipped, trackingNumber: "TRACK-123");
+        var result = await service.UpdateSellerOrderStatusAsync(
+            order.SubOrders[0].Id,
+            order.SubOrders[0].SellerId,
+            OrderStatus.Shipped,
+            trackingNumber: "TRACK-123",
+            trackingCarrier: "DHL",
+            trackingUrl: "https://track.test/123");
 
         Assert.True(result.IsSuccess);
         var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
         Assert.Equal("TRACK-123", updated!.TrackingNumber);
+        Assert.Equal("DHL", updated.TrackingCarrier);
+        Assert.Equal("https://track.test/123", updated.TrackingUrl);
         Assert.Equal(OrderStatus.Shipped, updated.Order!.Status);
+    }
+
+    [Fact]
+    public async Task UpdateSellerOrderStatusAsync_AllowsTrackingUpdateWithoutStatusChange()
+    {
+        var repo = CreateRepository(nameof(UpdateSellerOrderStatusAsync_AllowsTrackingUpdateWithoutStatusChange));
+        var order = await SeedOrderAsync(repo, OrderStatus.Shipped);
+        order.SubOrders[0].TrackingNumber = "OLD-TRACK";
+        order.SubOrders[0].TrackingCarrier = "OldCarrier";
+        order.SubOrders[0].TrackingUrl = "https://carrier.old/OLD-TRACK";
+        var service = CreateService(repo);
+
+        var result = await service.UpdateSellerOrderStatusAsync(
+            order.SubOrders[0].Id,
+            order.SubOrders[0].SellerId,
+            OrderStatus.Shipped,
+            trackingNumber: "NEW-TRACK",
+            trackingCarrier: "NewCarrier",
+            trackingUrl: "https://carrier.new/NEW-TRACK");
+
+        Assert.True(result.IsSuccess);
+        var updated = await repo.GetSellerOrderAsync(order.SubOrders[0].Id, order.SubOrders[0].SellerId);
+        Assert.Equal(OrderStatus.Shipped, updated!.Status);
+        Assert.Equal("NEW-TRACK", updated.TrackingNumber);
+        Assert.Equal("NewCarrier", updated.TrackingCarrier);
+        Assert.Equal("https://carrier.new/NEW-TRACK", updated.TrackingUrl);
     }
 
     [Fact]
@@ -72,6 +106,9 @@ public class OrderStatusServiceTests
     {
         var repo = CreateRepository(nameof(CancelOrderAsync_ReleasesEscrow));
         var order = await SeedOrderAsync(repo, OrderStatus.Paid);
+        order.SubOrders[0].TrackingNumber = "TRACK-CANCEL";
+        order.SubOrders[0].TrackingCarrier = "Carrier";
+        order.SubOrders[0].TrackingUrl = "https://carrier.test/TRACK-CANCEL";
         var escrow = new EscrowLedgerEntry
         {
             OrderId = order.Id,
@@ -96,6 +133,9 @@ public class OrderStatusServiceTests
         Assert.Equal(EscrowLedgerStatus.ReleasedToBuyer, ledger[0].Status);
         Assert.NotNull(ledger[0].ReleasedAt);
         Assert.Equal("Order cancelled", ledger[0].ReleaseReason);
+        Assert.Null(order.SubOrders[0].TrackingNumber);
+        Assert.Null(order.SubOrders[0].TrackingCarrier);
+        Assert.Null(order.SubOrders[0].TrackingUrl);
     }
 
     [Fact]
@@ -182,6 +222,9 @@ public class OrderStatusServiceTests
         var repo = CreateRepository(nameof(RefundSellerOrderAsync_ReleasesEscrowOnFullRefund));
         var order = await SeedOrderAsync(repo, OrderStatus.Delivered);
         order.SubOrders[0].DeliveredAt = DateTimeOffset.UtcNow.AddDays(-2);
+        order.SubOrders[0].TrackingNumber = "TRACK-REFUND";
+        order.SubOrders[0].TrackingCarrier = "Carrier";
+        order.SubOrders[0].TrackingUrl = "https://carrier.test/TRACK-REFUND";
         var escrow = new EscrowLedgerEntry
         {
             OrderId = order.Id,
@@ -205,6 +248,9 @@ public class OrderStatusServiceTests
         Assert.Equal(OrderStatus.Refunded, updated!.Status);
         Assert.Equal(order.SubOrders[0].TotalAmount, updated.RefundedAmount);
         Assert.Equal(order.SubOrders[0].TotalAmount, updated.Order!.RefundedAmount);
+        Assert.Null(updated.TrackingNumber);
+        Assert.Null(updated.TrackingCarrier);
+        Assert.Null(updated.TrackingUrl);
         var ledger = await repo.GetEscrowEntryForSellerOrderAsync(order.SubOrders[0].Id);
         Assert.NotNull(ledger);
         Assert.Equal(EscrowLedgerStatus.ReleasedToBuyer, ledger!.Status);

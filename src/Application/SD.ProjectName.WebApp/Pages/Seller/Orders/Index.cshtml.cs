@@ -101,7 +101,12 @@ public class IndexModel : PageModel
         return File(Encoding.UTF8.GetBytes(csv), "text/csv", fileName);
     }
 
-    public async Task<IActionResult> OnPostUpdateStatusAsync(int sellerOrderId, string status, string? trackingNumber)
+    public async Task<IActionResult> OnPostUpdateStatusAsync(
+        int sellerOrderId,
+        string status,
+        string? trackingNumber,
+        string? trackingCarrier,
+        string? trackingUrl)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user is null)
@@ -111,7 +116,13 @@ public class IndexModel : PageModel
 
         NormalizeFilters();
 
-        var result = await _orderStatusService.UpdateSellerOrderStatusAsync(sellerOrderId, user.Id, status, trackingNumber);
+        var result = await _orderStatusService.UpdateSellerOrderStatusAsync(
+            sellerOrderId,
+            user.Id,
+            status,
+            trackingNumber,
+            trackingCarrier,
+            trackingUrl);
         if (!result.IsSuccess)
         {
             ErrorMessage = result.Error;

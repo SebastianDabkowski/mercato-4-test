@@ -75,6 +75,8 @@ public class SellerOrderModel
     public DateTimeOffset? CommissionCalculatedAt { get; set; }
     public string Status { get; set; } = OrderStatus.New;
     public string? TrackingNumber { get; set; }
+    public string? TrackingCarrier { get; set; }
+    public string? TrackingUrl { get; set; }
     public DateTimeOffset? DeliveredAt { get; set; }
     public OrderShippingSelectionModel? ShippingSelection { get; set; }
     public List<OrderItemModel> Items { get; set; } = new();

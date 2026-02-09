@@ -79,7 +79,9 @@ public class DetailsModel : PageModel
         int sellerOrderId,
         string actionType,
         List<int>? itemIds,
-        string? trackingNumber)
+        string? trackingNumber,
+        string? trackingCarrier,
+        string? trackingUrl)
     {
         var seller = await _userManager.GetUserAsync(User);
         if (seller is null)
@@ -103,7 +105,9 @@ public class DetailsModel : PageModel
             seller.Id,
             shippedIds,
             cancelledIds,
-            trackingNumber);
+            trackingNumber,
+            trackingCarrier,
+            trackingUrl);
 
         if (!result.IsSuccess)
         {
@@ -112,6 +116,50 @@ public class DetailsModel : PageModel
         else
         {
             StatusMessage = isCancel ? "Selected items were cancelled." : "Selected items marked as shipped.";
+        }
+
+        return RedirectToPage(new { sellerOrderId });
+    }
+
+    public async Task<IActionResult> OnPostUpdateTrackingAsync(
+        int sellerOrderId,
+        string? trackingNumber,
+        string? trackingCarrier,
+        string? trackingUrl)
+    {
+        var seller = await _userManager.GetUserAsync(User);
+        if (seller is null)
+        {
+            return Challenge();
+        }
+
+        var sellerOrder = await _cartRepository.GetSellerOrderAsync(sellerOrderId, seller.Id);
+        if (sellerOrder is null)
+        {
+            var existing = await _cartRepository.GetSellerOrderByIdAsync(sellerOrderId);
+            if (existing is not null)
+            {
+                return Forbid();
+            }
+
+            return NotFound();
+        }
+
+        var result = await _orderStatusService.UpdateSellerOrderStatusAsync(
+            sellerOrderId,
+            seller.Id,
+            sellerOrder.Status,
+            trackingNumber,
+            trackingCarrier,
+            trackingUrl);
+
+        if (!result.IsSuccess)
+        {
+            ErrorMessage = result.Error;
+        }
+        else
+        {
+            StatusMessage = "Tracking updated.";
         }
 
         return RedirectToPage(new { sellerOrderId });
